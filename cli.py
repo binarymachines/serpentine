@@ -124,9 +124,9 @@ class MultipleChoiceMenuPrompt:
             elif ',' in self.reply:
                 newSelections = [item.strip() for item in self.reply.split(',')]
                 for selectedIndex in newSelections:
-                    try:
-                        selectedIndex = int(self.reply)
-                        if selectedIndex < 1 : raise IndexError
+                    try:                        
+                        if selectedIndex < 1: 
+                            raise IndexError
                         self.selections.append(self.menu.values[selectedIndex - 1])
                     except IndexError:
                         screen.addstr('\nYou selected a menu index which is not available. Hit any key to continue.')
