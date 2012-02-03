@@ -133,12 +133,12 @@ class MultipleChoiceMenuPrompt:
                         screen.getch()
                         screen.clear()
                         break
-                     except ValueError:
+                    except ValueError:
                         screen.addstr('\nYour choice must be a numeric index from the menu. Hit any key to continue.')
                         screen.getch()
                         screen.clear()
                         break
-                     except errors.MenuInputError:
+                    except errors.MenuInputError:
                         screen.addstr('\nYou selected a menu index which is not available. Hit any key to continue.')
                         screen.getch()
                         screen.clear()
