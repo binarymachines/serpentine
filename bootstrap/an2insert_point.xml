@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<formspec model="An2Insert_point" url_base="bifrost">
+    
+    <field required="False" hidden="False">
+        <label>Id</label>
+        <name>id</name>
+        <type>HiddenField</type>
+    </field>
+    
+    <field required="True" hidden="False">
+        <label>Asset Id</label>
+        <name>asset_id</name>
+        <type>IntegerField</type>
+    </field>
+    
+    <field required="True" hidden="False">
+        <label>Slug Begin</label>
+        <name>slug_begin</name>
+        <type>TextField</type>
+    </field>
+    
+    <field required="False" hidden="False">
+        <label>Slug Middle</label>
+        <name>slug_middle</name>
+        <type>TextField</type>
+    </field>
+    
+    <field required="True" hidden="False">
+        <label>Slug End</label>
+        <name>slug_end</name>
+        <type>TextField</type>
+    </field>
+    
+</formspec>

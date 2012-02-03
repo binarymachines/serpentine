@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<formspec model="Schedule" url_base="bifrost">
+    
+    <field required="False" hidden="False">
+        <label>Id</label>
+        <name>id</name>
+        <type>HiddenField</type>
+    </field>
+    
+    <field required="True" hidden="False">
+        <label>Begin Date</label>
+        <name>begin_date</name>
+        <type>TextField</type>
+    </field>
+    
+    <field required="True" hidden="False">
+        <label>End Date</label>
+        <name>end_date</name>
+        <type>TextField</type>
+    </field>
+    
+    <field required="True" hidden="False">
+        <label>Date Created</label>
+        <name>date_created</name>
+        <type>TextField</type>
+    </field>
+    
+    <field required="False" hidden="False">
+        <label>Export Date</label>
+        <name>export_date</name>
+        <type>TextField</type>
+    </field>
+    
+    <field required="True" hidden="False">
+        <label>Is Active</label>
+        <name>is_active</name>
+        <type>IntegerField</type>
+    </field>
+    
+</formspec>
