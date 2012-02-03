@@ -121,6 +121,34 @@ class MultipleChoiceMenuPrompt:
                 screen.getch()
                 screen.clear()
                 continue
+            elif ',' in self.reply:
+                newSelections = [item.strip() for item in self.reply.split(',')]
+                for selectedIndex in newSelections:
+                    try:
+                        selectedIndex = int(self.reply)
+                        if selectedIndex < 1 : raise IndexError
+                        self.selections.append(self.menu.values[selectedIndex - 1])
+                    except IndexError:
+                        screen.addstr('\nYou selected a menu index which is not available. Hit any key to continue.')
+                        screen.getch()
+                        screen.clear()
+                        break
+                     except ValueError:
+                        screen.addstr('\nYour choice must be a numeric index from the menu. Hit any key to continue.')
+                        screen.getch()
+                        screen.clear()
+                        break
+                     except errors.MenuInputError:
+                        screen.addstr('\nYou selected a menu index which is not available. Hit any key to continue.')
+                        screen.getch()
+                        screen.clear()
+                        break
+
+                screen.addstr('You have selected: ' + ', '.join(self.selections) + '\nHit any key to continue.')
+                screen.getch()
+                #screen.refresh()
+                screen.clear()
+
             else:
                 try:
                     selectedIndex = int(self.reply)

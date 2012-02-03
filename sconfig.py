@@ -423,12 +423,12 @@ class SConfigurator(object):
                   indexTemplateTransform = etree.XSLT(xslTree)
                   indexTemplateHTMLDoc = indexTemplateTransform(formSpecXML)
                   
-                  indexFilename = os.path.join("bootstrap", "index_%s.html" % fSpec.model.lower())
+                  indexFilename = os.path.join("bootstrap", "%s_index.html" % fSpec.model.lower())
                   htmlFile = open(indexFilename, "w")   
                   htmlFile.write(etree.tostring(indexTemplateHTMLDoc, pretty_print=True))
                   htmlFile.close()
 
-                  indexFrameAlias = "%s_list" % fSpec.model.lower()
+                  indexFrameAlias = "%s_index" % fSpec.model.lower()
                   
                   self.frames[indexFrameAlias] = FrameConfig(indexFrameAlias, indexFilename, fSpec.formClassName, "html")
                   
@@ -446,7 +446,7 @@ class SConfigurator(object):
                   insertTemplateTransform = etree.XSLT(xslTree)
                   insertHTMLDoc = insertTemplateTransform(formSpecXML)
 
-                  insertFilename = os.path.join("bootstrap", "insert_%s.html" % fSpec.model.lower())
+                  insertFilename = os.path.join("bootstrap", "%s_insert.html" % fSpec.model.lower())
 
                   htmlFile = open(insertFilename, "w")  
                   htmlFile.write(etree.tostring(insertHTMLDoc, pretty_print = True))
@@ -469,7 +469,7 @@ class SConfigurator(object):
                   updateTemplateTransform = etree.XSLT(xslTree)
                   updateHTMLDoc = updateTemplateTransform(formSpecXML)
 
-                  updateFilename = os.path.join("bootstrap", "update_%s.html" % fSpec.model.lower())
+                  updateFilename = os.path.join("bootstrap", "%s_update.html" % fSpec.model.lower())
 
                   htmlFile = open(updateFilename, "w")  
                   htmlFile.write(etree.tostring(updateHTMLDoc, pretty_print = True))
