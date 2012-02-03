@@ -134,24 +134,12 @@ def handleFrameRequest(environment, frameID='none'):
     return environment.contentRegistry.getFrame(frameID).render(request, context, **frameArgs)
 
 
-@route('/frame/:frameID/reportid/:reportName', method='GET')
-def generateReport(environment, frameID = 'none', reportName = 'none'):
-    
-    # TODO: allow retrieval of report forms from content registry by report ID
-    # instead of frame ID
-
+@route('/report/:reportID', method='GET')
+def generateReport(environment, reportID = 'none'):
     context = Context(environment)
-    
-    inputFormClass = environment.contentRegistry.getFormClass(frameID)
-    inputForm = inputFormClass()
-    inputForm.process(request.GET)
-    
-    reportManagerMethod = getattr(environment.reportManager, reportName, None)
+    reportMgr = environment.reportManager
+    return reportMgr.runReport(reportID, request, context)
 
-    if reportManagerMethod is not None:
-        return reportManagerMethod(request, context, **inputForm.data)
-    else:
-        return "No ReportManager method matching %s." % reportName
 
 
 @route('/event/:eventtype')

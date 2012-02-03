@@ -84,16 +84,20 @@ class Environment():
 
                   self.urlBase = config['global']['url_base']
                   self.outputPath = os.path.join(config['global']['app_root'], config['global']['output_file_path'])
+                  self.reportPath = os.path.join(config['global']['app_root'], config['global']['report_file_path'])
                   self.staticFilePath = os.path.join(config['global']['app_root'], config['global']['static_file_path'])
                   self.templatePath = os.path.join(config['global']['app_root'], 
                                                    config['content_registry']['template_path'])
-                  j2Environment = jinja2.Environment(loader = jinja2.FileSystemLoader(self.templatePath), undefined = StrictUndefined, cache_size=0)
+                  j2Environment = jinja2.Environment(loader = jinja2.FileSystemLoader(self.templatePath), 
+                                                    undefined = StrictUndefined, cache_size=0)
                   self.templateManager = JinjaTemplateManager(j2Environment)
 
                   self.stylesheetPath = os.path.join(config['global']['app_root'], 
                                                      config['display_manager']['stylesheet_path'])
 
-                  self.reportManager = ReportManager(self.outputPath)
+                  self.reportManager = ReportManager(self.reportPath)
+                  
+                  
                   self.config = config
                   return self
 
@@ -106,6 +110,41 @@ class Environment():
             finally:
                   pass
       
+
+      def initializeReporting(self):
+            packageName = self.config['global']['default_report_package']
+            for reportName in self.config['reports']:  
+            
+                dataSourceClassName = self.config['reports'][reportName]['data_source']
+                fqSourceClassName = '.'.join([packageName, dataSourceClassName])
+                dataSourceClass = self.classLoader.loadClass(fqSourceClassName)
+                dataSource = dataSourceClass()
+                
+                generatorClassName = self.config['reports'][reportName]['generator']
+                
+                # first try to load one of the built-in generators
+                generatorClass = None
+                fqGeneratorClassName = '.'.join(['reporting', generatorClassName])
+                
+                try:
+                    generatorClass = self.classLoader.loadClass(fqGeneratorClassName)
+                except ClassLoaderError, err:
+                    # if we don't find it, look for a user-defined one in the
+                    # declared reporting package                
+                    fqGeneratorClassName = '.'.join([packageName, generatorClassName])
+                    # if this fails, let the resulting exception propagate
+                    generatorClass = self.classLoader.loadClass(fqGeneratorClassName)
+                    
+                generator = generatorClass()
+                
+                formClassName = self.config['reports'][reportName]['form']
+                fqFormClassName = '.'.join([packageName, formClassName])
+                formClass = self.classLoader.loadClass(fqFormClassName)
+                form = formClass()
+                
+                report = Report(dataSource, generator, form)
+                self.reportManager.registerReport(reportName, report)
+                
 
       def getHelperFunctions(self):
             """Return all registered helper functions across all content frames
@@ -121,9 +160,7 @@ class Environment():
             return helpers
                         
 
-      def loadResponders(self):            
-            
-
+      def loadResponders(self):                    
             if 'responders' in self.config:
                   for className in self.config['responders']:
                         packageName = self.config['global']['default_responder_package']

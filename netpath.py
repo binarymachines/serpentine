@@ -30,11 +30,8 @@ class NetPathStartupPlugin(object):
             environment.initializeEventDispatcher()
             environment.mapModelsToDatabase()
             environment.loadResponders()
-
             environment.dispatcher = EventDispatcher()
-            # redundant -- we now do this in the Environment init
-            #environment.reportManager = ReportManager(environment.config['global']['static_file_path'])
-
+            environment.initializeReporting()
             self.environment = environment
             self.keyword = 'environment'
 
