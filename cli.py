@@ -138,7 +138,7 @@ class MultipleChoiceMenuPrompt:
                         screen.getch()
                         screen.clear()
                         break
-                    except errors.MenuInputError:
+                    except MenuInputError:
                         screen.addstr('\nYou selected a menu index which is not available. Hit any key to continue.')
                         screen.getch()
                         screen.clear()
@@ -169,7 +169,7 @@ class MultipleChoiceMenuPrompt:
                         screen.getch()
                         screen.clear()
                         
-                except errors.MenuInputError:
+                except MenuInputError:
                         screen.addstr('\nYou selected a menu index which is not available. Hit any key to continue.')
                         screen.getch()
                         screen.clear()
