@@ -3,9 +3,11 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=ASCII" />
     <title>
+    {% raw %}
         {% block title %}
             Page Title 
         {% endblock %}
+    {% endraw %}
     </title>
     
     <link rel="stylesheet" href="/samplespace/static/styles/main.css" type="text/css" media="screen,projection" />
@@ -18,22 +20,23 @@
     <script src="/samplespace/static/scripts/tablestripes.js" language="javascript"></script>
     <script src="samplespace/static/scripts/serpentine.js" language="javascript"></script>
     
-        
+    {% raw %}
     {% block user_scripts %}
         <!-- placeholder for user-defined javscript code blocks -->
     {% endblock %}
-    
+    {% endraw %}
   </head>
   <body>
     <div id="wrapper">
         <div id="innerwrapper">
 
             <div id="header">
-    		      <h1><a href="#">{{ app_name }}</a></h1>
+    		      <h1><a href="#">{{ config.app_name }}</a></h1>
     				
     				<h2>				
-    				v{{ app_version }} {% block nav_breadcrumb %}{% endblock %}
+    				v{{ config.app_version }} {% raw %}{% block nav_breadcrumb %}...{% endblock %}{% endraw %}
     				</h2>
+    				{% raw %}
     				{% block nav %}
     				<ul id="nav">
     				
@@ -47,8 +50,9 @@
     												
     				</ul>
     		        {% endblock %}
+    		        {% endraw %}
 		      </div> <!-- end header div -->
-		      
+		      {% raw %}
                 {% block content_header %}
                 
                 {% endblock %}
@@ -57,6 +61,7 @@
     				
     		    {% endblock %}
     		    </div>
+    		  {% endraw %}
         </div> <!-- end innerwrapper div -->
     </div> <!-- end wrapper div -->
      
