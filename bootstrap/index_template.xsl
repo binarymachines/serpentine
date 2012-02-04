@@ -5,22 +5,29 @@
   
 <xsl:template match="formspec">
 
-<html xmlns="http://www.w3.org/1999/xhtml">
-	<head>
-	    <title><xsl:value-of select="@model"/> Index</title>
-     </head>
-<body>
+{% extends "base_template.html" %}
 
-<div id="content_container">
- <div id="content_header">
-   <h2>
-    <xsl:value-of select="@model"/> Index Page
-   </h2>
-   <p>List of all <xsl:value-of select="@model"/> objects in the database</p>
-</div>
-   <div id="content">
+{% block title %}
+<xsl:value-of select="@model"/> Index
+{% endblock %}
+
+{% block user_scripts %}
+<script type="text/javascript" language="javascript">
+
+    $document.ready(function(){
     
-     <table>
+    });
+    
+</script>
+{% endblock %} 
+
+{% block content_header %}
+    <h2><xsl:value-of select="@model"/> Index Page</h2>
+    <h3>List of all <xsl:value-of select="@model"/> Objects in the system</h3>
+{% endblock %}
+
+{% block content %}
+    <table>
         <thead>            
             <th>Select</th>
             <xsl:for-each select="field">
@@ -39,14 +46,7 @@
         {% endfor %}
         </tbody>
      </table>
-
-   </div>
-</div>
-<div id="footer">Footer</div>
-
-
-</body>
-</html>
+{% endblock %}
 
 </xsl:template>
 

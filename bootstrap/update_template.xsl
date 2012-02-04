@@ -5,20 +5,29 @@
   
 <xsl:template match="formspec">
 
-<html xmlns="http://www.w3.org/1999/xhtml">
-	<head>
-	    <title><xsl:value-of select="@model"/> Update</title>
-     </head>
-<body>
+{% extends "base_template.html" %}
 
-<div id="content_container">
- <div id="content_header">
-   <h2>
-    <xsl:value-of select="@model"/> Update Page
-   </h2>
-   <p>Change <xsl:value-of select="@model"/> objects</p>
-</div>
-   <div id="content">
+{% block title %}
+<xsl:value-of select="@model"/> Update
+{% endblock %}
+
+{% block user_scripts %}
+<script type="text/javascript" language="javascript">
+
+    $document.ready(function(){
+    
+    });
+    
+</script>
+{% endblock %} 
+
+
+{% block content_header %}
+    <h2><xsl:value-of select="@model"/> Update Page</h2>
+    <h3>Change <xsl:value-of select="@model"/> objects</h3>
+{% endblock %}
+
+{% block content %}
         <form class="right_aligned" id='action_form' method="post">
           <xsl:attribute name="action">/<xsl:value-of select="@url_base"/>/controller/<xsl:value-of select="@model"/>/update</xsl:attribute>		 
 		  {{ form.id() }}
@@ -26,13 +35,8 @@
 		
 		    <label></label><input type="submit" value="Save"/>
 	     </form>
-
-   </div>
-</div>
-<div id="footer">Footer</div>
-
-</body>
-</html>
+	     
+{% endblock %}
 
 </xsl:template>
 

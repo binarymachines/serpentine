@@ -181,7 +181,7 @@ class SConfigurator(object):
 
               wsgiVHostEntryFile = open(os.path.join('bootstrap', '%s_vhost_entry.xml' % self.web_app_name), 'w')
               wsgiVHostTemplate = templateMgr.getTemplate('wsgi_vhost_entry.tpl')
-              wsgiVHostEntryFile.write(wsgiFileTemplate.render(config = self))
+              wsgiVHostEntryFile.write(wsgiVHostTemplate.render(config = self))
               wsgiVHostEntryFile.close()
 
               self.config_filename = configFilename
@@ -383,6 +383,24 @@ class SConfigurator(object):
           self.port = portPrompt.show(screen)
           
           
+      def generateShellScripts(self, templateManager):
+          """Generate the shell scripts to be used for post-config setup
+          
+          templateManager -- repository holding refs to all our file templates
+          """
+
+          scriptFile = None
+
+          try:
+              templateManager.getTemplate('setup_content_refs.tpl')
+              scriptData = templateManager.render(config = self)
+              scriptFilename = os.path.join('bootstrap', 'setup_content_refs.sh')
+              scriptFile = open(scriptFilename, 'w')
+              scriptFile.write(scriptData)
+          finally:
+              if scriptFile:
+                  scriptFile.close()
+          
           
 
       def generateFormCode(self, formSpecs, templateManager):
@@ -431,15 +449,25 @@ class SConfigurator(object):
       def generateApplicationTemplates(self, formSpecs, templateManager):
           """Create the master template files for the application under construction"""
 
-          # First, transform the XML seed template into a FormSpec XML document.
-
           xmlHandle = None
           xmlTemplate = templateManager.getTemplate("formspec_xml.tpl")
           xmlFile = None
           htmlFile = None
+          baseTemplateFile = None
 
           generatedFiles = {}
+
           try:
+              # First render the base HTML template from which our other templates will inherit
+              #
+              baseTemplate = templateManager.getTemplate('base_html_template.tpl')
+              baseTempateData = baseTemplate.render(config = self)
+              baseTemplateFilename = os.path.join('bootstrap', 'base_template.html')
+              baseTemplateFile = open(baseTemplateFilename, 'w')
+              baseTemplateFile.write(baseTemplateData)
+              baseTemplateFile.close()
+
+               # First, transform the XML seed template into a FormSpec XML document.
               for fSpec in formSpecs:
                   
                   # Use each FormSpec object in our list to populate the model XML template
@@ -538,7 +566,8 @@ class SConfigurator(object):
                   htmlFile.close()
               if xmlHandle is not None:
                   xmlHandle.close()
-         
+              if baseTemplateFile is not None:
+                  baseTemplateFile.close()
                   
           
 
