@@ -11,6 +11,14 @@ global:
         default_controller_package:     {{ config.default_controller_package }} 
         startup_db:                     {{ config.startup_db }}
         url_base:                       {{ config.url_base }}
+# experiemental support for self-documenting features
+        api_frame:                      api.html
+        doc_frame:                      doc.html
+        config_frame:                   config.html
+        controller_frame:               controller_frame.html
+        #model_frame:                   model_frame.html
+        responder_frame:                responder_frame.html
+        #helper_frame:                  helper_frame.html
 #        
 # Each entry in the content registry under 'frames' is a frame ID.
 # The 'type' is either html or xml; specification is optional, it's only

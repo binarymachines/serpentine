@@ -5,12 +5,12 @@ from wtforms import TextAreaField, IntegerField, HiddenField
 from wtforms import SelectField, FormField, DateField, validators
 from wtforms.widgets import SubmitInput
 
-from content import BaseForm
+
 
 
 {% for spec in formspecs %}
 
-class {{ spec.formClassName }}(BaseForm):
+class {{ spec.formClassName }}(Form):
       {% for field in spec.fields %} {{ field }}
       {% endfor%}
 

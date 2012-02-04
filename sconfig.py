@@ -84,6 +84,9 @@ class SConfigurator(object):
       def __init__(self):
             
             self.app_root = None
+            self.web_app_name = None
+            self.hostname = None
+            self.port = None
             self.static_file_path = None
             self.default_forms_package = None
             self.default_model_package = None
@@ -132,6 +135,7 @@ class SConfigurator(object):
       def run(self, screen):
           self.setupGlobalData(screen)
           self.setupDatabases(screen)
+          
 
           currentDir = os.getcwd()
           bootstrapDir = os.path.join(currentDir, "bootstrap")
@@ -154,28 +158,48 @@ class SConfigurator(object):
           self.generateControllerCode(formSpecArray, templateMgr)
           self.generateApplicationTemplates(formSpecArray, templateMgr)
           self.generateFormCode(formSpecArray, templateMgr)
+
+          self.setupWSGI(screen)
+         
           
           # now generate the config file
 
           configFile = None
           try:
-              configFileTemplate = templateMgr.getTemplate("config_template.tpl")
-              configFilename = "%s.conf" % self.projectName.lower()
-              configFile = open(os.path.join("bootstrap", configFilename), "w")
+              configFileTemplate = templateMgr.getTemplate('config_template.tpl')
+              configFilename = '%s.conf' % self.projectName.lower()
+              configFile = open(os.path.join('bootstrap', configFilename), 'w')
               configFile.write(configFileTemplate.render(config = self))
               configFile.close()
+              
+              wsgiFile = open(os.path.join('bootstrap', '%s.wsgi' % self.web_app_name), 'w')
+              wsgiFileTemplate = templateMgr.getTemplate("wsgi_file.tpl")
+              wsgiFile.write(wsgiFileTemplate.render(config = self))
+              wsgiFile.close()
+
+              wsgiVHostEntryFile = open(os.path.join('bootstrap', '%s_vhost_entry.xml' % self.web_app_name), 'w')
+              wsgiVHostTemplate = templateMgr.getTemplate('wsgi_vhost_entry.tpl')
+              wsgiVHostEntryFile.write(wsgiFileTemplate.render(config = self))
+              wsgiVHostEntryFile.close()
+
               self.config_filename = configFilename
           finally:
               if configFile is not None:
                   configFile.close()
+
+              if wsgiFile is not None:
+                  wsgiFile.close()
+
+              if wsgiVHostEntryFile is not None:
+                  wsgiVHostEntryFile.close()
+
+              
       
       def designateHelperFunctions(self, formSpecs, screen):
           """Allow the user to specify a helper function for one or more frames"""
 
           pass
 
-
-      
 
       def setupDatabases(self, screen):
           """Allow the user to specify one or more named database instances from which to select later"""
@@ -215,6 +239,7 @@ class SConfigurator(object):
 
             projectNamePrompt = TextPrompt("Enter project name", None)
             self.projectName = projectNamePrompt.show(screen)
+            self.web_app_name = self.projectName.lower()
             self.url_base = self.projectName.lower()
 
             currentDir = os.getcwd()
@@ -340,11 +365,29 @@ class SConfigurator(object):
           finally:
               pass
       
+          
+      def setupWSGI(self, screen):
+          """Get the settings for the app's interface with Apache
+
+          Arguments:
+          screen -- display target for menus and prompts
+          """
+
+          hostPrompt = TextPrompt('Enter the hostname for this app: ', 'localhost')
+          self.hostname = hostPrompt.show(screen)
+
+          portPrompt = TextPrompt('Enter HTTP port for this app: ', '80')
+          self.port = portPrompt.show(screen)
+          
+          
+          
+
       def generateFormCode(self, formSpecs, templateManager):
           """Create the WTForms Form instances for the application under construction
 
           Arguments:
           formSpecs -- an array of FormSpec instances
+          templateManager -- repository holding refs to all our file templates
           """
 
           formPkgTemplate = templateManager.getTemplate("forms_package.tpl")
@@ -424,13 +467,14 @@ class SConfigurator(object):
                   indexTemplateHTMLDoc = indexTemplateTransform(formSpecXML)
                   
                   indexFilename = os.path.join("bootstrap", "%s_index.html" % fSpec.model.lower())
+                  indexFrameFileRef = "%s_index.html" % fSpec.model.lower()
                   htmlFile = open(indexFilename, "w")   
                   htmlFile.write(etree.tostring(indexTemplateHTMLDoc, pretty_print=True))
                   htmlFile.close()
 
                   indexFrameAlias = "%s_index" % fSpec.model.lower()
                   
-                  self.frames[indexFrameAlias] = FrameConfig(indexFrameAlias, indexFilename, fSpec.formClassName, "html")
+                  self.frames[indexFrameAlias] = FrameConfig(indexFrameAlias, indexFrameFileRef, fSpec.formClassName, "html")
                   
                   for controllerAlias in self.controllers:
                       if self.controllers[controllerAlias].model == fSpec.model:
@@ -447,14 +491,14 @@ class SConfigurator(object):
                   insertHTMLDoc = insertTemplateTransform(formSpecXML)
 
                   insertFilename = os.path.join("bootstrap", "%s_insert.html" % fSpec.model.lower())
-
+                  insertFrameFileRef = "%s_insert.html" % fSpec.model.lower()
                   htmlFile = open(insertFilename, "w")  
                   htmlFile.write(etree.tostring(insertHTMLDoc, pretty_print = True))
                   htmlFile.close()
 
                   insertFrameAlias = "%s_insert" % fSpec.model.lower()
 
-                  self.frames[insertFrameAlias] = FrameConfig(insertFrameAlias, insertFilename, fSpec.formClassName, "html")
+                  self.frames[insertFrameAlias] = FrameConfig(insertFrameAlias, insertFrameFileRef, fSpec.formClassName, "html")
 
                   for controllerAlias in self.controllers:
                       if self.controllers[controllerAlias].model == fSpec.model:                          
@@ -470,6 +514,7 @@ class SConfigurator(object):
                   updateHTMLDoc = updateTemplateTransform(formSpecXML)
 
                   updateFilename = os.path.join("bootstrap", "%s_update.html" % fSpec.model.lower())
+                  updateFrameFileRef =  "%s_update.html" % fSpec.model.lower()
 
                   htmlFile = open(updateFilename, "w")  
                   htmlFile.write(etree.tostring(updateHTMLDoc, pretty_print = True))
@@ -477,7 +522,7 @@ class SConfigurator(object):
 
                   updateFrameAlias = "%s_update" % fSpec.model.lower()
 
-                  self.frames[updateFrameAlias] = FrameConfig(updateFrameAlias, updateFilename, fSpec.formClassName, "html")
+                  self.frames[updateFrameAlias] = FrameConfig(updateFrameAlias, updateFrameFileRef, fSpec.formClassName, "html")
 
                   for controllerAlias in self.controllers:
                       if self.controllers[controllerAlias].model == fSpec.model:                                                    

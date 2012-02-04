@@ -122,7 +122,7 @@ class MultipleChoiceMenuPrompt:
                 screen.clear()
                 continue
             elif ',' in self.reply:
-                newSelections = [item.strip() for item in self.reply.split(',')]
+                newSelections = [int(item.strip()) for item in self.reply.split(',')]
                 for selectedIndex in newSelections:
                     try:                        
                         if selectedIndex < 1: 
