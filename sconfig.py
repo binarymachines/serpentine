@@ -160,7 +160,7 @@ class SConfigurator(object):
           self.generateControllerCode(formSpecArray, templateMgr)
           self.generateApplicationTemplates(formSpecArray, templateMgr)
           self.generateFormCode(formSpecArray, templateMgr)
-
+          self.generateShellScripts(templateMgr)
           self.setupWSGI(screen)
          
           
@@ -392,8 +392,8 @@ class SConfigurator(object):
           scriptFile = None
 
           try:
-              templateManager.getTemplate('setup_content_refs.tpl')
-              scriptData = templateManager.render(config = self)
+              scriptTemplate = templateManager.getTemplate('setup_content_refs.tpl')
+              scriptData = scriptTemplate.render(config = self)
               scriptFilename = os.path.join('bootstrap', 'setup_content_refs.sh')
               scriptFile = open(scriptFilename, 'w')
               scriptFile.write(scriptData)
@@ -473,7 +473,8 @@ class SConfigurator(object):
                   # Use each FormSpec object in our list to populate the model XML template
                   # and create an XML representation of the FormSpec.
                   #
-                  xmlHandle = StringIO(xmlTemplate.render(formspec=fSpec))
+                  #xmlHandle = StringIO(xmlTemplate.render(formspec=fSpec))
+                  xmlString = xmlTemplate.render(formspec = fSpec)
 
                   # the raw xml text now resides in the file-like string object xmlHandle
 
@@ -482,27 +483,36 @@ class SConfigurator(object):
                   #
                   xmlFilename = os.path.join("bootstrap", "%s.xml" % fSpec.model.lower())
                   xmlFile = open(xmlFilename, "w") 
-                  xmlFile.write(xmlHandle.getvalue())
+                  xmlFile.write(xmlString)
                   xmlFile.close()
 
                   # Next, transform the FormSpec document into a set of final HTML templates.
                   # The resulting templates will become views in the live application.
                   #
-                  # parse the text and create a DOM tree
-                  formSpecXML = etree.parse(xmlHandle)
+                  
+
+                  
 
                   # index template, for viewing all objects of a given type
                   xslFilename = os.path.join("bootstrap", "index_template.xsl")
-                  xslTree = etree.parse(xslFilename)
+                  xslFile = open(xslFilename)
+                  xslTree = etree.parse(xslFile)
                   indexTemplateTransform = etree.XSLT(xslTree)
+
+                  xmlFile = open(xmlFilename, 'r')
+                  # create a DOM tree
+                  formSpecXML = etree.parse(xmlFile)
+                  
+
                   indexTemplateHTMLDoc = indexTemplateTransform(formSpecXML)
                   
                   indexFilename = os.path.join("bootstrap", "%s_index.html" % fSpec.model.lower())
                   indexFrameFileRef = "%s_index.html" % fSpec.model.lower()
                   htmlFile = open(indexFilename, "w")   
-                  htmlFile.write(etree.tostring(indexTemplateHTMLDoc, pretty_print=True))
+                  #htmlFile.write(etree.tostring(indexTemplateHTMLDoc, pretty_print=True))
+                  htmlFile.write(indexTemplateHTMLDoc)
                   htmlFile.close()
-
+                  xmlFile.close()
                   indexFrameAlias = "%s_index" % fSpec.model.lower()
                   
                   self.frames[indexFrameAlias] = FrameConfig(indexFrameAlias, indexFrameFileRef, fSpec.formClassName, "html")
