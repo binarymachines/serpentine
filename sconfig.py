@@ -82,16 +82,18 @@ class ModelConfig(object):
 
 class SConfigurator(object):
       def __init__(self):
-            
+            self.app_name = None
             self.app_root = None
             self.web_app_name = None
             self.hostname = None
             self.port = None
             self.static_file_path = None
-            self.default_forms_package = None
+            self.default_form_package = None
             self.default_model_package = None
             self.default_controller_package = None
             self.default_helper_package = None
+            self.default_reporting_package = None
+            self.default_responder_package = None
             self.startup_db = None
             self.url_base = None
             self.template_path = None
@@ -239,6 +241,7 @@ class SConfigurator(object):
 
             projectNamePrompt = TextPrompt("Enter project name", None)
             self.projectName = projectNamePrompt.show(screen)
+            self.app_name = self.projectName
             self.web_app_name = self.projectName.lower()
             self.url_base = self.projectName.lower()
 
@@ -259,7 +262,7 @@ class SConfigurator(object):
             stylesPath = [self.static_file_path, 'styles']
             xmlPath = [self.static_file_path, 'xml']
                        
-            self.default_forms_package = '%s_forms' % self.projectName.lower()
+            self.default_form_package = '%s_forms' % self.projectName.lower()
             self.default_model_package = '%s_models' % self.projectName.lower()
             self.default_controller_package = '%s_controllers' % self.projectName.lower()
             self.default_helper_package = '%s_helpers' % self.projectName.lower()

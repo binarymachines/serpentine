@@ -4,14 +4,20 @@
 #
 
 global:
-        app_root:                       {{ config.app_root }}
+        app_name:                       {{ config.app_name }}
+        app_version:                    1.0
+        app_root:                       {{ config.app_root }}        
         static_file_path:               {{ config.static_file_path }}
-        default_forms_package:          {{ config.default_forms_package }}
+        default_form_package:           {{ config.default_form_package }}
         default_model_package:          {{ config.default_model_package }}
+        default_helper_package:         {{ config.default_helper_package }}
         default_controller_package:     {{ config.default_controller_package }} 
-        default_report_package:         {{ config.default_report_package }}
+        default_responder_package:      {{ config.default_responder_package }}
+        default_report_package:         {{ config.default_reporting_package }}
         startup_db:                     {{ config.startup_db }}
         url_base:                       {{ config.url_base }}
+        output_file_path:               output
+        report_file_path:               reports
 # experiemental support for self-documenting features
         api_frame:                      api.html
         doc_frame:                      doc.html

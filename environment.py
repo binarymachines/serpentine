@@ -204,7 +204,7 @@ class Environment():
 
                   form = self.config['content_registry']['frames'][frameID].get('form')
                   if form is not None:
-                        formPkg = self.config['global']['default_forms_package']
+                        formPkg = self.config['global']['default_form_package']
                         fqFormClassname = formPkg + '.'
                         fqFormClassname = fqFormClassname + form
                         formClass = self.classLoader.loadClass(fqFormClassname)
