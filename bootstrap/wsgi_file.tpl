@@ -15,7 +15,7 @@ from events import *
 # particular to the NetPath family
 from netpath import *
 
-npPlugin = NetPathStartupPlugin('{{ web_app_name }}.conf')
+npPlugin = NetPathStartupPlugin('{{ config.web_app_name }}.conf')
 install(npPlugin)
 
 

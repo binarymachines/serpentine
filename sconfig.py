@@ -110,7 +110,6 @@ class SConfigurator(object):
 
             self.responders = {}
             self.helpers = {}
-
             self.dependencies = {}
                                 
 
@@ -172,17 +171,19 @@ class SConfigurator(object):
               configFilename = '%s.conf' % self.projectName.lower()
               configFile = open(os.path.join('bootstrap', configFilename), 'w')
               configFile.write(configFileTemplate.render(config = self))
-              configFile.close()
+              #configFile.close()
               
               wsgiFile = open(os.path.join('bootstrap', '%s.wsgi' % self.web_app_name), 'w')
               wsgiFileTemplate = templateMgr.getTemplate("wsgi_file.tpl")
-              wsgiFile.write(wsgiFileTemplate.render(config = self))
-              wsgiFile.close()
+              wsgiData = wsgiFileTemplate.render(config = self)
+              wsgiFile.write(wsgiData)
+              #wsgiFile.close()
 
               wsgiVHostEntryFile = open(os.path.join('bootstrap', '%s_vhost_entry.xml' % self.web_app_name), 'w')
               wsgiVHostTemplate = templateMgr.getTemplate('wsgi_vhost_entry.tpl')
-              wsgiVHostEntryFile.write(wsgiVHostTemplate.render(config = self))
-              wsgiVHostEntryFile.close()
+              wsgiVHostData = wsgiVHostTemplate.render(config = self)
+              wsgiVHostEntryFile.write(wsgiVHostData)
+              #wsgiVHostEntryFile.close()
 
               self.config_filename = configFilename
           finally:
@@ -510,7 +511,7 @@ class SConfigurator(object):
                   indexFrameFileRef = "%s_index.html" % fSpec.model.lower()
                   htmlFile = open(indexFilename, "w")   
                   #htmlFile.write(etree.tostring(indexTemplateHTMLDoc, pretty_print=True))
-                  htmlFile.write(indexTemplateHTMLDoc)
+                  htmlFile.write(indexTemplateHTMLDoc.__str__())
                   htmlFile.close()
                   xmlFile.close()
                   indexFrameAlias = "%s_index" % fSpec.model.lower()
@@ -520,7 +521,6 @@ class SConfigurator(object):
                   for controllerAlias in self.controllers:
                       if self.controllers[controllerAlias].model == fSpec.model:
                           self.controllers[controllerAlias].addMethod(ControllerMethodConfig("index", indexFrameAlias))
-
 
                   # 
                   # insert template: creates a form for adding 
@@ -534,7 +534,7 @@ class SConfigurator(object):
                   insertFilename = os.path.join("bootstrap", "%s_insert.html" % fSpec.model.lower())
                   insertFrameFileRef = "%s_insert.html" % fSpec.model.lower()
                   htmlFile = open(insertFilename, "w")  
-                  htmlFile.write(etree.tostring(insertHTMLDoc, pretty_print = True))
+                  htmlFile.write(insertHTMLDoc.__str__())
                   htmlFile.close()
 
                   insertFrameAlias = "%s_insert" % fSpec.model.lower()
@@ -558,7 +558,7 @@ class SConfigurator(object):
                   updateFrameFileRef =  "%s_update.html" % fSpec.model.lower()
 
                   htmlFile = open(updateFilename, "w")  
-                  htmlFile.write(etree.tostring(updateHTMLDoc, pretty_print = True))
+                  htmlFile.write(updateHTMLDoc.__str__())
                   htmlFile.close()
 
                   updateFrameAlias = "%s_update" % fSpec.model.lower()

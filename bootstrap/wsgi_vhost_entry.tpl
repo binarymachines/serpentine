@@ -1,11 +1,11 @@
-<VirtualHost {{ hostname }}:{{ port }}>
-    DocumentRoot "{{ app_root }}"
-    ServerName {{ hostname }}   
+<VirtualHost {{ config.hostname }}:{{ config.port }}>
+    DocumentRoot "{{ config.app_root }}"
+    ServerName {{ config.hostname }}   
  
     WSGIDaemonProcess test user=dtaylor group=admin processes=1 threads=5
-    WSGIScriptAlias /{{ web_app_name }}     {{ app_root }}/{{ web_app_name }}.wsgi
-    <Directory {{ app_root }}>
-               WSGIProcessGroup {{ web_app_name }}
+    WSGIScriptAlias /{{ config.web_app_name }}     {{ config.app_root }}/{{ config.web_app_name }}.wsgi
+    <Directory {{ config.app_root }}>
+               WSGIProcessGroup {{ config.web_app_name }}
                WSGIApplicationGroup %{GLOBAL}
                Order deny,allow
                Allow from all
