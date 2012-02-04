@@ -27,7 +27,7 @@
 {% endblock %}
 
 {% block content %}
-    <table>
+    <table id="index_table">
         <thead>            
             <th>Select</th>
             <xsl:for-each select="field">

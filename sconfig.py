@@ -84,6 +84,7 @@ class SConfigurator(object):
       def __init__(self):
             self.app_name = None
             self.app_root = None
+            self.app_version = '1.0'
             self.web_app_name = None
             self.hostname = None
             self.port = None

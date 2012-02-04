@@ -33,7 +33,7 @@
 		  {{ form.id() }}
             <xsl:apply-templates/>
 		
-		    <label></label><input type="submit" value="Save"/>
+		    <label for="submit_button">&nbsp;</label><input id="submit_button" type="submit" value="Save"/>
 	     </form>
 	     
 {% endblock %}

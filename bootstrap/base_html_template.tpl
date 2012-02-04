@@ -34,7 +34,7 @@
     		      <h1><a href="#">{{ config.app_name }}</a></h1>
     				
     				<h2>				
-    				v{{ config.app_version }} {% raw %}{% block nav_breadcrumb %}...{% endblock %}{% endraw %}
+    				version {{ config.app_version }} {% raw %}{% block nav_breadcrumb %}>{% endblock %}{% endraw %}
     				</h2>
     				{% raw %}
     				{% block nav %}
