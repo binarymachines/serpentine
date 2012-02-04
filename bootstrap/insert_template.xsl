@@ -20,8 +20,7 @@
 </div>
    <div id="content">
         <form class="right_aligned" id='action_form' method="post">
-          <xsl:attribute name="action">/<xsl:value-of select="@url_base"/>/controller/<xsl:value-of select="@model"/>/insert</xsl:attribute>
-		  {{ form.mode() }}
+          <xsl:attribute name="action">/<xsl:value-of select="@url_base"/>/controller/<xsl:value-of select="@model"/>/insert</xsl:attribute>		  
 		  {{ form.id() }}
             <xsl:apply-templates/>
 		

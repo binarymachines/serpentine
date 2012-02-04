@@ -9,6 +9,7 @@ global:
         default_forms_package:          {{ config.default_forms_package }}
         default_model_package:          {{ config.default_model_package }}
         default_controller_package:     {{ config.default_controller_package }} 
+        default_report_package:         {{ config.default_report_package }}
         startup_db:                     {{ config.startup_db }}
         url_base:                       {{ config.url_base }}
 # experiemental support for self-documenting features
@@ -82,6 +83,9 @@ view_manager:
                 {% endfor %}
             {% endfor %}
  
+# TODO: update ReportSpec to populate this section
+reports:
+
 
 # Each entry under the frames: heading is a frame alias (previously registered with the 
 # ContentManager) with a corresponding reference to an XSL stylesheet. The referenced frame

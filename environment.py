@@ -113,6 +113,10 @@ class Environment():
 
       def initializeReporting(self):
             packageName = self.config['global']['default_report_package']
+
+            if not self.config['reports']:
+                  return
+
             for reportName in self.config['reports']:  
             
                 dataSourceClassName = self.config['reports'][reportName]['data_source']
