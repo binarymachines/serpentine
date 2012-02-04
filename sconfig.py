@@ -461,7 +461,7 @@ class SConfigurator(object):
               # First render the base HTML template from which our other templates will inherit
               #
               baseTemplate = templateManager.getTemplate('base_html_template.tpl')
-              baseTempateData = baseTemplate.render(config = self)
+              baseTemplateData = baseTemplate.render(config = self)
               baseTemplateFilename = os.path.join('bootstrap', 'base_template.html')
               baseTemplateFile = open(baseTemplateFilename, 'w')
               baseTemplateFile.write(baseTemplateData)
