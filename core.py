@@ -188,6 +188,8 @@ class BaseController(object):
             log('Object lookup failed with message: %s' % err.message)
             # TODO: scaffolding to track down lookup 
             raise err
+        finally:
+            dbSession.close()
                 
         
     def assertObjectExists(self, modelName, objectID, persistenceManager):
@@ -198,12 +200,15 @@ class BaseController(object):
         dbSession = persistenceManager.getSession()
         try:            
             query =  dbSession.query(self.modelClass)  
-            collection = query.all()        
+            collection = query.all()     
+            
             return collection
         except SQLAlchemyError, err:
             dbSession.rollback()
             log("%s %s failed with message: %s" % (self.modelClass, 'index', err.message))
             raise err
+        finally:
+            dbSession.close()
 
     def _indexPage(self, persistenceManager, pageNumber, pageSize):
         dbSession = persistenceManager.getSession()
@@ -216,6 +221,8 @@ class BaseController(object):
             dbSession.rollback()
             log("%s %s failed with message: %s" % (self.modelClass, 'index', err.message))
             raise err
+        finally:
+            dbSession.close()
 
     def index(self, objectType, httpRequest, context, **kwargs):
         
@@ -272,6 +279,9 @@ class BaseController(object):
             dbSession.rollback()
             log("%s failed with message: %s" % ('insert', err.message))
             raise err
+        finally:
+            dbSession.close()
+        
     
     def insert(self, objectType, httpRequest, context, **kwargs):
         
@@ -307,6 +317,9 @@ class BaseController(object):
             dbSession.rollback()
             log("%s %s failed with message: %s" % (self.modelClass, 'insert', err.message))
             raise err
+        finally:
+            dbSession.close()
+        
             
     def update(self, objectType, objectID, httpRequest, context, **kwargs):
 
