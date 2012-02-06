@@ -21,9 +21,17 @@ from core import *
 from environment import *
 
 import logging
-logging.basicConfig( filename = 'wellspring.log', level = logging.INFO, format = "%(asctime)s - %(message)s" )
+logging.basicConfig(filename = 'serpentine.log', level = logging.INFO, format = "%(asctime)s - %(message)s")
 
 log = logging.info
+
+
+
+class MissingDataSourceParameterError(Exception):
+    def __init__(self, dataSourceClass, requiredParameterArray):
+        message = '%s init call is missing one or more of the following required params: %s' \
+        % (dataSourceClass.__name__, requiredParameterArray)
+        Exception.__init__(self, message)
 
 
 
@@ -185,6 +193,9 @@ class SQLDataSource:
 
 
 class MenuDataSource(SQLDataSource):
+    params = ['table', 'name_field', 'value_field']
+    requiredParams = ['table']
+
     def __init__(self, tableName, nameField, valueField):
         self.tableName = tableName
         self.nameField = nameField
@@ -211,6 +222,9 @@ class MenuDataSource(SQLDataSource):
 
 
 class LookupDataSource(SQLDataSource):
+    params = ['table', 'key_field', 'value_field']
+    requiredParams = ['table']
+
     def __init__(self, tableName, keyField, valueField):
         self.tableName = tableName
         self.keyField = keyField
@@ -232,6 +246,9 @@ class LookupDataSource(SQLDataSource):
         
 
 class TableDataSource(SQLDataSource):
+    params = ['table', 'fields', 'headers']
+    requiredParams = ['table', 'fields']
+
     def __init__(self, tableName, columnNameArray, headerArray=None):
         self.tableName = tableName
         self.columnNameArray = columnNameArray
@@ -316,5 +333,140 @@ class ViewManager:
 
 
     
+class SelectResponder(Responder):
+    def __init__(self, dataSource):
+        self.dataSource = dataSource
+        self.templateFrameID = 'select_control'
+        self.name = controlName
+
+    def _respond(self, persistenceManager):
         
-    
+        self.dataSource.load(persistenceManager)
+        return { 'options': self.dataSource(), 'control': self }
+
+    def respond(self, httpRequest, context, **kwargs):
+        pMgr = context.persistenceManager
+        
+        dict = self._respond(pMgr)
+        frameObject = context.contentRegistry.getFrame(self.templateFrameID)
+        return frameObject.render(httpRequest, context, **dict)
+        
+
+class RadioGroupResponder(Responder):
+    def __init__(self, dataSource):
+        self.dataSource = dataSource
+        self.templateFrameID = 'radio_control'
+        self.name = controlName
+
+    def _respond(self, persistenceManager):
+        
+        self.dataSource.load(persistenceManager)
+        return { 'options': self.dataSource(), 'control': self }
+
+    def respond(self, httpRequest, context, **kwargs):
+        pMgr = context.persistenceManager
+        
+        dict = self._respond(pMgr)
+        frameObject = context.contentRegistry.getFrame(self.templateFrameID)
+        return frameObject.render(httpRequest, context, **dict)
+
+
+
+
+
+
+
+class DataSourceFactoryPlugin:
+    def __init__(self):
+        pass
+
+    def getRequiredParams(self): # implement in subclass; return an array of param names
+        pass
+
+    def createDataSource(self, **kwargs): # implement in subclass
+        pass
+
+    requiredParams = property(getRequiredParams)
+
+
+
+class DataSourceFactory:
+    def __init__(self):
+        self.dataSourceCreators = {'menu': '_createMenuSource', 
+                                   'grid': '_createTableSource' }
+        self.dataSourcePlugins = {}
+
+
+    def registerPlugin(self, dataSourceFactoryPlugin, dataSourceType):
+        self.dataSourcePlugins[dataSourceType] = dataSourceFactoryPlugin
+
+
+    def createDataSource(self, dataSourceType, **kwargs):
+        
+        if dataSourceType in self.dataSourceCreators:
+            print 'Processing datasource type... %s' % dataSourceType
+            return getattr(self, self.dataSourceCreators[dataSourceType])(**kwargs)
+        else:
+            try:
+                plugin = self.dataSourcePlugins[dataSourceType]
+                missingParams = [arg for arg in plugin.requiredParams if arg not in kwargs]
+                if missingParams:
+                    raise Exception("Missing init param in call to DataSourceFactory plugin.")
+                return plugin.createDataSource(**kwargs)
+            except KeyError, err:
+                raise NoSuchDataSourcePluginError(dataSourceType)
+            
+
+    def _createMenuSource(self, **kwargs):
+
+        requiredParams = ['table']
+        missingParams = [arg for arg in requiredParams if arg not in kwargs]
+        if missingParams:
+            raise MissingDataSourceParameterError(MenuDataSource, 
+                                                  requiredParams)
+
+        table = kwargs['table']
+        nameField = kwargs.get('name_field', 'name')  # default values
+        valueField = kwargs.get('value_field', 'id')
+        source = MenuDataSource(table, nameField, valueField)
+        return source
+
+
+
+    def _createTableSource(self, **kwargs):
+        requiredParams = ['table', 'fields']
+
+        print "Received TableSource params: %s " % kwargs
+        try:
+            table = kwargs['table']
+            fieldListString = kwargs['fields']
+            fields = [item.strip() for item in fieldListString.split(',')]
+
+            headers = None
+            headerListString = kwargs.get('headers', None)
+            if headerListString:
+                headers = [item.strip() for item in headerListString.split(',')]
+            
+            #conditions = kwargs.get('conditions', None)  # optional, not implemented yet 
+            
+            source = TableDataSource(table, fields, headers)
+            return source
+        except KeyError, err:
+            raise MissingDataSourceParameterError(MenuDataSource, 
+                                                  requiredParams)
+            
+            
+            
+
+                
+        
+        
+        
+
+
+
+        
+
+            
+        
+        

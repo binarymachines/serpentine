@@ -169,6 +169,7 @@ def invokeControllerUpdateGet(environment, objectType = 'none', objectID = 'none
     session[controller.typeSpecificIDSessionTag] = objectID
     return controller.update(objectType, objectID, request, context)
     
+
 #
 # Invoking the controller update() in this mode triggers the actual database operation 
 # and saves the changed object.
@@ -199,6 +200,16 @@ def invokeControllerIndex(environment, objectType = 'none'):
     # Get the controller for the type in question
     controller = environment.frontController.getController(objectType)
     return controller.index(objectType, request, context)
+
+
+#
+# A nonspecific controller invocation triggers index by default
+#
+@route('/controller/:objectType')
+def invokeControllerIndexDefault(environment, objectType = 'none'):
+    
+    return invokeControllerIndex(environment, objectType)
+
 
 #
 # Invokes the index() method, with pagination

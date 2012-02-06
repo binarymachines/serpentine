@@ -41,6 +41,23 @@ content_registry:
                    type:       {{ config.frames[frame].type }}
         {% endfor %}
 
+
+#
+# Datasources for populating UI controls. 
+# Each datasource has a name and an arbitrary set of parameters.
+#
+datasources:
+        {% for source in config.datasources %}
+        {{ source }}:
+            type:           {{ config.datasources[source].type }}   
+            {% for param in config.datasources[source].params %}
+            {{ param.name }}:       {{ param.value }}
+            {% endfor %}
+        {% endfor %}   
+            
+
+
+
 #
 # Each entry in the models section represents the mapping between a Model and its
 # database table.  The optional "children" entry under each model consists of 1 to N model names

@@ -33,7 +33,7 @@
 {% block content %}
         <form class="right_aligned" id='action_form' method="post">
           <xsl:attribute name="action">/<xsl:value-of select="@url_base"/>/controller/<xsl:value-of select="@model"/>/update</xsl:attribute>		 
-		  {{ form.id() }}
+		  
             <xsl:apply-templates/>
 		
 		    <label for="submit_button">&nbsp;</label><input id="submit_button" type="submit" value="Save"/>

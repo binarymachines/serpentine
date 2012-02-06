@@ -103,6 +103,7 @@ class SConfigurator(object):
             self.config_filename = None
 
             self.models = {}
+            self.datasources = {}
             self.frames = {}
             self.controllers = {}
             self.xmlFrames = {}
@@ -137,7 +138,9 @@ class SConfigurator(object):
       def run(self, screen):
           self.setupGlobalData(screen)
           self.setupDatabases(screen)
-          
+          self.setupDatasources(screen)
+          #self.setupLookupResponders(screen)
+          self.setupWSGI(screen)
 
           currentDir = os.getcwd()
           bootstrapDir = os.path.join(currentDir, "bootstrap")
@@ -161,7 +164,7 @@ class SConfigurator(object):
           self.generateApplicationTemplates(formSpecArray, templateMgr)
           self.generateFormCode(formSpecArray, templateMgr)
           self.generateShellScripts(templateMgr)
-          self.setupWSGI(screen)
+          
          
           
           # now generate the config file
@@ -204,6 +207,68 @@ class SConfigurator(object):
 
           pass
 
+      """
+      def setupControls(self, screen):
+          
+          values = { 'y': True, 'n': False }
+          prompt = TextSelectPrompt('Auto-create selectors from lookup tables?', values, 'y')
+
+          selection = prompt.show(screen)
+          if selection:
+              targetDBConfig = self.databases[self.startup_db]
+              dbInstance = db.MySQLDatabase(targetDBConfig.host, targetDBConfig.schema)
+              dbInstance.login(targetDBConfig.username, targetDBConfig.password)
+
+              tableList = dbInstance.listTables()          
+              lookupTables = [table for table in tableList if table[0:7] == 'lookup_']
+              
+              for tableName in lookupTables:
+      """
+
+        
+      def setupDatasources(self, screen):
+          """Specify zero or more data 'adapters' to populate UI controls & other data-driven types"""
+
+          results = {}
+
+          options = ['Create new data source', 'List data sources']
+          
+          
+          prompt = MenuPrompt(Menu(options), 'Select an option from the menu.')
+          
+          while not prompt.escaped:
+              selection = prompt.show(screen)
+              if prompt.escaped:
+                  break
+              if prompt.selectedIndex == 1: # create datasource
+                  sourceName = TextPrompt('Enter a name for the datasource:')
+
+                  sourceTypeOptions = ['menu', 'grid']
+                  sourceTypePrompt = MenuPrompt(Menu(sourceTypeOptions))
+                  sourceType = sourceTypePrompt.show(screen)
+                  
+                  sourceParams = []
+                  if sourceType == 'menu':
+                      # prompt the user for source parameters
+                      for param in MenuDataSource.parameters:
+                          paramValue = TextPrompt(param)
+                          sourceParams.append(DataSourceParameter(param, paramValue))
+                      
+                  if sourceType == 'grid':
+                      for param in TableDataSource.parameters:
+                          paramValue = TextPrompt(param)
+                          sourceParams.append(DataSourceParameter(param, paramValue))
+
+                  newSpec = DataSourceSpec(sourceParams)
+                  self.datasources[sourceName] = newSpec
+
+              if prompt.selectedIndex == 2:     # list existing sources
+                  screen.addstr("\nDatasources: " + ", ".join(self.datasources.keys()) + "\nHit any key to continue.")
+                  screen.getch()
+                  screen.clear()
+
+          
+
 
       def setupDatabases(self, screen):
           """Allow the user to specify one or more named database instances from which to select later"""
@@ -217,7 +282,7 @@ class SConfigurator(object):
               if prompt.escaped:
                   break
               if prompt.selectedIndex == 1:
-                  schema = TextPrompt("Enter database schema", None).show(screen)
+                  schema = TextPrompt("Enter database schema", self.web_app_name).show(screen)
                   username = TextPrompt("Enter database username", None).show(screen)
                   password = TextPrompt("Enter database password", None).show(screen)
                   dbName = TextPrompt("Enter a name for this database instance", "localhost.%s" % schema).show(screen)
@@ -307,6 +372,7 @@ class SConfigurator(object):
                 return selectedTables
             finally:
                 pass
+
 
       def createModelTableMap(self, selectedTables):
           """ use the names of the selected tables to generate camel-cased class names.
@@ -581,8 +647,18 @@ class SConfigurator(object):
                   baseTemplateFile.close()
                   
           
+class DataSourceParameter:
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
 
-      
+
+class DataSourceSpec:
+    def __init__(self, type, parameterArray):
+        self.type = type
+        self.params = parameterArray
+
+    
 class FieldSpec:
     """A specification for a field in a WTForms form instance."""
 
