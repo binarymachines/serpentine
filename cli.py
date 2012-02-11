@@ -12,6 +12,30 @@ class MenuError: pass
 class MenuInputError: pass
 
 
+
+class Notice:
+    def __init__(self, text):
+        self.text = text
+
+    def __str__(self):
+        return self.text
+
+    def show(self, screen):
+        buffer = StringIO()
+        buffer.write('%s' % self.text)
+        contents = buffer.getvalue()
+        bufferLineArray = contents.split('\n')
+        bufferLineCount = len(bufferLineArray)
+        
+        position = screen.getyx()
+        screen.move(position[0], 0)
+        screen.addstr(buffer.getvalue())
+        position = screen.getyx()
+        screen.move(position[0] + 1, 0)
+
+
+
+
 class Menu:
     def __init__(self, valuesArray): 
         self.values = valuesArray
@@ -28,6 +52,7 @@ class Menu:
         return self.values
 
 
+
 class MenuPrompt:
     def __init__(self, menu, prompt):
             self.menu = menu
@@ -39,14 +64,16 @@ class MenuPrompt:
             self.reply = ''
                
     def show(self, screen):
-            screen.clear()
+            #screen.clear()
+            
             buffer = StringIO()
             buffer.write('%s\n%s\n:' % (self.menu, self.defaultMsg))
             contents = buffer.getvalue()
             bufferLineArray = contents.split('\n')
             bufferLineCount = len(bufferLineArray)
             while True:          
-                cursorRow = bufferLineCount - 1
+                position = screen.getyx()
+                cursorRow = position[0] + bufferLineCount - 1
                 cursorColumn = len(bufferLineArray[bufferLineCount-1])
 
                 screen.addstr(buffer.getvalue())
@@ -90,8 +117,8 @@ class MultipleChoiceMenuPrompt:
         self.choice = ''
 
     def show(self, screen):
-        screen.clear()
-
+        #screen.clear()
+        
         buffer = StringIO()
         buffer.write('%s\n%s\n:' % (self.menu, '\n'.join(self.defaultMsg)))
         contents = buffer.getvalue()
@@ -99,8 +126,8 @@ class MultipleChoiceMenuPrompt:
         bufferLineCount = len(bufferLineArray)
 
         while True:
-
-            cursorRow = bufferLineCount - 1
+            position = screen.getyx()
+            cursorRow = position[0] + bufferLineCount - 1
             cursorColumn = len(bufferLineArray[bufferLineCount-1])
 
             screen.addstr(buffer.getvalue())
@@ -179,23 +206,24 @@ class MultipleChoiceMenuPrompt:
 
 
 class TextPrompt:
-    def __init__(self, prompt, defaultValue, maxLength=-1):   
+    def __init__(self, prompt, defaultValue=None, maxLength=-1):   
           self.text = ''
           self.defaultValue = defaultValue
-          if defaultValue is not None: 
+          if defaultValue: 
                 self.prompt = "%s [%s] : " % (prompt, defaultValue)
           else:
                 self.prompt = "%s :" % prompt
       
     def show(self, screen):
-        screen.clear()
+        #screen.clear()
+        position = screen.getyx()
         buffer = StringIO()
         buffer.write('%s\n> ' % self.prompt)
         contents = buffer.getvalue()
         bufferLineArray = contents.split('\n')
         bufferLineCount = len(bufferLineArray)
 
-        cursorRow = bufferLineCount - 1
+        cursorRow = position[0] + bufferLineCount - 1
         cursorColumn = len(bufferLineArray[bufferLineCount - 1])
         
         screen.addstr(buffer.getvalue())
@@ -227,8 +255,8 @@ class TextSelectPrompt:
       
     
     def show(self, screen):
-          screen.clear()
-
+          #screen.clear()
+          
           buffer = StringIO()
           buffer.write('%s\n> ' % self.prompt)
           contents = buffer.getvalue()
@@ -236,7 +264,8 @@ class TextSelectPrompt:
           bufferLineCount = len(bufferLineArray)
                 
           while True:
-              cursorRow = bufferLineCount - 1
+              position = screen.getyx()
+              cursorRow = position[0] + bufferLineCount - 1
               cursorColumn = len(bufferLineArray[bufferLineCount - 1])
 
               screen.addstr(buffer.getvalue())

@@ -53,6 +53,7 @@ class Environment():
             self.appVersion = None
             self.config = None
             self.contentRegistry = ContentRegistry()
+            self.dataSourceRegistry = DataSourceRegistry()
             self.templatePath = None
             self.outputPath = None
             self.stylesheetPath = None
@@ -64,6 +65,7 @@ class Environment():
             self.frontController = None
             self.reportManager = None
             self.responderMap = {}
+            self.controlMap = {}
             self.urlBase = None
       
             self.__controllerRegistry = {}

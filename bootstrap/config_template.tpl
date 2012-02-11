@@ -1,6 +1,6 @@
 # 
 # YAML Serpentine config file (generated from template).
-# This is used by the sconfig.py script to generate a starting configuration.
+# This is used by the Serpentine configuration script to generate a starting config.
 #
 
 global:
@@ -18,13 +18,15 @@ global:
         url_base:                       {{ config.url_base }}
         output_file_path:               output
         report_file_path:               reports
-# experiemental support for self-documenting features
+# experimental support for self-documenting features
         api_frame:                      api.html
         doc_frame:                      doc.html
         config_frame:                   config.html
-        controller_frame:               controller_frame.html
+        controller_frame:               controller_frame.html        
         #model_frame:                   model_frame.html
         responder_frame:                responder_frame.html
+        # control_frame:                control_frame.html
+        # datasource_frame:             datasource_frame.html
         #helper_frame:                  helper_frame.html
 #        
 # Each entry in the content registry under 'frames' is a frame ID.
@@ -56,7 +58,18 @@ datasources:
         {% endfor %}   
             
 
-
+#
+# UI control objects, rendered via templates (frames in the content registry).
+# Controls are dynamic, receiving their data from named datasources.
+#
+controls:
+        {% for control in config.controls %}
+        {{ control }}:
+            type:           {{ control.type }}
+            name:           {{ control.name }}          # this is its name in the HTML form
+            datasource:     {{ control.datasource }}            
+            template:       {{ control.template }}      # optional; only need to specify for custom controls
+        {% endfor %}
 
 #
 # Each entry in the models section represents the mapping between a Model and its

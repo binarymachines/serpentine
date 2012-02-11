@@ -8,12 +8,13 @@ import curses.wrapper
 from StringIO import StringIO
 
 import jinja2
-from content import JinjaTemplateManager
+
 from wtforms import *
 from lxml import etree
 from sqlalchemy import *
 
 from cli import *
+from content import *
 
 
 class NoSuchFieldSpecError(Exception):
@@ -104,6 +105,7 @@ class SConfigurator(object):
 
             self.models = {}
             self.datasources = {}
+            self.controls = {}
             self.frames = {}
             self.controllers = {}
             self.xmlFrames = {}
@@ -138,21 +140,19 @@ class SConfigurator(object):
       def run(self, screen):
           self.setupGlobalData(screen)
           self.setupDatabases(screen)
+
+          tableList = self.selectTables(screen)
+          # TODO: Add parent-child mapping selection logic
+          modelTableMap = self.createModelTableMap(tableList)
+
           self.setupDatasources(screen)
-          #self.setupLookupResponders(screen)
+          self.setupControls(screen)
           self.setupWSGI(screen)
 
           currentDir = os.getcwd()
           bootstrapDir = os.path.join(currentDir, "bootstrap")
           env = jinja2.Environment(loader = jinja2.FileSystemLoader(bootstrapDir))
           templateMgr = JinjaTemplateManager(env)
-
-          
-
-          tableList = self.selectTables(screen)
-          # TODO: Add parent-child mapping selection logic
-
-          modelTableMap = self.createModelTableMap(tableList)
 
           self.generateModelCode(modelTableMap.keys())
           formSpecArray = self.createFormSpecs(modelTableMap)
@@ -165,8 +165,7 @@ class SConfigurator(object):
           self.generateFormCode(formSpecArray, templateMgr)
           self.generateShellScripts(templateMgr)
           
-         
-          
+
           # now generate the config file
 
           configFile = None
@@ -207,25 +206,69 @@ class SConfigurator(object):
 
           pass
 
-      """
-      def setupControls(self, screen):
-          
-          values = { 'y': True, 'n': False }
-          prompt = TextSelectPrompt('Auto-create selectors from lookup tables?', values, 'y')
 
+      def _addLookupTable(self, lookupTableArray, screen):
+
+          tablesToAdd = self.selectTables(screen)
+          result = lookupTableArray
+          result.extend(tablesToAdd)
+          return result
+
+      def _removeLookupTable(self, lookupTableArray, screen):
+          
+          multiChoicePrompt = MultipleChoiceMenuPrompt(lookupTableArray, 'Select one or more tables to remove from the list.')
+          while not multiChoicePrompt.escaped:
+              tablesToRemove = multiChoicePrompt.show(screen)
+              
+          Notice('Removing tables %s from lookups.' % tableList).show()
+          result = [item for item in lookupTableArray if item not in tablesToRemove]
+          return result
+
+
+      def setupControls(self, persistenceManager, screen):
+          """Set up zero or more UI controls, to be rendered via templates and supplied with data
+          via datasources
+          """
+          
+          choices = { 'y': True, 'n': False }
+          prompt = TextSelectPrompt('Auto-create HTML select controls from lookup tables?', choices, 'y')          
           selection = prompt.show(screen)
+
           if selection:
+              Notice('OK. Lookup tables will be inferred from their names.').show(screen)
+              Notice('Compiling list..').show(screen)
+
               targetDBConfig = self.databases[self.startup_db]
               dbInstance = db.MySQLDatabase(targetDBConfig.host, targetDBConfig.schema)
               dbInstance.login(targetDBConfig.username, targetDBConfig.password)
 
               tableList = dbInstance.listTables()          
               lookupTables = [table for table in tableList if table[0:7] == 'lookup_']
-              
-              for tableName in lookupTables:
-      """
+                        
+              #Notice('Lookup tables:\n%s' % displayList).show()
+              #actions = { a'': 'add', 'r': 'remove', 'c': 'clear', 'x': 'exit'  }
+              #prompt = TextSelectPrompt('Choose one of: [a]dd table, [r]emove table, [c]lear list, e[x]it', actions)
 
-        
+
+              actions = { a'': 'add', 'r': 'remove', 'c': 'clear', 'x': 'exit'  }
+              lookupTablePrompt = TextSelectPrompt('Choose one of: [a]dd table,[r]emove table, [c]lear list, e[x]it', actions)
+
+              while not lookupTablePrompt.escaped:
+                  displayList = '\n'.join(lookupTables)
+                  Notice('Your application lookup tables are:\n%s' % displayList).show()
+                  selection = lookupTablePrompt.show(screen)
+              
+                  if selection == 'a':
+                      lookupTables = self._addLookupTable(lookupTables, screen)
+              
+                  elif selection =='c':
+                      lookupTables = []
+
+                  elif selection == 'x':
+                      break
+              
+
+
       def setupDatasources(self, screen):
           """Specify zero or more data 'adapters' to populate UI controls & other data-driven types"""
 
@@ -241,25 +284,28 @@ class SConfigurator(object):
               if prompt.escaped:
                   break
               if prompt.selectedIndex == 1: # create datasource
-                  sourceName = TextPrompt('Enter a name for the datasource:')
+                  sourceNamePrompt = TextPrompt('Enter a name for the datasource:')
+                  sourceName = sourceNamePrompt.show(screen)
 
                   sourceTypeOptions = ['menu', 'grid']
-                  sourceTypePrompt = MenuPrompt(Menu(sourceTypeOptions))
+                  sourceTypePrompt = MenuPrompt(Menu(sourceTypeOptions), 'Select a datasource type.')
                   sourceType = sourceTypePrompt.show(screen)
                   
                   sourceParams = []
                   if sourceType == 'menu':
                       # prompt the user for source parameters
                       for param in MenuDataSource.parameters:
-                          paramValue = TextPrompt(param)
+                          paramPrompt = TextPrompt(param)
+                          paramValue = paramPrompt.show(screen)
                           sourceParams.append(DataSourceParameter(param, paramValue))
                       
                   if sourceType == 'grid':
                       for param in TableDataSource.parameters:
-                          paramValue = TextPrompt(param)
+                          paramPrompt = TextPrompt(param) 
+                          paramValue = paramPrompt.show(screen)
                           sourceParams.append(DataSourceParameter(param, paramValue))
 
-                  newSpec = DataSourceSpec(sourceParams)
+                  newSpec = DataSourceSpec(sourceType, sourceParams)
                   self.datasources[sourceName] = newSpec
 
               if prompt.selectedIndex == 2:     # list existing sources
@@ -363,7 +409,7 @@ class SConfigurator(object):
                 
                 # get a listing of all tables and present in menu form
                 m = Menu(dbInstance.listTables())
-                prompt = MultipleChoiceMenuPrompt(m, 'Select one or more database tables to add to your application model.')
+                prompt = MultipleChoiceMenuPrompt(m, 'Select one or more database tables to add.')
                 selectedTableNames = prompt.show(screen)
 
                 for name in selectedTableNames:                                        
@@ -793,6 +839,20 @@ class FieldSpecFactory:
         except KeyError:
             return TextField
            
+
+class ControlSpec:
+    """A specification for a Serpentine dynamic UI control.
+
+    A ControlSpec is rendered directly into YAML by the SConfigurator.
+    """
+
+    def __init__(self, type, name, dataSourceAlias, templateID = None):
+        self.type = type
+        self.name = name
+        self.datasource = dataSourceAlias
+        self.template = templateID
+        
+    
     
 def main():
         display = CursesDisplay(SConfigurator)

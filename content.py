@@ -33,6 +33,28 @@ class MissingDataSourceParameterError(Exception):
         % (dataSourceClass.__name__, requiredParameterArray)
         Exception.__init__(self, message)
 
+class MissingControlParameterError(Exception):
+    def __init__(self, controlClass, requiredParameterArray):
+        message = '%s init call is missing one or more of the following required parameters: %s' \
+         % (controlClass.__name__, requiredParameterArray)
+        Exception.__init__(self, message)
+
+class UnsupportedDataSourceTypeError(Exception):
+    def __init__(self, dataSourceType):
+        message = 'DataSource type %s is not supported.' % dataSourceType
+        Exception.__init__(self, message)
+
+
+class UnsupportedControlTypeError(Exception):
+    def __init__(self, controlType):
+        message = 'Control type %s is not suported.' % controlType
+        Exception.__init__(self, controlType)
+
+
+class NoSuchDataSourceError(Exception):
+    def __init__(self, dataSourceAlias):
+        message = 'No DataSource has been registered under the alias %s.' % dataSourceAlias
+        Exception.__init__(self, message)
 
 
 class JinjaTemplateManager:
@@ -169,14 +191,6 @@ class XMLFrame(Frame):
         return context.displayManager.renderContent(xml, frameID, channelID)
 
 
-class MenuOption:
-    def __init__(self, name, value):
-        self.name = name
-        self.value = value
-
-    def __repr__(self):
-        return 'MenuOption [name: %s, value: %s]\n' % (self.name, self.value)
-
 
 class SQLDataSource:
     def __init(self):
@@ -192,23 +206,30 @@ class SQLDataSource:
         pass
 
 
-class MenuDataSource(SQLDataSource):
-    params = ['table', 'name_field', 'value_field']
-    requiredParams = ['table']
+class MenuOption:
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
 
-    def __init__(self, tableName, nameField, valueField):
+    def __repr__(self):
+        return 'MenuOption [name: %s, value: %s]\n' % (self.name, self.value)
+
+
+class MenuDataSource(SQLDataSource):
+    parameters = ['table', 'name_field', 'value_field']
+    requiredParameters = ['table']
+
+    def __init__(self, tableName, nameField, valueField, **kwargs):
         self.tableName = tableName
         self.nameField = nameField
         self.valueField = valueField
         self.options = []
 
     def load(self, persistenceManager, **kwargs):
+        self.options = []
         dataTable = persistenceManager.loadTable(self.tableName)
         query = select([dataTable.columns[self.nameField], 
                         dataTable.columns[self.valueField]])
-        
-        for key in kwargs:
-            query = query.where(dataTable.columns[key] == kwargs[key])
 
         resultSet = query.execute().fetchall()
         for row in resultSet:
@@ -222,10 +243,10 @@ class MenuDataSource(SQLDataSource):
 
 
 class LookupDataSource(SQLDataSource):
-    params = ['table', 'key_field', 'value_field']
-    requiredParams = ['table']
+    parameters = ['table', 'key_field', 'value_field']
+    requiredParameters = ['table']
 
-    def __init__(self, tableName, keyField, valueField):
+    def __init__(self, tableName, keyField, valueField, **kwargs):
         self.tableName = tableName
         self.keyField = keyField
         self.valueField = valueField
@@ -246,8 +267,8 @@ class LookupDataSource(SQLDataSource):
         
 
 class TableDataSource(SQLDataSource):
-    params = ['table', 'fields', 'headers']
-    requiredParams = ['table', 'fields']
+    parameters = ['table', 'fields', 'headers']
+    requiredParameters = ['table', 'fields']
 
     def __init__(self, tableName, columnNameArray, headerArray=None):
         self.tableName = tableName
@@ -258,9 +279,12 @@ class TableDataSource(SQLDataSource):
         else:
             self.header = headerArray
 
-        self.data = []
+        self.records = []
+        self.data = {}
+
 
     def load(self, persistenceManager, **kwargs):
+        self.records = []
         dataTable = persistenceManager.loadTable(self.tableName)
         selectColumns = []
         for name in self.columnNameArray:
@@ -274,14 +298,308 @@ class TableDataSource(SQLDataSource):
             query = query.where(dataTable.colums[key] == kwargs[key])
 
         resultSet = query.execute().fetchall()
-
+        
         for row in resultSet:
-            self.data.append(row)
+            self.records.append(row)
+        self.data['records'] = self.records
+        self.data['header'] = self.header
             
     def __call__(self):
         return self.data
+
+
+
+class DataSourceRegistry:
+    def __init__(self):
+        self.dataSources = {}
+
+
+    def addDataSource(self, dataSource, alias):
+        self.dataSources[alias] = dataSource
         
+
+    def getDataSource(self, alias):
+        if alias not in self.dataSources:
+            raise NoSuchDataSourceError(alias)
+        return self.dataSources[alias]
+    
+
+    def hasDataSource(self, alias):
+        return alias in self.dataSources
+
+
+ 
+class DataSourceFactoryPlugin:
+    def __init__(self):
+        pass
+
+    def getRequiredParams(self):
+        """Return an array of param names.
+        Implement in subclass.
+        """
+        pass
+
+    def getSourceClass(self): 
+        """Return the class of the source instance this plugin creates.
+        Implement in subclass.
+        """
+        pass
+
+    def createDataSource(self, **kwargs): 
+        """Return a new DataSource instance.
+        Implement in subclass.
+        """
+        pass
+
+    requiredParams = property(getRequiredParams)
+
+
+
+class DataSourceFactory:
+    def __init__(self):
+        self.dataSourceCreators = {'menu': '_createMenuSource', 
+                                   'table': '_createTableSource' }
+        self.dataSourcePlugins = {}
+
+
+    def registerPlugin(self, dataSourceFactoryPlugin, dataSourceType):
+        self.dataSourcePlugins[dataSourceType] = dataSourceFactoryPlugin
+
+
+    def createDataSource(self, dataSourceType, **kwargs):
         
+        if dataSourceType in self.dataSourceCreators:            
+            return getattr(self, self.dataSourceCreators[dataSourceType])(**kwargs)
+
+        elif dataSourceType == 'custom':
+            try:
+                plugin = self.dataSourcePlugins[dataSourceType]
+                missingParams = [param for param in plugin.requiredParams if param not in kwargs]
+                if missingParams:
+                    raise MissingDataSourceParameterError(plugin.getSourceClass(),
+                                                          requiredParams)
+                return plugin.createDataSource(**kwargs)
+            except KeyError, err:
+                raise NoSuchDataSourcePluginError(dataSourceType)
+
+        else:
+            raise UnsupportedDataSourceTypeError(dataSourceType)
+
+
+    def _createMenuSource(self, **kwargs):
+
+        requiredParams = MenuDataSource.requiredParameters
+        missingParams = [param for param in requiredParams if param not in kwargs]
+        if missingParams:
+            raise MissingDataSourceParameterError(MenuDataSource, 
+                                                  requiredParams)
+
+        table = kwargs['table']
+        nameField = kwargs.get('name_field', 'name')  # default value
+        valueField = kwargs.get('value_field', 'id')  # default value
+        source = MenuDataSource(table, nameField, valueField, **kwargs)
+        return source
+
+
+
+    def _createTableSource(self, **kwargs):
+
+        requiredParams = TableDataSource.requiredParameters
+        missingParams = [param for param in requiredParams if param not in kwargs]
+        if missingParams:
+            raise MissingDataSourceParameterError(TableDataSource, requiredParams)
+
+        try:
+            table = kwargs['table']
+            fieldListString = kwargs['fields']
+            fields = [item.strip() for item in fieldListString.split(',')]
+
+            headers = None
+            headerListString = kwargs.get('headers', None)
+            if headerListString:
+                headers = [item.strip() for item in headerListString.split(',')]
+            
+            #conditions = kwargs.get('conditions', None)  # optional, not implemented yet 
+            
+            source = TableDataSource(table, fields, headers)
+            return source
+        except KeyError, err:
+            raise MissingDataSourceParameterError(MenuDataSource, 
+                                                  requiredParams)
+            
+
+
+class HTMLControl:
+    parameters = ['name', 'template', 'id', 'css_class', 'style']
+    requiredParameters = ['name', 'datasource']
+    def __init__(self, controlName, dataSource, templateFrameID, **kwargs):
+        self.name = controlName
+        self.dataSource = dataSource
+        self.templateFrameID = templateFrameID
+        self._cssClass = kwargs.get('cssClass', None)
+        self.css = kwargs.get('style', None)
+        self._id = kwargs.get('id', None)
+        self._type = kwargs.get('type', None)
+        
+
+    def render(self, httpRequest, context, **kwargs):
+        pMgr = context.persistenceManager
+        data = self._getData(pMgr)
+        frameObject = context.contentRegistry.getFrame(self.templateFrameID)
+        return frameObject.render(httpRequest, context, **data)
+
+    def __repr__(self):
+        return '%s [name: %s, datasource: %s, template ID: %s]' \
+                % (self.__class__.__name__, self.name, self.dataSource.__class__.__name__, self.templateFrameID)
+
+    def getCSSClass(self):
+        return self._cssClass
+
+    def getStyle(self):
+        return self.css
+
+    def getID(self):
+        return self._id
+
+    def getType(self):
+        return self._type
+
+    style = property(getStyle)
+    cssClass = property(getCSSClass)
+    id = property(getID)
+    type = property(getType)
+
+    
+class SelectControl(HTMLControl):
+    def __init__(self, controlName, dataSource, **kwargs):
+        if 'id' not in kwargs:
+            kwargs['id'] = '%s_select' % controlName
+        kwargs['type'] = 'select'
+        HTMLControl.__init__(self, controlName, dataSource, 'select_control', **kwargs)
+
+    def _getData(self, persistenceManager):
+        self.dataSource.load(persistenceManager)
+        return { 'options': self.dataSource(), 'control': self }
+
+    
+
+class RadioGroupControl(HTMLControl):
+    def __init__(self, controlName, dataSource, **kwargs):  
+        kwargs['type'] = 'radio_group'
+        HTMLControl.__init__(self, controlName, dataSource, 'radio_control', **kwargs)
+
+    def _getData(self, persistenceManager):        
+        self.dataSource.load(persistenceManager)
+        return { 'options': self.dataSource(), 'control': self }
+
+
+
+class TableControl(HTMLControl):
+    def __init__(self, controlName, tableDataSource, **kwargs):
+        if 'id' not in kwargs:        
+            kwargs['id'] = '%s_table' % controlName
+        kwargs['type'] = 'table'
+        HTMLControl.__init__(self, controlName, tableDataSource, 'table', **kwargs)
+        
+    def _getData(self, persistenceManager):
+        self.dataSource.load(persistenceManager)
+        return { 'data': self.dataSource(), 'control': self }
+
+    
+class ControlFactoryPlugin:
+    def __init__(self):
+        pass
+
+    def getRequiredParams(self):
+        """Return an array of param names.
+        Implement in subclass.
+        """
+        pass
+
+    def getControlClass(self): 
+        """Return the class of the control instance this plugin creates.
+        Implement in subclass.
+        """
+        pass
+
+    def createControl(self, **kwargs): 
+        """Return a new Control instance.
+        Implement in subclass.
+        """
+        pass
+
+    requiredParams = property(getRequiredParams)
+
+
+class ControlFactory:
+    def __init__(self):
+        self.controlCreators = {'select': '_createSelectControl', 
+                                'table':  '_createTable',
+                                'radio_group': '_createRadioGroup' }
+        self.controPlugins = {}
+
+
+    def createControl(self, controlType, dataSourceRegistry, **kwargs):
+        """Create an HTML Control object based on the type passed as a parameter.
+        Allowed types are: 'select', 'table', 'radiogroup', and 'custom'.
+
+        """
+
+        if controlType in self.controlCreators:
+            return getattr(self, self.controlCreators[controlType])(dataSourceRegistry, **kwargs)
+
+        elif controlType == 'custom':
+            raise Exception('Custom control types are not yet supported.')
+
+        else:
+            raise UnsupportedControlTypeError(controlType)
+
+
+
+    def _createSelectControl(self, dataSourceRegistry, **kwargs):
+        requiredParams = SelectControl.requiredParameters
+        missingParams = [ param for param in requiredParams if param not in kwargs]
+
+        if missingParams:
+            raise MissingControlParameterError(SelectControl, requiredParams)
+        
+        controlName = kwargs['name']
+        dataSourceName = kwargs['datasource']
+        dataSource = dataSourceRegistry.getDataSource(dataSourceName)
+        
+        return SelectControl(controlName, dataSource, **kwargs)
+        
+
+    def _createTable(self, dataSourceRegistry, **kwargs):
+        requiredParams = TableControl.requiredParameters
+        missingParams = [param for param in requiredParams if param not in kwargs]
+
+        if missingParams:
+            raise MissingControlParameterError(TableControl, requiredParams)
+
+        controlName = kwargs['name']
+        dataSourceName = kwargs['datasource']
+        dataSource = dataSourceRegistry.getDataSource(dataSourceName)
+        
+        return TableControl(controlName, dataSource, **kwargs)
+
+
+    def _createRadioGroup(self, dataSourceRegistry, **kwargs):
+        requiredParams = TableControl.requiredParameters
+        missingParams = [param for param in requiredParams if param not in kwargs]
+
+        if missingParams:
+            raise MissingControlParameterError(RadioGroupControl, requiredParams)
+
+        controlName = kwargs['name']
+        dataSourceName = kwargs['datasource']
+        dataSource = dataSourceRegistry.getDataSource(dataSourceName)
+        
+        return RadioGroupControl(controlName, dataSource, **kwargs)
+
+
+
+                    
 class ContentRegistry:
     def __init__(self): 
         self.frames = {}
@@ -332,131 +650,6 @@ class ViewManager:
         return self.frameMap[(objectType, controllerMethod)]
 
 
-    
-class SelectResponder(Responder):
-    def __init__(self, dataSource):
-        self.dataSource = dataSource
-        self.templateFrameID = 'select_control'
-        self.name = controlName
-
-    def _respond(self, persistenceManager):
-        
-        self.dataSource.load(persistenceManager)
-        return { 'options': self.dataSource(), 'control': self }
-
-    def respond(self, httpRequest, context, **kwargs):
-        pMgr = context.persistenceManager
-        
-        dict = self._respond(pMgr)
-        frameObject = context.contentRegistry.getFrame(self.templateFrameID)
-        return frameObject.render(httpRequest, context, **dict)
-        
-
-class RadioGroupResponder(Responder):
-    def __init__(self, dataSource):
-        self.dataSource = dataSource
-        self.templateFrameID = 'radio_control'
-        self.name = controlName
-
-    def _respond(self, persistenceManager):
-        
-        self.dataSource.load(persistenceManager)
-        return { 'options': self.dataSource(), 'control': self }
-
-    def respond(self, httpRequest, context, **kwargs):
-        pMgr = context.persistenceManager
-        
-        dict = self._respond(pMgr)
-        frameObject = context.contentRegistry.getFrame(self.templateFrameID)
-        return frameObject.render(httpRequest, context, **dict)
-
-
-
-
-
-
-
-class DataSourceFactoryPlugin:
-    def __init__(self):
-        pass
-
-    def getRequiredParams(self): # implement in subclass; return an array of param names
-        pass
-
-    def createDataSource(self, **kwargs): # implement in subclass
-        pass
-
-    requiredParams = property(getRequiredParams)
-
-
-
-class DataSourceFactory:
-    def __init__(self):
-        self.dataSourceCreators = {'menu': '_createMenuSource', 
-                                   'grid': '_createTableSource' }
-        self.dataSourcePlugins = {}
-
-
-    def registerPlugin(self, dataSourceFactoryPlugin, dataSourceType):
-        self.dataSourcePlugins[dataSourceType] = dataSourceFactoryPlugin
-
-
-    def createDataSource(self, dataSourceType, **kwargs):
-        
-        if dataSourceType in self.dataSourceCreators:
-            print 'Processing datasource type... %s' % dataSourceType
-            return getattr(self, self.dataSourceCreators[dataSourceType])(**kwargs)
-        else:
-            try:
-                plugin = self.dataSourcePlugins[dataSourceType]
-                missingParams = [arg for arg in plugin.requiredParams if arg not in kwargs]
-                if missingParams:
-                    raise Exception("Missing init param in call to DataSourceFactory plugin.")
-                return plugin.createDataSource(**kwargs)
-            except KeyError, err:
-                raise NoSuchDataSourcePluginError(dataSourceType)
-            
-
-    def _createMenuSource(self, **kwargs):
-
-        requiredParams = ['table']
-        missingParams = [arg for arg in requiredParams if arg not in kwargs]
-        if missingParams:
-            raise MissingDataSourceParameterError(MenuDataSource, 
-                                                  requiredParams)
-
-        table = kwargs['table']
-        nameField = kwargs.get('name_field', 'name')  # default values
-        valueField = kwargs.get('value_field', 'id')
-        source = MenuDataSource(table, nameField, valueField)
-        return source
-
-
-
-    def _createTableSource(self, **kwargs):
-        requiredParams = ['table', 'fields']
-
-        print "Received TableSource params: %s " % kwargs
-        try:
-            table = kwargs['table']
-            fieldListString = kwargs['fields']
-            fields = [item.strip() for item in fieldListString.split(',')]
-
-            headers = None
-            headerListString = kwargs.get('headers', None)
-            if headerListString:
-                headers = [item.strip() for item in headerListString.split(',')]
-            
-            #conditions = kwargs.get('conditions', None)  # optional, not implemented yet 
-            
-            source = TableDataSource(table, fields, headers)
-            return source
-        except KeyError, err:
-            raise MissingDataSourceParameterError(MenuDataSource, 
-                                                  requiredParams)
-            
-            
-            
 
                 
         
