@@ -208,14 +208,16 @@ class SConfigurator(object):
 
 
       def _addLookupTable(self, lookupTableArray, screen):
-
+          screen.clear()
           tablesToAdd = self.selectTables(screen)
+          tableNames = [table.name for table in tablesToAdd]
           result = lookupTableArray
-          result.extend(tablesToAdd)
+          result.extend(tableNames)
           return result
 
+
       def _removeLookupTable(self, lookupTableArray, screen):
-          
+          screen.clear()
           multiChoicePrompt = MultipleChoiceMenuPrompt(lookupTableArray, 'Select one or more tables to remove from the list.')
           while not multiChoicePrompt.escaped:
               tablesToRemove = multiChoicePrompt.show(screen)
@@ -225,11 +227,11 @@ class SConfigurator(object):
           return result
 
 
-      def setupControls(self, persistenceManager, screen):
+      def setupControls(self, screen):
           """Set up zero or more UI controls, to be rendered via templates and supplied with data
           via datasources
           """
-          
+          screen.clear()
           choices = { 'y': True, 'n': False }
           prompt = TextSelectPrompt('Auto-create HTML select controls from lookup tables?', choices, 'y')          
           selection = prompt.show(screen)
@@ -245,28 +247,55 @@ class SConfigurator(object):
               tableList = dbInstance.listTables()          
               lookupTables = [table for table in tableList if table[0:7] == 'lookup_']
                         
-              #Notice('Lookup tables:\n%s' % displayList).show()
-              #actions = { a'': 'add', 'r': 'remove', 'c': 'clear', 'x': 'exit'  }
-              #prompt = TextSelectPrompt('Choose one of: [a]dd table, [r]emove table, [c]lear list, e[x]it', actions)
-
-
-              actions = { a'': 'add', 'r': 'remove', 'c': 'clear', 'x': 'exit'  }
-              lookupTablePrompt = TextSelectPrompt('Choose one of: [a]dd table,[r]emove table, [c]lear list, e[x]it', actions)
-
-              while not lookupTablePrompt.escaped:
-                  displayList = '\n'.join(lookupTables)
-                  Notice('Your application lookup tables are:\n%s' % displayList).show()
-                  selection = lookupTablePrompt.show(screen)
+              actionMenu = Menu(['Add Lookup Table', 'Show Lookup Tables', 'Remove Lookup Table', 'Clear Lookup Tables'])
+              actionPrompt = MenuPrompt(actionMenu, 'Select an action to manage lookup tables.')
               
-                  if selection == 'a':
+              while not actionPrompt.escaped:
+                  
+                  displayList = '\n'.join(lookupTables)                  
+                  selection = actionPrompt.show(screen)
+                  index = actionPrompt.selectedIndex
+
+                  if index == 1: # add 
                       lookupTables = self._addLookupTable(lookupTables, screen)
               
-                  elif selection =='c':
-                      lookupTables = []
+                  elif index == 2: # show
+                      Notice(displayList).show(screen)
+                      Notice('Hit any key to continue.').show(screen)
+                      screen.getch()
 
-                  elif selection == 'x':
-                      break
+                  elif index == 3:  # remove
+                      lookupTables = self._removeLookupTable(lookupTables, screen)
+                      
+                  elif index == 4: # clear the list
+                      lookupTables = []
+                  
+                  
+                  screen.clear()
+
+
+              for tableName in lookupTables:
+                  parameterSet = []
+                  parameterSet.append(DataSourceParameter('table', tableName))
+                  parameterSet.append(DataSourceParameter('name_field', 'name'))
+                  parameterSet.append(DataSourceParameter('value_field', 'id'))
+                  sourceName = '%s_datasource' % tableName
+                  self.datasources[sourceName] = DataSourceSpec('menu', parameterSet)
+                  
+                  controlName = '%s_select' % tableName
+                  self.controls[controlName] = ControlSpec('select', controlName, sourceName)
               
+    
+      def addSelectControl(self, screen):
+          pass
+
+
+      def addRadioControl(self, screen):
+          pass
+
+
+      def addTableControl(self, screen):
+          pass
 
 
       def setupDatasources(self, screen):
@@ -278,7 +307,7 @@ class SConfigurator(object):
           
           
           prompt = MenuPrompt(Menu(options), 'Select an option from the menu.')
-          
+          screen.clear()
           while not prompt.escaped:
               selection = prompt.show(screen)
               if prompt.escaped:
@@ -286,24 +315,34 @@ class SConfigurator(object):
               if prompt.selectedIndex == 1: # create datasource
                   sourceNamePrompt = TextPrompt('Enter a name for the datasource:')
                   sourceName = sourceNamePrompt.show(screen)
-
+                  
                   sourceTypeOptions = ['menu', 'grid']
                   sourceTypePrompt = MenuPrompt(Menu(sourceTypeOptions), 'Select a datasource type.')
                   sourceType = sourceTypePrompt.show(screen)
                   
                   sourceParams = []
+
+                  table = self.selectSingleTable(screen, 'Select the target table for the datasource.')                      
+                  sourceParams.append(DataSourceParameter('table', table.name))
+
                   if sourceType == 'menu':
-                      # prompt the user for source parameters
-                      for param in MenuDataSource.parameters:
-                          paramPrompt = TextPrompt(param)
-                          paramValue = paramPrompt.show(screen)
-                          sourceParams.append(DataSourceParameter(param, paramValue))
+                      # prompt for the name and value fields (usually the 'name' and 'id' columns)
+
+                      columnNames = [column.name for column in table.columns]                      
+                      columnMenu = Menu(columnNames)
+                      valueFieldPrompt = MenuPrompt(columnMenu, 'Select the value field.')
+                      valueField = valueFieldPrompt.show(screen)
+                      nameFieldPrompt = MenuPrompt(columnMenu, 'Select the name field.')
+                      nameField = nameFieldPrompt.show(screen)
                       
+                      sourceParams.append(DataSourceParameter('name_field', nameField))
+                      sourceParams.append(DataSourceParameter('value_field', valueField))
+
                   if sourceType == 'grid':
-                      for param in TableDataSource.parameters:
-                          paramPrompt = TextPrompt(param) 
-                          paramValue = paramPrompt.show(screen)
-                          sourceParams.append(DataSourceParameter(param, paramValue))
+                      fieldListPrompt = MultipleChoiceMenuPrompt(columnNames, 'Select one or more columns from the source table.')
+                      selectedFields = fieldListPrompt.show(screen)
+                      sourceParams.append(DataSourceParameter('fields', ','.join(selectedFields)))
+                      
 
                   newSpec = DataSourceSpec(sourceType, sourceParams)
                   self.datasources[sourceName] = newSpec
@@ -311,7 +350,8 @@ class SConfigurator(object):
               if prompt.selectedIndex == 2:     # list existing sources
                   screen.addstr("\nDatasources: " + ", ".join(self.datasources.keys()) + "\nHit any key to continue.")
                   screen.getch()
-                  screen.clear()
+
+              screen.clear()
 
           
 
@@ -322,7 +362,7 @@ class SConfigurator(object):
           options = ["Create new database", "List databases"]
 
           prompt = MenuPrompt(Menu(options), "Select an option from the menu.")
-          
+          screen.clear()
           while not prompt.escaped:
               selection = prompt.show(screen)
               if prompt.escaped:
@@ -342,6 +382,7 @@ class SConfigurator(object):
                   screen.getch()
                   screen.clear()
               
+
       def setupGlobalData(self, screen):
             """Set project values which will be used by various sections of the configuration.
 
@@ -351,7 +392,7 @@ class SConfigurator(object):
             screen -- curses display context
             """
 
-
+            screen.clear()
             projectNamePrompt = TextPrompt("Enter project name", None)
             self.projectName = projectNamePrompt.show(screen)
             self.app_name = self.projectName
@@ -381,20 +422,58 @@ class SConfigurator(object):
             self.default_helper_package = '%s_helpers' % self.projectName.lower()
             
             try:
-                os.system('mkdir %s' % self.static_file_path) 
-                #os.system('mkdir %s' % self.template_path)
-                os.system('mkdir %s' % self.stylesheet_path)
-                os.system('mkdir %s' % os.path.join(scriptPath[0], scriptPath[1]))
-                os.system('mkdir %s' % os.path.join(stylesPath[0], stylesPath[1]))
-                os.system('mkdir %s' % os.path.join(xmlPath[0], xmlPath[1]))
+                if not os.path.exists(self.static_file_path):
+                    os.system('mkdir %s' % self.static_file_path) 
+                
+                if not os.path.exists(self.stylesheet_path):
+                    os.system('mkdir %s' % self.stylesheet_path)
+
+                if not os.path.exists(os.path.join(scriptPath[0], scriptPath[1])):
+                    os.system('mkdir %s' % os.path.join(scriptPath[0], scriptPath[1]))
+
+                if not os.path.exists(os.path.join(stylesPath[0], stylesPath[1])):
+                    os.system('mkdir %s' % os.path.join(stylesPath[0], stylesPath[1]))
+
+                if not os.path.exists( os.path.join(xmlPath[0], xmlPath[1])):
+                    os.system('mkdir %s' % os.path.join(xmlPath[0], xmlPath[1]))
+
             except IOError, err:
                 raise err
 
             self.globalDataInitialized = True
             
 
+      def selectSingleTable(self, screen, screenMsg = None):
+          
+          screen.clear()
+          if screenMsg:
+              Notice(screenMsg).show(screen)
+
+          dbName = MenuPrompt(Menu(self.databases.keys()), "Select a DB instance to connect to.").show(screen)
+          dbConfig = self.databases[dbName]
+          self.startup_db = dbName
+
+          selectedTable = None
+
+          try:
+              # first connect to the DB
+                
+              dbInstance = db.MySQLDatabase(dbConfig.host, dbConfig.schema)
+              dbInstance.login(dbConfig.username, dbConfig.password)
+                
+              # get a listing of all tables and present in menu form
+              m = Menu(dbInstance.listTables())
+              prompt = MenuPrompt(m, 'Select a database table.')
+              tableName = prompt.show(screen)                                                   
+              selectedTable = dbInstance.getTable(tableName)          
+              return selectedTable
+
+          finally:
+              pass
+
+
       def selectTables(self, screen):
-      
+            screen.clear()
             dbName = MenuPrompt(Menu(self.databases.keys()), "Select a DB instance to connect to.").show(screen)
             dbConfig = self.databases[dbName]
             self.startup_db = dbName
@@ -581,7 +660,7 @@ class SConfigurator(object):
               baseTemplateFile.write(baseTemplateData)
               baseTemplateFile.close()
 
-               # First, transform the XML seed template into a FormSpec XML document.
+               # transform the XML seed template into a FormSpec XML document.
               for fSpec in formSpecs:
                   
                   # Use each FormSpec object in our list to populate the model XML template
@@ -603,11 +682,8 @@ class SConfigurator(object):
                   # Next, transform the FormSpec document into a set of final HTML templates.
                   # The resulting templates will become views in the live application.
                   #
-                  
-
-                  
-
                   # index template, for viewing all objects of a given type
+
                   xslFilename = os.path.join("bootstrap", "index_template.xsl")
                   xslFile = open(xslFilename)
                   xslTree = etree.parse(xslFile)
@@ -777,8 +853,16 @@ class FieldSpecFactory:
     """Use Factory pattern to create a FieldSpec from reflected information about a database column."""
 
     def __init__(self):
-        self.typeMap = { "BOOL": BooleanField, "INTEGER": IntegerField, "FLOAT": DecimalField, "DOUBLE": DecimalField, "DATE": DateField, "DATETIME": DateTimeField,
-                             "INTEGER": IntegerField, "TINYINT": IntegerField, "VARCHAR": TextField }
+        self.typeMap = { "BOOL": BooleanField, 
+                         "INTEGER": IntegerField, 
+                         "FLOAT": DecimalField, 
+                         "DOUBLE": DecimalField, 
+                         "DATE": DateField, 
+                         "DATETIME": DateTimeField,
+                         "INTEGER": IntegerField, 
+                         "TINYINT": IntegerField, 
+                         "VARCHAR": TextField }
+
         self.selectFields = {}
     
     def specifySelectField(self, name, dictionary):
@@ -852,15 +936,12 @@ class ControlSpec:
         self.datasource = dataSourceAlias
         self.template = templateID
         
-    
-    
+        
 def main():
         display = CursesDisplay(SConfigurator)
         display.open()
         
-       
-                
-            
+                                  
 if __name__ == "__main__":
         main() 
     
