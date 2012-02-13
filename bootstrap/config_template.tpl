@@ -53,8 +53,7 @@ datasources:
         {{ source }}:
             type:           {{ config.datasources[source].type }}   
             {% for param in config.datasources[source].params %}
-            {{ param.name }}:       {{ param.value }}
-            {% endfor %}
+            {{ param.name }}:       {{ param.value }}{% endfor %}
         {% endfor %}   
             
 
@@ -63,12 +62,12 @@ datasources:
 # Controls are dynamic, receiving their data from named datasources.
 #
 controls:
-        {% for control in config.controls %}
-        {{ control }}:
-            type:           {{ control.type }}
-            name:           {{ control.name }}          # this is its name in the HTML form
-            datasource:     {{ control.datasource }}            
-            template:       {{ control.template }}      # optional; only need to specify for custom controls
+        {% for controlName in config.controls %}
+        {{ controlName }}:
+            type:        {{ config.controls[controlName].type }}
+            name:        {{ config.controls[controlName].name }}          # this is its name in the HTML form
+            datasource:  {{ config.controls[controlName].datasource }}            
+            template:    {{ config.controls[controlName].template }}      # optional; only need to specify for custom controls
         {% endfor %}
 
 #
