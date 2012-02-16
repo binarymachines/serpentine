@@ -49,7 +49,6 @@ class DatabaseConfig:
 
 
 
-
 class FrameConfig:
     def __init__(self, name, template, formClassName, frameType, helperName = None):
         self.name = name
