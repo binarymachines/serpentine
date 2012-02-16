@@ -308,8 +308,6 @@ class SConfigurator(object):
           
           prompt = MenuPrompt(Menu(options), 'Select an option from the menu.')
           screen.clear()
-
-          Notice('Create one or more datasources to populate UI controls.').show(screen)
           while not prompt.escaped:
               selection = prompt.show(screen)
               if prompt.escaped:
@@ -324,18 +322,17 @@ class SConfigurator(object):
                   
                   sourceParams = []
 
-                  table = self.selectSingleTable(screen, 'Select the target table for the datasource.')
-                  screen.clear()
+                  table = self.selectSingleTable(screen, 'Select the target table for the datasource.')                      
                   sourceParams.append(DataSourceParameter('table', table.name))
-                  
+
                   if sourceType == 'menu':
                       # prompt for the name and value fields (usually the 'name' and 'id' columns)
-                      Notice('Table "%s" selected. Select source fields next.' % table.name)
+
                       columnNames = [column.name for column in table.columns]                      
                       columnMenu = Menu(columnNames)
-                      valueFieldPrompt = MenuPrompt(columnMenu, 'Select the value field (usually the primary key field).')
+                      valueFieldPrompt = MenuPrompt(columnMenu, 'Select the value field.')
                       valueField = valueFieldPrompt.show(screen)
-                      nameFieldPrompt = MenuPrompt(columnMenu, 'Select the name field (the value displayed in menus or other controls.')
+                      nameFieldPrompt = MenuPrompt(columnMenu, 'Select the name field.')
                       nameField = nameFieldPrompt.show(screen)
                       
                       sourceParams.append(DataSourceParameter('name_field', nameField))
@@ -366,7 +363,6 @@ class SConfigurator(object):
 
           prompt = MenuPrompt(Menu(options), "Select an option from the menu.")
           screen.clear()
-          Notice('Set up one or more database instances to connect to from the web application.').show(screen)
           while not prompt.escaped:
               selection = prompt.show(screen)
               if prompt.escaped:
@@ -397,9 +393,6 @@ class SConfigurator(object):
             """
 
             screen.clear()
-            Notice('Welcome to SConfigurator, the Serpentine auto-config utility.').show(screen)
-            Notice('Set basic project information for the web app.').show(screen)
-
             projectNamePrompt = TextPrompt("Enter project name", None)
             self.projectName = projectNamePrompt.show(screen)
             self.app_name = self.projectName
@@ -575,8 +568,7 @@ class SConfigurator(object):
           Arguments:
           screen -- display target for menus and prompts
           """
-          screen.clear()
-          Notice('Enter WSGI config information.').show(screen)
+
           hostPrompt = TextPrompt('Enter the hostname for this app: ', 'localhost')
           self.hostname = hostPrompt.show(screen)
 
