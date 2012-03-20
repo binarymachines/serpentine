@@ -26,26 +26,6 @@ class Properties( object ):
       def __init__(self, **kwargs):
             self.__dict__.update(kwargs)
 
-class ClassLoader:
-    def __init__(self):
-        self.cache = {}
-
-    def loadClass(self, fqClassName):  # fully qualified class name in the form moduleName.className
-        result = self.cache.get(fqClassName)
-        if not result == None:
-            return result
-        else:
-            try:
-                  log('>> Receiving classname for loading: %s' % fqClassName)
-                  paths = fqClassName.split('.')
-                  moduleName = '.'.join(paths[:-1])
-                  className = paths[-1]
-                  result = getattr(__import__(moduleName), className)
-                  self.cache[fqClassName] = result
-                  return result
-            except AttributeError:
-                  raise ClassLoaderError(fqClassName)
-
 
 class Environment():
       def __init__(self):
@@ -112,6 +92,32 @@ class Environment():
             finally:
                   pass
       
+
+      def loadDatasources(self):
+            if not self.config['datasources']:
+                  return
+
+            factory = DataSourceFactory()
+
+            for sourceName in self.config['datasources']:
+                  params = self.config['datasources'][sourceName]
+                  sourceType = self.config['datasources'][sourceName]['type']
+                  newDataSource = factory.createDataSource(sourceType, self.config['global']['default_datasource_package'], **params)
+                  self.dataSourceRegistry.addDataSource(newDataSource, sourceName)
+
+
+      def loadControls(self):
+            if not self.config['ui-controls']:
+                  return
+
+            factory = ControlFactory()
+            
+            for controlName in self.config['ui-controls']:
+                params = self.config['ui-controls'][controlName]
+                controlType = params['type']                
+                newControl = factory.createControl(controlType, self.dataSourceRegistry, **params)
+                self.controlMap[controlName] = newControl
+
 
       def initializeReporting(self):
             packageName = self.config['global']['default_report_package']
@@ -243,6 +249,18 @@ class Environment():
             creg.addFrame(controllerFrameObject, 'controller')
             creg.addFrame(responderFrameObject, 'responder')
 
+            # HTML control templates (built-in)
+            # users do not need to explicitly register the control template frames.
+            # TODO: add a config section to allow custom templates
+            #
+            selectControlTemplateObject = self.templateManager.getTemplate('select_control.tpl')
+            tableTemplateObject = self.templateManager.getTemplate('table.tpl')
+            radioGroupTemplateObject = self.templateManager.getTemplate('radio_group_control.tpl')
+
+            creg.addFrame(HTMLFrame(selectControlTemplateObject), 'select_control')
+            creg.addFrame(HTMLFrame(tableTemplateObject), 'table')
+            creg.addFrame(HTMLFrame(radioGroupTemplateObject), 'radio_group_control')
+
 
       def mapFramesToViews(self):
             viewManager = ViewManager(self.contentRegistry)
@@ -347,6 +365,7 @@ class Environment():
             dispatcher = EventDispatcher()
             self.eventDispatcher = dispatcher
             return dispatcher
+
 
       def assignControllers(self):
             frontController = FrontController()

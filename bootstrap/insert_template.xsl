@@ -17,7 +17,7 @@
 {% block user_scripts %}
 <script type="text/javascript" language="javascript">
 
-    $document.ready(function(){
+    $(document).ready(function(){
     
     });
     

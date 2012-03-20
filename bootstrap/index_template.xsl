@@ -14,8 +14,28 @@
 {% block user_scripts %}
 <script type="text/javascript" language="javascript">
 
-    $document.ready(function(){
-    
+    $(document).ready(function(){
+        
+        stripe("index_table");
+        
+        /* 
+        The 'action-registration' pattern makes the logic of selects and prompts easier, 
+        more direct, and less error-prone.  For every registered action in
+        the hashtable 'actions', there are the following values: 
+        
+        'name': the string ID of the chosen select option -- this is the index into the hashtable
+        'url': the (usually relative) url that should be triggered on clicking the Go button
+        'params': a hashtable mapping variable names embedded in the url to values (or functions to retrieve them)
+        'must_select': a boolean value specifying whether a record must be selected before clicking Go
+        */
+        
+        actions = {};
+        registerAction(actions, "add", "/add_operation_url", {}, false);                                
+        registerAction(actions, "update", "/update_operation_url/{id}", 
+                        { "id":  getObjectID }, 
+                        true);
+        initTableSelectLogic(actions);
+
     });
     
 </script>
@@ -27,25 +47,31 @@
 {% endblock %}
 
 {% block content %}
+<form action="#" method="GET" id="action_form">
+    <select name="action" id="action_selector">  			  
+      			<option id="add" value="#">Add</option>
+      			<option id="update" value="#">Update</option>    	      		    
+    </select>
+    <button id="go_button" type="submit" style="width: 4em; height: 2em">Go</button>
+
     <table id="index_table">
         <thead>            
             <th>Select</th>
-            <xsl:for-each select="field">
-            <th><xsl:value-of select="label"/></th>    
+            <xsl:for-each select="field"><th><xsl:value-of select="label"/></th>    
             </xsl:for-each>            
         </thead>
         <tbody>    
-
         {% for record in resultset %}
             <tr>
               <td>
-                <input type="radio" class="object_id_button" name="object_id" value="{@id}"/>
+                <input type="radio" class="object_id_button" name="object_id" value="{{ record.id }}"/>
               </td>
-              <xsl:apply-templates/>
+                <xsl:apply-templates/>
             </tr>
         {% endfor %}
         </tbody>
      </table>
+</form>
 {% endblock %}
 
 </xsl:template>

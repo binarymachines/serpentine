@@ -117,6 +117,68 @@ class MissingRequestParamError(Exception):
         Exception.__init__(self,
                            "The inbound HTTP request is missing the parameter '%s'." % paramName)
 
+
+class DatatypeConverter(object):
+ 
+    converters = { 'int': int, 'float': float, 'string': str }
+    
+    @classmethod
+    def convert(pClass, data, typeName):
+        converter = pClass.converters.get(typeName, None)
+        if converter:
+            return converter(data) 
+        return data
+        
+        
+class Datatype(object):
+    INT = 'int'
+    FLOAT = 'float'
+    STRING = 'str' 
+
+
+class HttpUtility(object):
+    @classmethod 
+    def getRequiredParameter(pClass, paramName, paramTypeString, httpRequestData):
+    
+        requestData = httpRequestData.get(paramName, None)
+        if requestData is None:
+            raise MissingRequestParamError(paramName)
+            
+        value = DatatypeConverter.convert(requestData, paramTypeString)
+        return value
+    
+
+class ClassLoader:
+    def __init__(self):
+        self.cache = {}
+
+    def loadClass(self, fqClassName):  # fully qualified class name in the form moduleName.className
+        result = self.cache.get(fqClassName)
+        if not result == None:
+            return result
+        else:
+            try:
+                  log('>> Receiving classname for loading: %s' % fqClassName)
+                  paths = fqClassName.split('.')
+                  moduleName = '.'.join(paths[:-1])
+                  className = paths[-1]
+                  result = getattr(__import__(moduleName), className)
+                  self.cache[fqClassName] = result
+                  return result
+            except AttributeError:
+                  raise ClassLoaderError(fqClassName)
+
+
+class ControllerStatus:
+    def __init__(self, ok = True, errMessage = None):
+        self.isok = ok
+        self.message = errMessage
+        self.data = {}
+
+    def __str__(self):
+        return "Controller returned %s. Message: %s" % (self.isok, self.message) 
+
+
 class Singleton(object):
   __instance = None # the one, true Singleton
   
@@ -133,16 +195,6 @@ class Singleton(object):
 
   def display(self):
     print self.name,id(self),type(self)
-
-
-class ControllerStatus:
-    def __init__(self, ok = True, errMessage = None):
-        self.isok = ok
-        self.message = errMessage
-        self.data = {}
-
-    def __str__(self):
-        return "Controller returned %s. Message: %s" % (self.isok, self.message) 
 
 
 class FrontController(Singleton):
@@ -178,6 +230,17 @@ class BaseController(object):
         self.typeSpecificIDSessionTag = ''.join([self.modelClass.__name__.lower(), '_id'])
         self.sessionName = 'beaker.session'
 
+
+    def lookup(self, objectID, dbSession):
+        try:            
+            object = dbSession.query(self.modelClass).filter(self.modelClass.id == objectID).one()            
+            return object
+        except SQLAlchemyError, err:
+            
+            log('Object lookup failed with message: %s' % err.message)
+            # TODO: scaffolding to track down lookup 
+            raise err
+    """
     def lookup(self, objectID, persistenceManager):
         dbSession = persistenceManager.getSession()
         try:            
@@ -189,19 +252,22 @@ class BaseController(object):
             # TODO: scaffolding to track down lookup 
             raise err
         finally:
-            dbSession.close()
-                
+            #dbSession.close()
+            pass
+    """ 
         
     def assertObjectExists(self, modelName, objectID, persistenceManager):
-        if self.lookup(objectID, persistenceManager) is None:
+        dbSession = persistenceManager.getSession()
+        result =  self.lookup(objectID, dbSession) 
+        dbSession.close()
+        if result is None:
             raise ObjectLookupError(modelName, objectID)
         
     def _index(self, persistenceManager):
         dbSession = persistenceManager.getSession()
         try:            
             query =  dbSession.query(self.modelClass)  
-            collection = query.all()     
-            
+            collection = query.all()                 
             return collection
         except SQLAlchemyError, err:
             dbSession.rollback()
@@ -270,17 +336,14 @@ class BaseController(object):
 
         return frameObject.render(httpRequest, context, **kwargs)
 
-    def _insert(self, object, persistenceManager): 
-        dbSession = persistenceManager.getSession()
+    def _insert(self, object, dbSession):        
         try:            
-            persistenceManager.insert(object, dbSession) 
-            dbSession.commit()
+            dbSession.add(object) 
+            dbSession.flush()
         except SQLAlchemyError, err:    
             dbSession.rollback()
             log("%s failed with message: %s" % ('insert', err.message))
-            raise err
-        finally:
-            dbSession.close()
+            raise err        
         
     
     def insert(self, objectType, httpRequest, context, **kwargs):
@@ -296,29 +359,31 @@ class BaseController(object):
             raise FormValidationError(objectType, 'insert', inputForm.errors)
 
         object = self.modelClass()
-        inputForm.populate_obj(object)        
-        self._insert(object, context.persistenceManager)
+        inputForm.populate_obj(object)   
+        dbSession = context.persistenceManager.getSession()
+        try:
+            self._insert(object, dbSession)
+            dbSession.commit()
         
-        snapback = httpRequest.POST.get('snapback', '').strip()
-        if len(snapback):
-            redirectTarget = '/%s/%s' % (context.urlBase, snapback)
-        else:
-            redirectTarget = '/%s/controller/%s/index' % (context.urlBase, objectType)
+            snapback = httpRequest.POST.get('snapback', '').strip()
+            if len(snapback):
+                redirectTarget = '/%s/%s' % (context.urlBase, snapback)
+            else:
+                redirectTarget = '/%s/controller/%s/index' % (context.urlBase, objectType)
 
-        redirect(redirectTarget)
+            redirect(redirectTarget)
+        finally:
+            dbSession.close()
                 
 
-    def _update(self, object, persistenceManager):
-        dbSession = persistenceManager.getSession()
+    def _update(self, object, dbSession):       
         try:
-            persistenceManager.update(object, dbSession)  
+            dbSession.flush()             
             dbSession.commit()
         except SQLAlchemyError, err:
             dbSession.rollback()
             log("%s %s failed with message: %s" % (self.modelClass, 'insert', err.message))
-            raise err
-        finally:
-            dbSession.close()
+            raise err       
         
             
     def update(self, objectType, objectID, httpRequest, context, **kwargs):
@@ -328,10 +393,13 @@ class BaseController(object):
         frameObject = context.contentRegistry.getFrame(targetFrameID)
         session = httpRequest.environ[self.sessionName]
 
+        dbSession = context.persistenceManager.getSession()
+        object = self.lookup(int(objectID), dbSession)
+        if object is None:
+            dbSession.close()
+            raise ObjectLookupError(objectType, objectID)
+
         if httpRequest.method == 'GET': 
-            object = self.lookup(int(objectID), context.persistenceManager)
-            if object is None:
-                raise ObjectLookupError(objectType, objectID)
            
             httpRequest.GET['object_id'] = int(objectID)
             displayForm = formClass(None, object)
@@ -347,11 +415,10 @@ class BaseController(object):
                 extraData = helperFunction(httpRequest, context)
                 kwargs.update(extraData)
 
+            dbSession.close()
             return frameObject.render(httpRequest, context, **kwargs)
-        elif httpRequest.method == 'POST':            
-            object = self.lookup(int(objectID), context.persistenceManager)
-            if object is None:
-                raise ObjectLookupError(objectType, objectID)
+
+        elif httpRequest.method == 'POST':     
 
             inputForm = formClass()
             inputForm.process(httpRequest.POST)
@@ -359,9 +426,11 @@ class BaseController(object):
                 raise FormValidationError('update', objectType, inputForm.errors)
 
             inputForm.populate_obj(object)
+            
             try:
-                self._update(object, context.persistenceManager)  
-
+                self._update(object, dbSession)  
+                dbSession.commit()
+                
                 snapback = httpRequest.POST.get('snapback', '').strip()
                 if len(snapback):
                     redirectTarget = '/%s/%s' % (context.urlBase, snapback)
@@ -371,6 +440,7 @@ class BaseController(object):
                 redirect(redirectTarget)            
             finally:
                 session[self.typeSpecificIDSessionTag] = None
+                dbSession.close()
 
     
 

@@ -13,6 +13,7 @@ global:
         default_helper_package:         {{ config.default_helper_package }}
         default_controller_package:     {{ config.default_controller_package }} 
         default_responder_package:      {{ config.default_responder_package }}
+        default_datasource_package:     {{ config.default_datasource_package }}
         default_report_package:         {{ config.default_reporting_package }}
         startup_db:                     {{ config.startup_db }}
         url_base:                       {{ config.url_base }}
@@ -53,8 +54,7 @@ datasources:
         {{ source }}:
             type:           {{ config.datasources[source].type }}   
             {% for param in config.datasources[source].params %}
-            {{ param.name }}:       {{ param.value }}
-            {% endfor %}
+            {{ param.name }}:       {{ param.value }}{% endfor %}
         {% endfor %}   
             
 
@@ -62,13 +62,13 @@ datasources:
 # UI control objects, rendered via templates (frames in the content registry).
 # Controls are dynamic, receiving their data from named datasources.
 #
-controls:
-        {% for control in config.controls %}
-        {{ control }}:
-            type:           {{ control.type }}
-            name:           {{ control.name }}          # this is its name in the HTML form
-            datasource:     {{ control.datasource }}            
-            template:       {{ control.template }}      # optional; only need to specify for custom controls
+ui-controls:
+        {% for controlName in config.controls %}
+        {{ controlName }}:
+            type:        {{ config.controls[controlName].type }}
+            name:        {{ config.controls[controlName].name }}          # this is its name in the HTML form
+            datasource:  {{ config.controls[controlName].datasource }}            
+            template:    {{ config.controls[controlName].template }}      # optional; only need to specify for custom controls
         {% endfor %}
 
 #

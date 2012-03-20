@@ -10,15 +10,15 @@
     {% endraw %}
     </title>
     
-    <link rel="stylesheet" href="/samplespace/static/styles/main.css" type="text/css" media="screen,projection" />
-    <link type="text/css" href="/samplespace/static/styles/smoothness/jquery-ui-custom.css" rel="stylesheet" />
-    <link type="text/css" href="/samplespace/static/styles/jquery-ui-mods.css" rel="stylesheet"/>
+    <link rel="stylesheet" href="/{{ config.url_base }}/static/styles/main.css" type="text/css" media="screen,projection" />
+    <link type="text/css" href="/{{ config.url_base }}/static/styles/smoothness/jquery-ui-custom.css" rel="stylesheet" />
+    <link type="text/css" href="/{{ config.url_base }}/static/styles/jquery-ui-mods.css" rel="stylesheet"/>
     
-    <script type="text/javascript" src="/samplespace/static/scripts/jquery.js"></script>
-    <script type="text/javascript" src="/samplespace/static/scripts/jquery-ui.js"></script>
-    <script src="/samplespace/static/scripts/jquery-ui-timepicker-addon.js" language="javascript"></script>
-    <script src="/samplespace/static/scripts/tablestripes.js" language="javascript"></script>
-    <script src="samplespace/static/scripts/serpentine.js" language="javascript"></script>
+    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery.js"></script>
+    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery-ui.js"></script>
+    <script src="/{{ config.url_base }}/static/scripts/jquery-ui-timepicker-addon.js" language="javascript"></script>
+    <script src="/{{ config.url_base }}/static/scripts/tablestripes.js" language="javascript"></script>
+    <script src="/{{ config.url_base }}/static/scripts/serpentine.js" language="javascript"></script>
     
     {% raw %}
     {% block user_scripts %}
