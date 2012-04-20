@@ -13,7 +13,6 @@ global:
         default_helper_package:         {{ config.default_helper_package }}
         default_controller_package:     {{ config.default_controller_package }} 
         default_responder_package:      {{ config.default_responder_package }}
-        default_datasource_package:     {{ config.default_datasource_package }}
         default_report_package:         {{ config.default_reporting_package }}
         startup_db:                     {{ config.startup_db }}
         url_base:                       {{ config.url_base }}
@@ -62,7 +61,7 @@ datasources:
 # UI control objects, rendered via templates (frames in the content registry).
 # Controls are dynamic, receiving their data from named datasources.
 #
-ui-controls:
+controls:
         {% for controlName in config.controls %}
         {{ controlName }}:
             type:        {{ config.controls[controlName].type }}
