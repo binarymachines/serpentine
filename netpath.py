@@ -30,6 +30,8 @@ class NetPathStartupPlugin(object):
             environment.initializeEventDispatcher()
             environment.mapModelsToDatabase()
             environment.loadResponders()
+            environment.loadDatasources()
+            environment.loadControls()
             environment.dispatcher = EventDispatcher()
             environment.initializeReporting()
             self.environment = environment

@@ -92,18 +92,27 @@ def invokeResponderGet(environment, responderID='none'):
     responder = environment.responderMap[responderID]
     return responder.respond(request, context)
 
-"""
-@route('/receiver/:receiverID', method='POST')
-def invokeReceiverPost(environment, receiverID='none'):
+
+@route('/uicontrol/:controlID', method='GET')
+def invokeUIControlGet(environment, controlID='none'):
     context = Context(environment)
     environment.frontController.validate(request)
 
-    if not receiverID in environment.receiverMap:
-        raise NoSuchReceiverError(receiverID)
+    if not controlID in environment.controlMap:
+        raise NoSuchUIControlError(controlID)
 
-    receiver = environment.receiverMap[receiverID]
-    return receiver.process(request, context)
-"""
+    control = environment.controlMap[controlID]
+    params = {}
+    params.update(request.GET)
+
+    # Invoke helper function if one has been registered
+    helper = environment.contentRegistry.getHelperFunctionForFrame(control.templateFrameID)
+    if helper:
+        extraData = helper(request, context)
+        params.update(extraData)
+    
+    return control.render(request, context, **params)
+
 
 
 @route('/frame/:frameID')
@@ -187,7 +196,17 @@ def invokeControllerUpdatePost(environment, objectType= 'none', objectID = 'none
         raise Exception("Update failed: No %s ID in session data." % objectType)
 
     return controller.update(objectType, objectID, request, context)
-        
+
+
+@route('/controller/:objectType/update/:objectID', method='POST')
+def invokeControllerUpdatePost(environment, objectType = 'none', objectID = 'none'):
+
+    context = Context(environment)    
+    environment.frontController.validate(request)
+    controller = environment.frontController.getController(objectType)
+
+    return controller.update(objectType, objectID, request, context)
+
             
 #
 # Invokes the index() method on the controller for the selected type.
@@ -273,8 +292,8 @@ def invokeControllerInsertPost(environment, objectType = 'none'):
 @route('/controller/:objectType/:controllerMethod', method = 'POST')
 def invokeControllerMethodPost(environment, objectType='none', controllerMethod='none'):
     
-    response.header['Cache-Control'] = 'no-cache'
-    response.header['Expires'] = 0
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Expires'] = 0
 
     context = Context(environment);
     environment.frontController.validate(request)
