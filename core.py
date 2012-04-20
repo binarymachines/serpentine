@@ -118,6 +118,7 @@ class MissingRequestParamError(Exception):
                            "The inbound HTTP request is missing the parameter '%s'." % paramName)
 
 
+
 class DatatypeConverter(object):
  
     converters = { 'int': int, 'float': float, 'string': str }
@@ -197,6 +198,37 @@ class Singleton(object):
     print self.name,id(self),type(self)
 
 
+class ClassLoader:
+    def __init__(self):
+        self.cache = {}
+
+    def loadClass(self, fqClassName):  # fully qualified class name in the form moduleName.className
+        result = self.cache.get(fqClassName)
+        if not result == None:
+            return result
+        else:
+            try:
+                  log('>> Receiving classname for loading: %s' % fqClassName)
+                  paths = fqClassName.split('.')
+                  moduleName = '.'.join(paths[:-1])
+                  className = paths[-1]
+                  result = getattr(__import__(moduleName), className)
+                  self.cache[fqClassName] = result
+                  return result
+            except AttributeError:
+                  raise ClassLoaderError(fqClassName)
+
+
+class ControllerStatus:
+    def __init__(self, ok = True, errMessage = None):
+        self.isok = ok
+        self.message = errMessage
+        self.data = {}
+
+    def __str__(self):
+        return "Controller returned %s. Message: %s" % (self.isok, self.message) 
+
+
 class FrontController(Singleton):
   
   def __init__(self):
@@ -216,6 +248,18 @@ class FrontController(Singleton):
       return self.controllerMap[modelName]
 
 
+class HttpUtility(object):
+    @classmethod 
+    def getRequiredParameter(pClass, paramName, paramTypeString, httpRequestData):
+    
+        requestData = httpRequestData.get(paramName, None)
+        if requestData is None:
+            raise MissingRequestParamError(paramName)
+            
+        value = DatatypeConverter.convert(requestData, paramTypeString)
+        return value
+    
+
 
 class BaseController(object):
     def __init__(self, modelClass): 
@@ -233,28 +277,20 @@ class BaseController(object):
 
     def lookup(self, objectID, dbSession):
         try:            
-            object = dbSession.query(self.modelClass).filter(self.modelClass.id == objectID).one()            
+            object = dbSession.query(self.modelClass).filter(self.modelClass.id == objectID).one()           
             return object
+            
+        except NoResultFound, err:
+            raise Exception('No %s instance found in DB with primary key %s.' % (self.modelClass.__name__, str(objectID)))
+            
+            raise err
         except SQLAlchemyError, err:
             
-            log('Object lookup failed with message: %s' % err.message)
+            log('%s lookup failed with message: %s' % (self.modelClass.__name__, err.message))
+
             # TODO: scaffolding to track down lookup 
             raise err
-    """
-    def lookup(self, objectID, persistenceManager):
-        dbSession = persistenceManager.getSession()
-        try:            
-            object = dbSession.query(self.modelClass).filter(self.modelClass.id == objectID).one()            
-            return object
-        except SQLAlchemyError, err:
-            dbSession.rollback()
-            log('Object lookup failed with message: %s' % err.message)
-            # TODO: scaffolding to track down lookup 
-            raise err
-        finally:
-            #dbSession.close()
-            pass
-    """ 
+
         
     def assertObjectExists(self, modelName, objectID, persistenceManager):
         dbSession = persistenceManager.getSession()
