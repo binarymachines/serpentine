@@ -6,6 +6,7 @@ import os
 import os.path
 import exceptions
 import sys
+import re
 
 import jinja2
 
@@ -62,6 +63,19 @@ class NoSuchDataSourceError(Exception):
         message = 'No DataSource has been registered under the alias %s.' % dataSourceAlias
         Exception.__init__(self, message)
 
+
+class BadSQLDataSourceConditionError(Exception):
+    def __init__(self, conditionString):
+        message = 'Badly formatted condition string [%s] passed to SQLDataSource.' % conditionString
+        Exception.__init__(self, message)
+        
+class MissingConditionVariableError(Exception):
+    def __init__(self, sqlCondition):
+        message = \
+        'Attempted to load a DataSource with a query condition, but the predicate variable %s is missing. \n%s' \
+        % (sqlCondition.predicate, sqlCondition)
+        
+        Exception.__init__(self, message)
 
 class JinjaTemplateManager:
     def __init__(self, environment):
@@ -200,14 +214,167 @@ class XMLFrame(Frame):
         return context.displayManager.renderContent(xml, frameID, channelID)
         
 
+class SQLCondition:
+    def __init__(self, conditionString):
+        """"Create an SQL condition for filtering SQLDataSource records.
+        
+        The conditionString must be of the form:
+        
+        <field> <operator> <value>
+        
+        where field is any field in the DataSource's target table,
+        operator is one of <, >, =, or !=,
+        and value is either an explicit value such as "foobar" or 6, or 
+        a variable specified as { variable_name }. 
+        
+        A variable name so specified must appear in the query string 
+        of the inbound HTTP request so that we can pass it to the 
+        load() method, otherwise the DataSource will raise an exception.
+        """
+    
+        # TODO: Figure out how to get the regex to reject underscores as part of predicates
+    
+        self.field = None
+        self.predicate = None
+        self.operator = None
+        self.predicateType = None
+        
+        self.operatorRegex = re.compile(r'[<>=]+') 
+    
+        varConditionRegex = re.compile(r"""
+            [a-z_]*\s*              # field name followed by whitespace
+            [<>=]\s*                # operator: one of <, >, or =
+            \{\s*[a-z_]*\s*\}       # followed by a bracketed variable 
+            \s*                     # and some amount of whitespace
+            """,                 
+            re.IGNORECASE | re.VERBOSE) 
+                   
+        intConditionRegex = re.compile(r"""
+            [a-z_]*\s*
+            [<>=]\s*
+            [\d]+\s*
+            """, 
+            re.IGNORECASE | re.VERBOSE)        
+            
+        floatConditionRegex = re.compile(r"""
+            [a-z_]*\s*
+            [<>=]\s*
+            [\d]+\.[\d]*            # optional digits, a period, and mandatory digits
+            \s*
+            """, 
+            re.IGNORECASE | re.VERBOSE)
+            
+        stringConditionRegex = re.compile(r"""
+            [a-z_]*\s*              # field name
+            [<>=]\s*                # operator
+            \"[\S]+\"               # a quoted string
+            \s*
+            """, re.IGNORECASE | re.VERBOSE)  
+        
+        self.expressionHandler = {}
+        
+        self.expressionHandler[varConditionRegex] = self.parseVariablePredicate
+        self.expressionHandler[intConditionRegex] = self.parseIntPredicate
+        self.expressionHandler[floatConditionRegex] = self.parseFloatPredicate
+        self.expressionHandler[stringConditionRegex] = self.parseStringPredicate
+        
+                
+        matchFound = False
+        for regex in self.expressionHandler:
+            if regex.match(conditionString):
+                matchFound = True
+                self.expressionHandler[regex](conditionString) #function pointers, yeah
+        
+        if not matchFound:
+            raise BadSQLDataSourceConditionError(conditionString)
+        
+        s = self.operatorRegex.search(conditionString)        
+        # find the symbol we're using in the condition (one of >, <, =)
+        self.operator = conditionString[s.start():s.end()].strip()
+        # what comes before the symbol must be the field name        
+        self.field = conditionString.split(self.operator)[0].strip()
+        
+        
+        
+    def parseVariablePredicate(self, conditionString):
+            
+        bracketVar = re.compile(r'\{\s*[a-z_]*\s*\}', re.IGNORECASE)         
+        s = bracketVar.search(conditionString)
+        variableString = conditionString[s.start()+1: s.end()-1]
+        self.predicate = variableString.strip()
+        self.predicateType = 'variable'
+        
+        
+    def parseIntPredicate(self, conditionString):
+
+        intValueRegex = re.compile(r'[0-9]+') 
+        s = intValueRegex.search(conditionString)        
+        self.predicate = conditionString[s.start():s.end()].strip()
+        self.predicateType = 'integer'
+    
+    
+    def parseFloatPredicate(self, conditionString):
+
+        floatValueRegex = re.compile(r'[-+]?[0-9]*\.?[0-9]+')        
+        s = floatValueRegex.search(conditionString)        
+        self.predicate = conditionString[s.start():s.end()].strip()
+        self.predicateType = 'float'
+                    
+    
+    def parseStringPredicate(self, conditionString):
+    
+       stringValueRegex = re.compile('\"[\S]+\"')
+       s = stringValueRegex.search(conditionString)
+       self.predicate = conditionString[s.start():s.end()].strip()
+       self.predicateType = 'string'
+       
+    
+    def __repr__(self):
+        return "SQL Query Condition [ Field: %s | Operator: %s | Predicate: %s | Type: %s ]" % (self.field, 
+                                                                                         self.operator, 
+                                                                                         self.predicate, 
+                                                                                         self.predicateType)
 
 
 class SQLDataSource:
-    def __init(self):
+    def __init__(self):
         self.data = None
+        self.conditions = []
+        
+    def loadOptionalParams(self, **kwargs):
+        pass
 
     def load(self, persistenceManager, **kwargs):
         pass
+
+
+    def setCondition(self, sqlCondition):
+        """
+        Stipulate that the DataSource will only return records satisfying
+        the condition. See the SQLCondition class for more information.
+        """
+                
+        self.conditions.append(sqlCondition)
+        
+    
+    def filterByConditions(self, dataTable, query, **kwargs):
+    
+        # has someone set conditions in order to filter records?
+        for sqlc in self.conditions:
+            # Either the SQLCondition's predicate has an explicit value,
+            if not sqlc.predicateType == 'variable':
+                query = query.where(dataTable.c[sqlc.field].op(sqlc.operator)(sqlc.predicate))
+                
+            # or else it points to a variable, which we must get from the inbound request vars
+            # (which have been bundled into **kwargs)
+            else:                
+                predicateValue = kwargs.get(sqlc.predicate, '')
+                if not predicateValue:
+                    raise MissingConditionVariableError(sqlc)
+                query = query.where(dataTable.c[sqlc.field].op(sqlc.operator)(predicateValue))
+                    
+        return query
+      
 
     def _customQuery(self, dataTable, selectColumns, persistenceManager, **kwargs):
         return None
@@ -230,6 +397,7 @@ class MenuDataSource(SQLDataSource):
     requiredParameters = ['table']
 
     def __init__(self, tableName, nameField, valueField, **kwargs):
+        SQLDataSource.__init__(self)
         self.tableName = tableName
         self.nameField = nameField
         self.valueField = valueField
@@ -240,7 +408,8 @@ class MenuDataSource(SQLDataSource):
         dataTable = persistenceManager.loadTable(self.tableName)
         query = select([dataTable.columns[self.nameField], 
                         dataTable.columns[self.valueField]])
-
+        query = self.filterByConditions(dataTable, query, **kwargs)
+        
         resultSet = query.execute().fetchall()
         for row in resultSet:
             self.options.append(MenuOption(row[self.nameField], row[self.valueField]))
@@ -257,14 +426,16 @@ class LookupDataSource(SQLDataSource):
     requiredParameters = ['table']
 
     def __init__(self, tableName, keyField, valueField, **kwargs):
+        SQLDataSource.__init__(self)
         self.tableName = tableName
         self.keyField = keyField
         self.valueField = valueField
         self.data = {}
 
-    def load(self, persistenceManager):
+    def load(self, persistenceManager, **kwargs):
         dataTable = persistenceManager.loadTable(self.tableName)
         query = select([dataTable.columns[self.keyField], dataTable.columns[self.valueField]])
+        query = self.filterByConditions(dataTable, query, **kwargs)
         resultSet = query.execute().fetchall()
         for row in resultSet:
             self.data[row[self.keyField]] = row[self.valueField]
@@ -281,6 +452,7 @@ class TableDataSource(SQLDataSource):
     requiredParameters = ['table', 'fields']
 
     def __init__(self, tableName, columnNameArray, headerArray=None):
+        SQLDataSource.__init__(self)
         self.tableName = tableName
         self.columnNameArray = columnNameArray
         
@@ -294,6 +466,7 @@ class TableDataSource(SQLDataSource):
 
 
     def load(self, persistenceManager, **kwargs):
+    
         self.records = []
         dataTable = persistenceManager.loadTable(self.tableName)
         selectColumns = []
@@ -304,6 +477,7 @@ class TableDataSource(SQLDataSource):
         if query is None:
             query = select(selectColumns)
 
+        query = self.filterByConditions(dataTable, query, **kwargs)
         resultSet = query.execute().fetchall()
         
         for row in resultSet:
@@ -369,17 +543,44 @@ class DataSourceFactory:
 
 
     def createDataSource(self, dataSourceType, sourcePackageName, **kwargs):
-
-        if 'class' in kwargs:   # someone has specified a custom datasource
+    
+        
+        
+        source = None        
+                        
+        if 'class' in kwargs:   
             sourceClassName = kwargs['class']
-            return self._createCustomDataSource(dataSourceType, sourceClassName, sourcePackageName, **kwargs)        
+            source = self._createCustomDataSource(dataSourceType, sourceClassName, sourcePackageName, **kwargs)             
         elif dataSourceType == 'menu':
-            return self._createMenuSource(MenuDataSource, **kwargs)
+            source = self._createMenuSource(MenuDataSource, **kwargs)            
         elif dataSourceType == 'table':
-            return self._createTableSource(TableDataSource, **kwargs)
+            source = self._createTableSource(TableDataSource, **kwargs)
         else:
             raise UnsupportedDataSourceTypeError(dataSourceType)
 
+        # The "condition" parameter is where users can specify the data
+        # to be returned by the source. The format is <fieldname> <operator> <value>.
+        # For example: id < 10  will specify that only records with id less than 10
+        # should be returned. Users may also specify variables in the condition parameter
+        # by using curly braces together with query string parameters: for example,
+        #
+        # id < { record_id }
+        #
+        # will specify that the dataSource should only return records whose id field
+        # is less than the record_id parameter specified in the HTTP request's query string.
+        # If record_id is not present in the query string, an exception will be raised.
+        
+        if 'conditions' in kwargs: 
+            # The data source condition may be 1->N condition expressions,
+            # comma-delimited
+            
+            conditionArray = [condition.strip() for condition in kwargs['conditions'].split(',')]
+            
+            for c in conditionArray:
+                source.setCondition(SQLCondition(c))
+                
+        return source
+        
         
     def _createCustomDataSource(self, sourceType, sourceClassName, sourcePackage, **kwargs):
 
@@ -428,6 +629,7 @@ class DataSourceFactory:
             #conditions = kwargs.get('conditions', None)  # optional, not implemented yet 
             
             source = tableDataSourceClass(table, fields, headers)
+            source.loadOptionalParams(**kwargs)
             return source
         except KeyError, err:
             raise MissingDataSourceParameterError(tableDataSourceClass, 
@@ -493,7 +695,7 @@ class SelectControl(HTMLControl):
         HTMLControl.__init__(self, dataSource, 'select_control', **kwargs)
 
     def _getData(self, persistenceManager, **kwargs):
-        self.dataSource.load(persistenceManager)
+        self.dataSource.load(persistenceManager, **kwargs)
         return { 'options': self.dataSource(), 'control': self }
 
     
@@ -504,7 +706,7 @@ class RadioGroupControl(HTMLControl):
         HTMLControl.__init__(self, dataSource, 'radio_group_control', **kwargs)
 
     def _getData(self, persistenceManager, **kwargs):        
-        self.dataSource.load(persistenceManager)
+        self.dataSource.load(persistenceManager, **kwargs)
         return { 'options': self.dataSource(), 'control': self }
 
 

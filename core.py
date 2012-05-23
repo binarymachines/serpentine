@@ -134,50 +134,7 @@ class DatatypeConverter(object):
 class Datatype(object):
     INT = 'int'
     FLOAT = 'float'
-    STRING = 'str' 
-
-
-class HttpUtility(object):
-    @classmethod 
-    def getRequiredParameter(pClass, paramName, paramTypeString, httpRequestData):
-    
-        requestData = httpRequestData.get(paramName, None)
-        if requestData is None:
-            raise MissingRequestParamError(paramName)
-            
-        value = DatatypeConverter.convert(requestData, paramTypeString)
-        return value
-    
-
-class ClassLoader:
-    def __init__(self):
-        self.cache = {}
-
-    def loadClass(self, fqClassName):  # fully qualified class name in the form moduleName.className
-        result = self.cache.get(fqClassName)
-        if not result == None:
-            return result
-        else:
-            try:
-                  log('>> Receiving classname for loading: %s' % fqClassName)
-                  paths = fqClassName.split('.')
-                  moduleName = '.'.join(paths[:-1])
-                  className = paths[-1]
-                  result = getattr(__import__(moduleName), className)
-                  self.cache[fqClassName] = result
-                  return result
-            except AttributeError:
-                  raise ClassLoaderError(fqClassName)
-
-
-class ControllerStatus:
-    def __init__(self, ok = True, errMessage = None):
-        self.isok = ok
-        self.message = errMessage
-        self.data = {}
-
-    def __str__(self):
-        return "Controller returned %s. Message: %s" % (self.isok, self.message) 
+    STRING = 'str'        
 
 
 class Singleton(object):
@@ -275,6 +232,7 @@ class BaseController(object):
         self.sessionName = 'beaker.session'
 
 
+    """"
     def lookup(self, objectID, dbSession):
         try:            
             object = dbSession.query(self.modelClass).filter(self.modelClass.id == objectID).one()           
@@ -283,21 +241,37 @@ class BaseController(object):
         except NoResultFound, err:
             raise Exception('No %s instance found in DB with primary key %s.' % (self.modelClass.__name__, str(objectID)))
             
-            raise err
+            //raise err
         except SQLAlchemyError, err:
             
             log('%s lookup failed with message: %s' % (self.modelClass.__name__, err.message))
-
             # TODO: scaffolding to track down lookup 
             raise err
-
+    """
+    
+    def lookup(self, objectID, persistenceManager):
+        dbSession = persistenceManager.getSession()
+        try:            
+            object = dbSession.query(self.modelClass).filter(self.modelClass.id == objectID).one()            
+            return object
+        except SQLAlchemyError, err:
+            log('Object lookup failed with message: %s' % err.message)
+            # TODO: scaffolding to track down lookup 
+            #raise err
+            
+            return None
+        finally:
+            dbSession.close()
+            
+     
         
     def assertObjectExists(self, modelName, objectID, persistenceManager):
-        dbSession = persistenceManager.getSession()
-        result =  self.lookup(objectID, dbSession) 
-        dbSession.close()
+        #dbSession = persistenceManager.getSession()
+        result =  self.lookup(objectID, persistenceManager) 
+        #dbSession.close()
         if result is None:
             raise ObjectLookupError(modelName, objectID)
+        
         
     def _index(self, persistenceManager):
         dbSession = persistenceManager.getSession()
@@ -312,6 +286,7 @@ class BaseController(object):
         finally:
             dbSession.close()
 
+
     def _indexPage(self, persistenceManager, pageNumber, pageSize):
         dbSession = persistenceManager.getSession()
         try:            
@@ -325,6 +300,7 @@ class BaseController(object):
             raise err
         finally:
             dbSession.close()
+
 
     def index(self, objectType, httpRequest, context, **kwargs):
         
