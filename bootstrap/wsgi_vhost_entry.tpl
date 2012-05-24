@@ -1,3 +1,7 @@
+
+Listen *:{{ config.port }}
+NameVirtualHost {{ config.hostname }}:{{ config.port }}
+
 <VirtualHost {{ config.hostname }}:{{ config.port }}>
     DocumentRoot "{{ config.app_root }}"
     ServerName {{ config.hostname }}   

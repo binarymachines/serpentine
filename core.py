@@ -273,8 +273,7 @@ class BaseController(object):
             raise ObjectLookupError(modelName, objectID)
         
         
-    def _index(self, persistenceManager):
-        dbSession = persistenceManager.getSession()
+    def _index(self, dbSession, persistenceManager):        
         try:            
             query =  dbSession.query(self.modelClass)  
             collection = query.all()                 
@@ -283,12 +282,10 @@ class BaseController(object):
             dbSession.rollback()
             log("%s %s failed with message: %s" % (self.modelClass, 'index', err.message))
             raise err
-        finally:
-            dbSession.close()
+        
 
 
-    def _indexPage(self, persistenceManager, pageNumber, pageSize):
-        dbSession = persistenceManager.getSession()
+    def _indexPage(self, dbSession, persistenceManager, pageNumber, pageSize):
         try:            
             offset = (pageNumber - 1) * pageSize
             query =  dbSession.query(self.modelClass).limit(pageSize).offset(offset)
@@ -298,8 +295,7 @@ class BaseController(object):
             dbSession.rollback()
             log("%s %s failed with message: %s" % (self.modelClass, 'index', err.message))
             raise err
-        finally:
-            dbSession.close()
+        
 
 
     def index(self, objectType, httpRequest, context, **kwargs):
@@ -309,23 +305,26 @@ class BaseController(object):
         
         # this is so that the render() call to the underlying XMLFrame object can look up its stylesheet
         httpRequest.params['frame'] = frameID   
-                    
-        collection = self._index(context.persistenceManager)
-        kwargs['resultset'] = collection # TODO: rethink the variable name
-
-        # Invoke helper function if one has been registered
-        helperFunction = context.contentRegistry.getHelperFunctionForFrame(frameID)
-        if helperFunction is not None:
-            extraData = helperFunction(httpRequest, context)
-            kwargs.update(extraData)
-
-        return frameObject.render(httpRequest, context, **kwargs)
+        dbSession = context.persistenceManager.getSession()
         
+        try:
+            collection = self._index(dbSession, context.persistenceManager)
+            kwargs['resultset'] = collection # TODO: rethink the variable name
+
+            # Invoke helper function if one has been registered
+            helperFunction = context.contentRegistry.getHelperFunctionForFrame(frameID)
+            if helperFunction is not None:
+                extraData = helperFunction(httpRequest, context)
+                kwargs.update(extraData)
+
+            return frameObject.render(httpRequest, context, **kwargs)
+        finally:
+            dbSession.close()
 
     # TODO: fix security hole, ensure pageNumber is an integer and a reasonable value
 
     def indexPage(self, objectType, pageNumber, httpRequest, context, **kwargs):
-        
+
         frameID = context.viewManager.getFrameID(objectType, 'index')
         frameObject = context.contentRegistry.getFrame(frameID)
         
@@ -337,18 +336,24 @@ class BaseController(object):
         # which in turn will read it from the config file.
         #
         pageSize = 50 # this is the number of records we show on a page
-        collection = self._indexPage(context.persistenceManager, pageNumber, pageSize) 
-        kwargs['resultset'] = collection # TODO: rethink the variable name
 
-        # Invoke helper function if one has been registered
-        helperFunction = context.contentRegistry.getHelperFunctionForFrame(frameID)
-        if helperFunction is not None:
-            extraData = helperFunction(httpRequest, context)
-            kwargs.update(extraData)
+        dbSession = context.persistenceManager.getSession()
+        try:
+            collection = self._indexPage(session, context.persistenceManager, pageNumber, pageSize) 
+            kwargs['resultset'] = collection # TODO: rethink the variable name
 
-        return frameObject.render(httpRequest, context, **kwargs)
+            # Invoke helper function if one has been registered
+            helperFunction = context.contentRegistry.getHelperFunctionForFrame(frameID)
+            if helperFunction is not None:
+                extraData = helperFunction(httpRequest, context)
+                kwargs.update(extraData)
 
-    def _insert(self, object, dbSession):        
+            return frameObject.render(httpRequest, context, **kwargs)
+        finally:
+            dbSession.close()
+
+
+    def _insert(self, object, dbSession, persistenceManager):        
         try:            
             dbSession.add(object) 
             dbSession.flush()
@@ -374,7 +379,7 @@ class BaseController(object):
         inputForm.populate_obj(object)   
         dbSession = context.persistenceManager.getSession()
         try:
-            self._insert(object, dbSession)
+            self._insert(object, dbSession, context.persistenceManager)
             dbSession.commit()
         
             snapback = httpRequest.POST.get('snapback', '').strip()
@@ -388,7 +393,7 @@ class BaseController(object):
             dbSession.close()
                 
 
-    def _update(self, object, dbSession):       
+    def _update(self, object, dbSession, persistenceManager):       
         try:
             dbSession.flush()             
             dbSession.commit()
@@ -405,10 +410,9 @@ class BaseController(object):
         frameObject = context.contentRegistry.getFrame(targetFrameID)
         session = httpRequest.environ[self.sessionName]
 
-        dbSession = context.persistenceManager.getSession()
-        object = self.lookup(int(objectID), dbSession)
-        if object is None:
-            dbSession.close()
+        
+        object = self.lookup(int(objectID), context.persistenceManager)
+        if object is None:            
             raise ObjectLookupError(objectType, objectID)
 
         if httpRequest.method == 'GET': 
@@ -431,16 +435,17 @@ class BaseController(object):
             return frameObject.render(httpRequest, context, **kwargs)
 
         elif httpRequest.method == 'POST':     
-
+            
             inputForm = formClass()
             inputForm.process(httpRequest.POST)
             if not inputForm.validate():
                 raise FormValidationError('update', objectType, inputForm.errors)
 
             inputForm.populate_obj(object)
-            
+            dbSession = context.persistenceManager.getSession()
             try:
-                self._update(object, dbSession)  
+                
+                self._update(object, dbSession, context.persistenceManager)
                 dbSession.commit()
                 
                 snapback = httpRequest.POST.get('snapback', '').strip()
