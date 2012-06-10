@@ -249,26 +249,24 @@ class BaseController(object):
             raise err
     """
     
-    def lookup(self, objectID, persistenceManager):
-        dbSession = persistenceManager.getSession()
+    def lookup(self, objectID, dbSession, persistenceManager):
+        
         try:            
             object = dbSession.query(self.modelClass).filter(self.modelClass.id == objectID).one()            
             return object
         except SQLAlchemyError, err:
             log('Object lookup failed with message: %s' % err.message)
             # TODO: scaffolding to track down lookup 
-            #raise err
-            
+            # should we raise err? Is not finding an object an exceptional condition?
             return None
-        finally:
-            dbSession.close()
+        
             
      
         
     def assertObjectExists(self, modelName, objectID, persistenceManager):
-        #dbSession = persistenceManager.getSession()
-        result =  self.lookup(objectID, persistenceManager) 
-        #dbSession.close()
+        dbSession = persistenceManager.getSession()
+        result =  self.lookup(objectID, dbSession, persistenceManager) 
+        dbSession.close()
         if result is None:
             raise ObjectLookupError(modelName, objectID)
         
@@ -391,7 +389,35 @@ class BaseController(object):
             redirect(redirectTarget)
         finally:
             dbSession.close()
-                
+        
+    def _delete(self, object, dbSession, persistenceManager):
+        
+        """"
+        try:
+            #dbSession.delete(object)
+            #setattr(object, "deleted", True)       
+            
+            dbSession.flush()
+            dbSession.commit()
+        except SQLAlchemyError, err:
+            dbSession.rollback()
+            log("%s %s failed with message: %s" % (self.modelClass, 'delete', err.message))
+            raise err 
+        """ 
+
+    def delete(self, objectType, objectID, httpRequest, context, **kwargs):
+    
+        pMgr = context.persistenceManager
+        dbSession = pMgr.getSession()
+        targetObject = self.lookup(int(objectID), dbSession, pMgr)
+        
+        try:
+            self._delete(targetObject, dbSession, pMgr)   
+            redirect('/bifrost/controller/%s/index' % objectType)         
+        finally:
+            dbSession.close()
+        
+    
 
     def _update(self, object, dbSession, persistenceManager):       
         try:
@@ -403,6 +429,7 @@ class BaseController(object):
             raise err       
         
             
+            
     def update(self, objectType, objectID, httpRequest, context, **kwargs):
 
         targetFrameID = context.viewManager.getFrameID(objectType, 'update')
@@ -410,8 +437,10 @@ class BaseController(object):
         frameObject = context.contentRegistry.getFrame(targetFrameID)
         session = httpRequest.environ[self.sessionName]
 
+        pMgr = context.persistenceManager
+        dbSession = pMgr.getSession()
         
-        object = self.lookup(int(objectID), context.persistenceManager)
+        object = self.lookup(int(objectID), dbSession, pMgr)
         if object is None:            
             raise ObjectLookupError(objectType, objectID)
 
@@ -430,7 +459,6 @@ class BaseController(object):
             if helperFunction is not None:
                 extraData = helperFunction(httpRequest, context)
                 kwargs.update(extraData)
-
             dbSession.close()
             return frameObject.render(httpRequest, context, **kwargs)
 
@@ -442,11 +470,10 @@ class BaseController(object):
                 raise FormValidationError('update', objectType, inputForm.errors)
 
             inputForm.populate_obj(object)
-            dbSession = context.persistenceManager.getSession()
+            #dbSession = context.persistenceManager.getSession()
             try:
                 
                 self._update(object, dbSession, context.persistenceManager)
-                dbSession.commit()
                 
                 snapback = httpRequest.POST.get('snapback', '').strip()
                 if len(snapback):
@@ -462,6 +489,6 @@ class BaseController(object):
     
 
     
-    
+
 
 

@@ -270,6 +270,13 @@ class SQLCondition:
             \"[\S]+\"               # a quoted string
             \s*
             """, re.IGNORECASE | re.VERBOSE)  
+            
+        booleanConditionRegex = re.compile(r"""
+            [a-z_]*\s*              # field name
+            [<>=]\s*                # operator
+            (True|False)          # Boolean value
+            \s*
+            """, re.IGNORECASE | re.VERBOSE)
         
         self.expressionHandler = {}
         
@@ -277,6 +284,7 @@ class SQLCondition:
         self.expressionHandler[intConditionRegex] = self.parseIntPredicate
         self.expressionHandler[floatConditionRegex] = self.parseFloatPredicate
         self.expressionHandler[stringConditionRegex] = self.parseStringPredicate
+        self.expressionHandler[booleanConditionRegex] = self.parseBooleanPredicate
         
                 
         matchFound = False
@@ -328,6 +336,19 @@ class SQLCondition:
        self.predicate = conditionString[s.start():s.end()].strip()
        self.predicateType = 'string'
        
+       
+    def parseBooleanPredicate(self, conditionString):
+    
+        booleanValueRegex = re.compile('(True)|(False)', re.IGNORECASE)
+        s = booleanValueRegex.search(conditionString)
+        predicateString = conditionString[s.start():s.end()].strip()
+        if predicateString.lower() == 'true':
+            self.predicate = True
+        else:
+            self.predicate = False
+            
+        self.predicateType = 'boolean'
+    
     
     def __repr__(self):
         return "SQL Query Condition [ Field: %s | Operator: %s | Predicate: %s | Type: %s ]" % (self.field, 
@@ -543,11 +564,7 @@ class DataSourceFactory:
 
 
     def createDataSource(self, dataSourceType, sourcePackageName, **kwargs):
-    
-        
-        
-        source = None        
-                        
+        source = None                  
         if 'class' in kwargs:   
             sourceClassName = kwargs['class']
             source = self._createCustomDataSource(dataSourceType, sourceClassName, sourcePackageName, **kwargs)             

@@ -207,6 +207,60 @@ def invokeControllerUpdatePost(environment, objectType = 'none', objectID = 'non
 
     return controller.update(objectType, objectID, request, context)
 
+
+#
+# Brings up the delete confirmation page.
+#
+@route('/controller/:objectType/delete/:objectID', method='GET')
+def invokeControllerDeleteGet(environment, objectType='none', objectID='none'):
+
+    context = Context(environment)    
+    environment.frontController.validate(request)
+    controller = environment.frontController.getController(objectType)
+    targetFrameID = context.viewManager.getFrameID(objectType, 'delete')
+    
+    formClass = context.contentRegistry.getFormClass(targetFrameID)
+    frameObject = context.contentRegistry.getFrame(targetFrameID)
+
+    dbSession = context.persistenceManager.getSession()
+    obj = controller.lookup(int(objectID), dbSession, context.persistenceManager)
+    dbSession.close()
+    
+    if not obj:
+        raise ObjectLookupError(objectType, objectID)
+    
+    request.GET['object_id'] = int(objectID)
+    displayForm = formClass(None, obj)
+   
+    frameArgs = {}
+    frameArgs['controller'] = controller
+    frameArgs['form'] = displayForm
+    frameArgs['frame_id'] = targetFrameID
+    frameArgs['controller_alias'] = objectType
+    frameArgs['url_base'] = environment.urlBase
+    
+    # Invoke helper function if one has been registered
+    helper = environment.contentRegistry.getHelperFunctionForFrame(targetFrameID)
+    if helper is not None:
+        extraData = helper(request, context)
+        frameArgs.update(extraData)
+        
+    frameObject = context.contentRegistry.getFrame(targetFrameID)
+    return frameObject.render(request, context, **frameArgs)
+
+
+
+#
+# Invokes the delete() method on the controller for the selected type.
+@route('/controller/:objectType/delete/:objectID', method='POST')
+def invokeControllerDeletePost(environment, objectType='none', objectID='none'):
+
+    context = Context(environment)    
+    environment.frontController.validate(request)
+    controller = environment.frontController.getController(objectType)
+
+    return controller.delete(objectType, objectID, request, context)
+            
             
 #
 # Invokes the index() method on the controller for the selected type.

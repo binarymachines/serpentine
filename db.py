@@ -21,6 +21,8 @@ class NoSuchTableError(Exception):
         Exception.__init__(self, "No table named '%s' exists in the current schema." % tableName)
 
 
+Session = scoped_session(sessionmaker(autoflush=False, autocommit=False, expire_on_commit=False))
+
 class Database:
     """A wrapper around the basic SQLAlchemy DB connect logic.
 
@@ -40,7 +42,8 @@ class Database:
         self.schema = schema
         self.engine = None
         self.metadata = None
-        self.sessionMaker = None
+        
+        
 
     def __createURL__(self, dbType, username, password):
         """Implement in subclasses to provide database-type-specific URL formats."""
@@ -54,8 +57,11 @@ class Database:
         self.engine = create_engine(url)
         self.metadata = MetaData(self.engine)
         self.metadata.reflect(bind=self.engine)
-        #self.Session = scoped_session(sessionmaker(autoflush=True, autocommit=False, expire_on_commit=True, bind=self.engine))
-        self.sessionMaker = sessionmaker(autoflush=True, autocommit=False, expire_on_commit=True, bind=self.engine)
+        
+        #self.sessionFactory.configure(bind=self.engine)
+        Session.configure(bind=self.engine)
+        
+        
 
     def getMetaData(self):
         return self.metadata
@@ -64,7 +70,8 @@ class Database:
         return self.engine
 
     def getSession(self):        
-        return scoped_session(self.sessionMaker)
+        #return self.Session()
+        return Session()
 
     def listTables(self):
         return self.metadata.tables.keys()
@@ -267,6 +274,9 @@ class PersistenceManager:
 
     def update(self, object, session):
         session.flush()
+        
+    def delete(self, object, session):
+        session.delete(object)
 
     def loadByKey(self, objectTypeName, objectID, session):
         query = session.query(self.str_to_class(objectTypeName)).filter_by(id = objectID)
