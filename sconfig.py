@@ -598,6 +598,7 @@ class SConfigurator(object):
               scriptFilename = os.path.join('bootstrap', 'setup_content_refs.sh')
               scriptFile = open(scriptFilename, 'w')
               scriptFile.write(scriptData)
+              result = subprocess.call(['chmod', 'u+x', scriptFilename])
           finally:
               if scriptFile:
                   scriptFile.close()
