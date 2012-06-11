@@ -279,7 +279,7 @@ class SConfigurator(object):
                   parameterSet.append(DataSourceParameter('table', tableName))
                   parameterSet.append(DataSourceParameter('name_field', 'name'))
                   parameterSet.append(DataSourceParameter('value_field', 'id'))
-                  sourceName = '%s_datasource' % tableName
+                  sourceName = '%s_src' % tableName
                   self.datasources[sourceName] = DataSourceSpec('menu', parameterSet)
                   
                   controlName = '%s_select' % tableName
