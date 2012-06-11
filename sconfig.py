@@ -651,9 +651,8 @@ class SConfigurator(object):
       def generateApplicationTemplates(self, formSpecs, templateManager):
           """Create the master template files for the application under construction"""
 
-          xmlHandle = None
-          xmlTemplate = templateManager.getTemplate("formspec_xml.tpl")
-          xmlFile = None
+          #xmlHandle = None
+          
           htmlFile = None
           baseTemplateFile = None
 
@@ -669,51 +668,27 @@ class SConfigurator(object):
               baseTemplateFile.write(baseTemplateData)
               baseTemplateFile.close()
 
-               # transform the XML seed template into a FormSpec XML document.
+              
               for fSpec in formSpecs:
-                  
-                  # Use each FormSpec object in our list to populate the model XML template
-                  # and create an XML representation of the FormSpec.
                   #
-                  #xmlHandle = StringIO(xmlTemplate.render(formspec=fSpec))
-                  xmlString = xmlTemplate.render(formspec = fSpec)
+                  # Use each FormSpec object in our list to populate the seed template
+                  # 
 
-                  # the raw xml text now resides in the file-like string object xmlHandle
-
-                  # write it to a file with the same name as the underlying Model; 
-                  # i.e., for the Widget formspec the file would be Widget.xml
-                  #
-                  xmlFilename = os.path.join("bootstrap", "%s.xml" % fSpec.model.lower())
-                  xmlFile = open(xmlFilename, "w") 
-                  xmlFile.write(xmlString)
-                  xmlFile.close()
-
-                  # Next, transform the FormSpec document into a set of final HTML templates.
-                  # The resulting templates will become views in the live application.
-                  #
-                  # index template, for viewing all objects of a given type
-
-                  xslFilename = os.path.join("bootstrap", "index_template.xsl")
-                  xslFile = open(xslFilename)
-                  xslTree = etree.parse(xslFile)
-                  indexTemplateTransform = etree.XSLT(xslTree)
-
-                  xmlFile = open(xmlFilename, 'r')
-                  # create a DOM tree
-                  formSpecXML = etree.parse(xmlFile)
+                  # The index template, for viewing all objects of a given type
                   
+                  indexSeedTemplate = templateManager.getTemplate('index_template_seed.tpl')
+                  indexSeedTemplateData = indexSeedTemplate.render(formspec = fSpec, config = self)
 
-                  indexTemplateHTMLDoc = indexTemplateTransform(formSpecXML)
-                  
+                  # Now write the actual HTML model index file 
+
                   indexFilename = os.path.join("bootstrap", "%s_index.html" % fSpec.model.lower())
-                  indexFrameFileRef = "%s_index.html" % fSpec.model.lower()
-                  htmlFile = open(indexFilename, "w")   
-                  #htmlFile.write(etree.tostring(indexTemplateHTMLDoc, pretty_print=True))
-                  htmlFile.write(indexTemplateHTMLDoc.__str__())
-                  htmlFile.close()
-                  xmlFile.close()
-                  indexFrameAlias = "%s_index" % fSpec.model.lower()
                   
+                  htmlFile = open(indexFilename, "w")   
+                  htmlFile.write(indexSeedTemplateData)
+                  htmlFile.close()
+                  
+                  indexFrameFileRef = "%s_index.html" % fSpec.model.lower()
+                  indexFrameAlias = "%s_index" % fSpec.model.lower()
                   self.frames[indexFrameAlias] = FrameConfig(indexFrameAlias, indexFrameFileRef, fSpec.formClassName, "html")
                   
                   for controllerAlias in self.controllers:
@@ -721,20 +696,21 @@ class SConfigurator(object):
                           self.controllers[controllerAlias].addMethod(ControllerMethodConfig("index", indexFrameAlias))
 
                   # 
-                  # insert template: creates a form for adding 
-                  # a single object
+                  # The insert template: creates a form for adding a single object
+                  #
                   
-                  xslFilename = os.path.join("bootstrap", "insert_template.xsl")
-                  xslTree = etree.parse(xslFilename)
-                  insertTemplateTransform = etree.XSLT(xslTree)
-                  insertHTMLDoc = insertTemplateTransform(formSpecXML)
+                  insertSeedTemplate = templateManager.getTemplate('insert_template_seed.tpl')
+                  insertSeedTemplateData = insertSeedTemplate.render(formspec = fSpec, config = self)
+
+                  # now write the actual HTML model insert file
 
                   insertFilename = os.path.join("bootstrap", "%s_insert.html" % fSpec.model.lower())
-                  insertFrameFileRef = "%s_insert.html" % fSpec.model.lower()
+                  
                   htmlFile = open(insertFilename, "w")  
-                  htmlFile.write(insertHTMLDoc.__str__())
+                  htmlFile.write(insertSeedTemplateData)
                   htmlFile.close()
 
+                  insertFrameFileRef = "%s_insert.html" % fSpec.model.lower()
                   insertFrameAlias = "%s_insert" % fSpec.model.lower()
 
                   self.frames[insertFrameAlias] = FrameConfig(insertFrameAlias, insertFrameFileRef, fSpec.formClassName, "html")
@@ -747,18 +723,18 @@ class SConfigurator(object):
                   # update template: creates a form for modifying 
                   # a single object
                   
-                  xslFilename = os.path.join("bootstrap", "update_template.xsl")
-                  xslTree = etree.parse(xslFilename)
-                  updateTemplateTransform = etree.XSLT(xslTree)
-                  updateHTMLDoc = updateTemplateTransform(formSpecXML)
+                  updateSeedTemplate = templateManager.getTemplate('update_template_seed.tpl')
+                  updateSeedTemplateData = updateSeedTemplate.render(formspec = fSpec, config = self)
+
+                  # now write the file
 
                   updateFilename = os.path.join("bootstrap", "%s_update.html" % fSpec.model.lower())
-                  updateFrameFileRef =  "%s_update.html" % fSpec.model.lower()
 
                   htmlFile = open(updateFilename, "w")  
-                  htmlFile.write(updateHTMLDoc.__str__())
+                  htmlFile.write(updateSeedTemplateData)
                   htmlFile.close()
-
+                  
+                  updateFrameFileRef =  "%s_update.html" % fSpec.model.lower()
                   updateFrameAlias = "%s_update" % fSpec.model.lower()
 
                   self.frames[updateFrameAlias] = FrameConfig(updateFrameAlias, updateFrameFileRef, fSpec.formClassName, "html")
@@ -768,13 +744,9 @@ class SConfigurator(object):
                           self.controllers[controllerAlias].addMethod(ControllerMethodConfig("update", updateFrameAlias))
 
           finally:
-              if xmlFile is not None:
-                  xmlFile.close()
-              if htmlFile is not None:
+              if htmlFile:
                   htmlFile.close()
-              if xmlHandle is not None:
-                  xmlHandle.close()
-              if baseTemplateFile is not None:
+              if baseTemplateFile:
                   baseTemplateFile.close()
                   
           

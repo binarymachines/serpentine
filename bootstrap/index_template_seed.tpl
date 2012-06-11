@@ -1,17 +1,11 @@
-<?xml version="1.0"?>
-<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-<xsl:output method="html" doctype-system="http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd" 
-  doctype-public="-//W3C//DTD XHTML 1.0 Transitional//EN" indent="yes"/>
-  
-<xsl:template match="formspec">
+{% raw %}{% extends "base_template.html" %}{% endraw %}
 
-{% extends "base_template.html" %}
+{% raw %}{% block title %}{% endraw %}
+{{ formspec.model }} Index
+{% raw %}{% endblock %}{% endraw %}
 
-{% block title %}
-<xsl:value-of select="@model"/> Index
-{% endblock %}
 
-{% block user_scripts %}
+{% raw %}{% block user_scripts %}{% endraw %}
 <script type="text/javascript" language="javascript">
 
     $(document).ready(function(){
@@ -30,8 +24,8 @@
         */
         
         actions = {};
-        registerAction(actions, "add", "/{{ config.url_base }}/controller/Asset/insert", {}, false);                                
-        registerAction(actions, "update", "/{{ config.url_base }}/controller/Asset/update/{id}", 
+        registerAction(actions, "add", "/{{ config.url_base }}/controller/{{ formspec.model }}/insert", {}, false);                                
+        registerAction(actions, "update", "/{{ config.url_base }}/controller/{{ formspec.model }}/update/{id}", 
                         { "id":  getObjectID }, 
                         true);
         initTableSelectLogic(actions);
@@ -39,14 +33,14 @@
     });
     
 </script>
-{% endblock %} 
+{% raw %}{% endblock %} {% endraw %}
 
-{% block content_header %}
-    <h2><xsl:value-of select="@model"/> Index Page</h2>
-    <h3>List of all <xsl:value-of select="@model"/> Objects in the system</h3>
-{% endblock %}
+{% raw %}{% block content_header %}{% endraw %}
+    <h2>{{ formspec.model }} Index Page</h2>
+    <h3>List of all {{ formspec.model }} Objects in the system</h3>
+{% raw %}{% endblock %}{% endraw %}
 
-{% block content %}
+{% raw %}{% block content %}{% endraw %}
 <form action="#" method="GET" id="action_form">
     <select name="action" id="action_selector">  			  
       			<option id="add" value="#">Add</option>
@@ -57,28 +51,21 @@
     <table id="index_table">
         <thead>            
             <th>Select</th>
-            <xsl:for-each select="field"><th><xsl:value-of select="label"/></th>    
-            </xsl:for-each>            
+            {% for field in formspec %}<th>{{ field.label }}</th>{% endfor %}               
         </thead>
         <tbody>    
-        {% for record in resultset %}
+        {% raw %}{% for record in resultset %}{% endraw %}
             <tr>
               <td>
                 <input type="radio" class="object_id_button" name="object_id" value="{{ record.id }}"/>
               </td>
-                <xsl:apply-templates/>
+                {% for field in formspec %}<td>record.{{ field.name }}</td>{% endfor %}
             </tr>
-        {% endfor %}
+        {% raw %}{% endfor %}{% endraw %}
         </tbody>
      </table>
 </form>
-{% endblock %}
-
-</xsl:template>
-
-<xsl:template match="field">
-    <td>{{ record.<xsl:value-of select="name"/> }}</td>
-</xsl:template>
+{% raw %}{% endblock %}{% endraw %}
 
 
-</xsl:stylesheet>
+
