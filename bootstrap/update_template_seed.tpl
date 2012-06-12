@@ -25,7 +25,7 @@
 
 
 {% raw %}{% block content %}{% endraw %}
-        <form class="right_aligned" id='action_form' method="post" action="/{{ config.url_base }}/controller/{{ formspec.model }}/update"		  
+        <form class="right_aligned" id='action_form' method="post" action="/{{ config.url_base }}/controller/{{ formspec.model }}/update">	  
 		  
             {% for field in formspec.fields %}
             {% if field.name != 'id' %}
