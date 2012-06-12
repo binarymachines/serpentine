@@ -26,7 +26,7 @@
         <form class="right_aligned" id='action_form' method="post" action="/{{ config.url_base }}/controller/{{ formspec.model }}/insert"		  
 		  
             {% for field in formspec.fields %}
-            {% if field.name is not "id" %}
+            {% if field.name != 'id' %}
             {% raw %} {{ {% endraw %}form.{{ field.name }}.label {% raw %} }} {% endraw %}{% raw %} {{ {% endraw %}form.{{ field.name }}() {% raw %} }} {% endraw %}<br/>
             {% endif %}
             {% endfor %}
