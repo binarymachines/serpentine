@@ -51,7 +51,7 @@
     <table id="index_table">
         <thead>            
             <th>Select</th>
-            {% for field in formspec %}<th>{{ field.label }}</th>{% endfor %}               
+            {% for field in formspec.fields %}<th>{{ field.label }}</th>{% endfor %}               
         </thead>
         <tbody>    
         {% raw %}{% for record in resultset %}{% endraw %}
@@ -59,7 +59,7 @@
               <td>
                 <input type="radio" class="object_id_button" name="object_id" value="{{ record.id }}"/>
               </td>
-                {% for field in formspec %}<td>record.{{ field.name }}</td>{% endfor %}
+                {% for field in formspec.fields %}<td>record.{{ field.name }}</td>{% endfor %}
             </tr>
         {% raw %}{% endfor %}{% endraw %}
         </tbody>
