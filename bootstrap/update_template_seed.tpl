@@ -28,7 +28,7 @@
         <form class="right_aligned" id='action_form' method="post" action="/{{ config.url_base }}/controller/{{ formspec.model }}/update"		  
 		  
             {% for field in formspec.fields %}
-            {{ field.label }} {{ field.name }}()
+            {% raw %} {{ {% endraw %}form.{{ field.name }}.label {% raw %} }} {% endraw %}{% raw %} {{ {% endraw %}form.{{ field.name }}() {% raw %} }} {% endraw %}<br/>
             {% endfor %}
 		
 		    <label for="submit_button">&nbsp;</label><input id="submit_button" type="submit" value="Save"/>
