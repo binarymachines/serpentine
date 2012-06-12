@@ -57,7 +57,7 @@
         {% raw %}{% for record in resultset %}{% endraw %}
             <tr>
               <td>
-                <input type="radio" class="object_id_button" name="object_id" value="{{ record.id }}"/>
+                <input type="radio" class="object_id_button" name="object_id" value="{% raw %}{{ record.id }}{% endraw %}"/>
               </td>
                 {% for field in formspec.fields %}<td>record.{{ field.name }}</td>{% endfor %}
             </tr>
