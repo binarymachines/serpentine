@@ -1,12 +1,11 @@
-{% raw %}{% extends "base_template.html" %}% endraw %}
+{% raw %}{% extends "base_template.html" %}{% endraw %}
 
-{% raw %}{% block title %}% endraw %}
+{% raw %}{% block title %}{% endraw %}
 {{ formspec.model }} Insert
 {% raw %}{% endblock %}{% endraw %}
 
 
-{% raw %}
-{% block user_scripts %}
+{% raw %}{% block user_scripts %}{% endraw %}
 <script type="text/javascript" language="javascript">
 
     $(document).ready(function(){
@@ -14,8 +13,7 @@
     });
     
 </script>
-{% endblock %}
-{% endraw %}
+{% raw %}{% endblock %}{% endraw %}
 
 
 {% raw %}{% block content_header %}{% endraw %}

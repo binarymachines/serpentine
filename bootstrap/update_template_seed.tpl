@@ -1,6 +1,6 @@
-{% raw %}{% extends "base_template.html" %}% endraw %}
+{% raw %}{% extends "base_template.html" %}{% endraw %}
 
-{% raw %}{% block title %}% endraw %}
+{% raw %}{% block title %}{% endraw %}
 {{ formspec.model }} Update
 {% raw %}{% endblock %}{% endraw %}
 
