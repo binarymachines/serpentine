@@ -29,14 +29,13 @@
 	
     <link type="text/css" href="/{{ config.url_base }}/static/styles/jquery-ui-custom.css" rel="stylesheet" />
     <link type="text/css" href="/{{ config.url_base }}/static/styles/jquery-ui-mods.css" rel="stylesheet"/>
-    
+
+    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery.min.js"></script>
+    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery-ui.js"></script>   
     
     <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/foundation.js"></script>
     <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/app.js"></script>
-	
-    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery.min.js"></script>
-    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery-ui.js"></script>
-    
+
     <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery-ui-timepicker-addon.js"></script>
     <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/serpentine.js"></script>
     <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/table_select_logic.js"></script>
@@ -45,7 +44,7 @@
 		<link rel="stylesheet" href="stylesheets/ie.css">
 	<![endif]-->
 	
-	<script src="javascripts/modernizr.foundation.js"></script>
+	<script src="/{{config.url_base}}/static/scripts/modernizr.foundation.js"></script>
 
 	<!-- IE Fix for HTML5 Tags -->
 	<!--[if lt IE 9]>

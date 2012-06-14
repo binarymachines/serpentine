@@ -10,7 +10,7 @@
 
     $(document).ready(function(){
         
-        stripe("index_table");
+        //stripe("index_table");
         
         /* 
         The 'action-registration' pattern makes the logic of selects and prompts easier, 
