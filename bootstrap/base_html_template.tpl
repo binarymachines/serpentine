@@ -69,7 +69,7 @@
 		<div class="row">
 		     <div class="twelve columns">
     			<div class="two columns">
-    				<h2><a href="#">{{ config.app_name }}</a></h2>	
+    				<h2>{{ config.app_name }}</h2>	
                 </div
                 <div class="ten columns">
                     <br/>
@@ -83,15 +83,15 @@
                 {% block nav %}
 				<ul class="nav-bar">
                 	<li class="has-flyout">
-                		<a href="#" class="main">Navitem 1</a>
+                		<a href="#" class="main">Home</a>
                 		<a href="#" class="flyout-toggle"><span></span></a>
                 		<div class="flyout">
                 			<ul>
-                                <li><a href="#">Subitem 1</a></li>                                                                                        
-                                <li><a href="#">Subitem 2</a></li>
-                                <li><a href="#">Subitem 3</a></li>
+                                <li><a href="#">Login</a></li>                                                                                        
+                                <li><a href="#">Logout</a></li>
+                                <li><a href="#">Dashboard</a></li>
                                 <li><a href="#"><hr/></a></li>
-                                <li><a href="#">Subitem 2</a></li>
+                                <li><a href="#">Preferences</a></li>
                 			</ul>
                 		</div>
                     </li>                	

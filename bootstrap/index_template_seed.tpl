@@ -42,12 +42,16 @@
 
 {% raw %}{% block content %}{% endraw %}
 <form action="#" method="GET" id="action_form">
-    <select name="action" id="action_selector">  			  
-      			<option id="add" value="#">Add</option>
-      			<option id="update" value="#">Update</option>    	      		    
-    </select>
-    <button id="go_button" type="submit" style="width: 4em; height: 2em">Go</button>
-
+    <div class="one column">
+        <select name="action" id="action_selector">  			  
+          			<option id="add" value="#">Add</option>
+          			<option id="update" value="#">Update</option>    	      		    
+        </select>
+    </div>
+    <div class="eleven columns">
+        <button id="go_button" type="submit" style="width: 4em; height: 2em">Go</button>
+    </div>
+    
     <table id="index_table">
         <thead>            
             <th>Select</th>

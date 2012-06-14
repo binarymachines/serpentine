@@ -19,17 +19,17 @@
 
 
 {% raw %}{% block content_header %}{% endraw %}
-    <h2>{{ formspec.model }} Update Page</h2>
-    <h3>Edit {{ formspec.model }} objects</h3>
+    <h5>Update {{ formspec.model }}</h5>
+    <p></p>
 {% raw %}{% endblock %}{% endraw %}
 
 
 {% raw %}{% block content %}{% endraw %}
-        <form class="right_aligned" id="action_form" method="post" action="/{{ config.url_base }}/controller/{{ formspec.model }}/update">
+        <form class="nice" id="action_form" method="post" action="/{{ config.url_base }}/controller/{{ formspec.model }}/update">
 		  
             {% for field in formspec.fields %}
             {% if field.name != 'id' %}
-            {% raw %} {{ {% endraw %}form.{{ field.name }}.label {% raw %} }} {% endraw %}{% raw %} {{ {% endraw %}form.{{ field.name }}() {% raw %} }} {% endraw %}<br/>
+            {% raw %} {{ {% endraw %}form.{{ field.name }}.label {% raw %} }} {% endraw %}{% raw %} {{ {% endraw %}form.{{ field.name }}() {% raw %} }} {% endraw %}
             {% endif %}
             {% endfor %}
 		
