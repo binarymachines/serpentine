@@ -51,24 +51,24 @@
     <div class="eleven columns">
         <button id="go_button" type="submit" style="width: 4em; height: 2em">Go</button>
     </div>
-    
-    <table id="index_table">
-        <thead>            
-            <th>Select</th>
-            {% for field in formspec.fields %}<th>{{ field.label }}</th>{% endfor %}               
-        </thead>
-        <tbody>    
-        {% raw %}{% for record in resultset %}{% endraw %}
-            <tr>
-              <td>
-                <input type="radio" class="object_id_button" name="object_id" value="{% raw %}{{ record.id }}{% endraw %}"/>
-              </td>
-                {% for field in formspec.fields %}<td>{% raw %} {{ {% endraw %}record.{{ field.name }} {% raw %} }} {% endraw %}</td>{% endfor %}
-            </tr>
-        {% raw %}{% endfor %}{% endraw %}
-        </tbody>
-     </table>
-
+    <div class="twelve columns">
+        <table id="index_table">
+            <thead>            
+                <th>Select</th>
+                {% for field in formspec.fields %}<th>{{ field.label }}</th>{% endfor %}               
+            </thead>
+            <tbody>    
+            {% raw %}{% for record in resultset %}{% endraw %}
+                <tr>
+                  <td>
+                    <input type="radio" class="object_id_button" name="object_id" value="{% raw %}{{ record.id }}{% endraw %}"/>
+                  </td>
+                    {% for field in formspec.fields %}<td>{% raw %} {{ {% endraw %}record.{{ field.name }} {% raw %} }} {% endraw %}</td>{% endfor %}
+                </tr>
+            {% raw %}{% endfor %}{% endraw %}
+            </tbody>
+         </table>
+     </div>
 </form>
 {% raw %}{% endblock %}{% endraw %}
 

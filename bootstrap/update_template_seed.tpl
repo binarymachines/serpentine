@@ -29,7 +29,8 @@
 		  
             {% for field in formspec.fields %}
             {% if field.name != 'id' %}
-            {% raw %} {{ {% endraw %}form.{{ field.name }}.label {% raw %} }} {% endraw %}{% raw %} {{ {% endraw %}form.{{ field.name }}() {% raw %} }} {% endraw %}
+            {% raw %} {{ {% endraw %}form.{{ field.name }}.label {% raw %} }} {% endraw %}
+            {% raw %} {{ {% endraw %}form.{{ field.name }}(class="input-text") {% raw %} }} {% endraw %}
             {% endif %}
             {% endfor %}
 		

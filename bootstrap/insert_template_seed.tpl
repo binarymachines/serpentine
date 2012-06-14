@@ -18,6 +18,7 @@
 
 {% raw %}{% block content_header %}{% endraw %}
     <h5>Insert {{ formspec.model }}</h5>
+    <p></p>
 {% raw %}{% endblock %}{% endraw %}
 
 
@@ -26,7 +27,8 @@
 		  
             {% for field in formspec.fields %}
             {% if field.name != 'id' %}
-            {% raw %} {{ {% endraw %}form.{{ field.name }}.label {% raw %} }} {% endraw %}{% raw %} {{ {% endraw %}form.{{ field.name }}() {% raw %} }} {% endraw %}
+            {% raw %} {{ {% endraw %}form.{{ field.name }}.label {% raw %} }} {% endraw %}
+            {% raw %} {{ {% endraw %}form.{{ field.name }}(class="input-text") {% raw %} }} {% endraw %}
             {% endif %}
             {% endfor %}
 		
