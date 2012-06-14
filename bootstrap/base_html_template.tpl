@@ -1,72 +1,145 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-  <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=ASCII" />
-    <title>
+<!DOCTYPE html>
+
+<!-- paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/ -->
+<!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7" lang="en"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js lt-ie9 lt-ie8" lang="en"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js lt-ie9" lang="en"> <![endif]-->
+<!--[if gt IE 8]><!--> 
+<html class="no-js" lang="en"> 
+<!--<![endif]-->
+<head>
+	<meta charset="utf-8" />
+
+	<!-- Set the viewport width to device width for mobile -->
+	<meta name="viewport" content="width=device-width" />
+
+	<title>
     {% raw %}
         {% block title %}
             Page Title 
         {% endblock %}
     {% endraw %}
     </title>
-    
-    <link rel="stylesheet" href="/{{ config.url_base }}/static/styles/main.css" type="text/css" media="screen,projection" />
+  
+	<!-- Included CSS Files -->
+	
+	
+	<link rel="stylesheet" href="/{{ config.url_base }}/static/styles/foundation.css"/>
+	<link rel="stylesheet" href="/{{ config.url_base }}/static/styles/app.css"/>
+	
     <link type="text/css" href="/{{ config.url_base }}/static/styles/jquery-ui-custom.css" rel="stylesheet" />
     <link type="text/css" href="/{{ config.url_base }}/static/styles/jquery-ui-mods.css" rel="stylesheet"/>
     
-    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery.js"></script>
+    
+    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/foundation.js"></script>
+    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/app.js"></script>
+	
+    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery.min.js"></script>
     <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery-ui.js"></script>
-    <script src="/{{ config.url_base }}/static/scripts/jquery-ui-timepicker-addon.js" language="javascript"></script>
-    <script src="/{{ config.url_base }}/static/scripts/tablestripes.js" language="javascript"></script>
-    <script src="/{{ config.url_base }}/static/scripts/serpentine.js" language="javascript"></script>
+    
+    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery-ui-timepicker-addon.js"></script>
+    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/serpentine.js"></script>
     <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/table_select_logic.js"></script>
+
+	<!--[if lt IE 9]>
+		<link rel="stylesheet" href="stylesheets/ie.css">
+	<![endif]-->
+	
+	<script src="javascripts/modernizr.foundation.js"></script>
+
+	<!-- IE Fix for HTML5 Tags -->
+	<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+
+
     {% raw %}
     {% block user_scripts %}
         <!-- placeholder for user-defined javscript code blocks -->
     {% endblock %}
     {% endraw %}
-  </head>
-  <body>
-    <div id="wrapper">
-        <div id="innerwrapper">
+</head>
+<body>
 
-            <div id="header">
-    		      <h1><a href="#">{{ config.app_name }}</a></h1>
-    				
-    				<h2>				
-    				version {{ config.app_version }} {% raw %}{% block nav_breadcrumb %}>{% endblock %}{% endraw %}
-    				</h2>
-    				{% raw %}
-    				{% block nav %}
-    				<ul id="nav">
-    				
-    						<li><a href="#">Home</a></li>
-    						
-    						<li><a href="#">Nav Item 1</a></li>
-    						
-    						<li><a href="#">Nav Item 2</a></li>
-    						
-    						<li><a href="#">Nav Item 3</a></li>
-    												
-    				</ul>
-    		        {% endblock %}
-    		        {% endraw %}
-		      </div> <!-- end header div -->
-		      {% raw %}
-                {% block content_header %}
-                
+	<!-- container -->
+	<div class="container">
+
+        <div class="row">
+        &nbsp;
+        </div>
+		<div class="row">
+		     <div class="twelve columns">
+    			<div class="two columns">
+    				<h2><a href="#">{{ config.app_name }}</a></h2>	
+                </div
+                <div class="ten columns">
+                    <br/>
+                    <h5>version {{ config.app_version }}</h5>		
+                </div>	
+            </div>
+        </div>
+        <div class="row" id="header">
+            <div class="twelve columns">
+                {% raw %}
+                {% block nav %}
+				<ul class="nav-bar">
+                	<li class="has-flyout">
+                		<a href="#" class="main">Navitem 1</a>
+                		<a href="#" class="flyout-toggle"><span></span></a>
+                		<div class="flyout">
+                			<ul>
+                                <li><a href="#">Subitem 1</a></li>                                                                                        
+                                <li><a href="#">Subitem 2</a></li>
+                                <li><a href="#">Subitem 3</a></li>
+                                <li><a href="#"><hr/></a></li>
+                                <li><a href="#">Subitem 2</a></li>
+                			</ul>
+                		</div>
+                    </li>                	
+                	<li class="has-flyout">
+                		<a href="#" class="main">Navitem 2</a>                		
+                	</li>
+                	<li class="has-flyout">
+                		<a href="#" class="main">Navitem 3</a>                		
+                	</li>
+                	<li class="has-flyout">
+                		<a href="#" class="main">Navitem 4</a>                		
+                	</li>                	
+                	<li><input type="search" /></li>
+                </ul>
                 {% endblock %}
-                <div id="content">
-                {% block content %}
-    				
-    		    {% endblock %}
-    		    </div>
-    		  {% endraw %}
-        </div> <!-- end innerwrapper div -->
-    </div> <!-- end wrapper div -->
-     
-    <div id="footer">
+                {% endraw %}
+			</div> 
+         </div> <!-- end header div -->
+		
+		
+		
 
-    </div>
-  </body>
+		<div class="row">
+			<div class="twelve columns">
+                <div class="panel">
+                {% raw %}
+                {% block content_header %}
+                    <h5>Page Title</h>
+                    <p>page subtitle</p>
+                {% endblock %}
+                {% endraw %}
+                </div>
+				{% raw %}				
+				{% block content %}
+				
+				
+				{% endblock %}
+				{% endraw %}
+                
+				
+			</div>
+        </div>
+			
+	</div>
+	<!-- container -->
+
+
+
+</body>
 </html>

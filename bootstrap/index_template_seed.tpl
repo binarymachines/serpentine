@@ -36,8 +36,8 @@
 {% raw %}{% endblock %} {% endraw %}
 
 {% raw %}{% block content_header %}{% endraw %}
-    <h2>{{ formspec.model }} Index Page</h2>
-    <h3>List of all {{ formspec.model }} objects in the system</h3>
+    <h5>{{ formspec.model }} Index Page</h5>
+    <p>List of all {{ formspec.model }} objects in the system</p>
 {% raw %}{% endblock %}{% endraw %}
 
 {% raw %}{% block content %}{% endraw %}

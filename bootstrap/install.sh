@@ -6,6 +6,7 @@
 cp *.html ../templates/
 cp -R styles ../templates/
 cp -R scripts ../templates/
+cp -R images ../templates/
 cp radio_group_control.tpl select_control.tpl table.tpl table_multiselect.tpl ../templates/
 cp *.py ..
 cp *.conf ..
