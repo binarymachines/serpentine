@@ -31,6 +31,8 @@
             {% if field.name != 'id' %}
             {% raw %} {{ {% endraw %}form.{{ field.name }}.label {% raw %} }} {% endraw %}
             {% raw %} {{ {% endraw %}form.{{ field.name }}(class="input-text") {% raw %} }} {% endraw %}
+            {% else %}
+            {% raw %} {{ {% endraw %} form.id() {% raw %} }} {% endraw %}
             {% endif %}
             {% endfor %}
 		
