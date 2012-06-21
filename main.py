@@ -30,7 +30,7 @@ def serve_static_file(path, environment):
 @route('/')
 def index(environment):
     # TODO: add full diagnostics to splash page; make splash user-configurable
-    redirect("/%s/static/main.html" % environment.config['global']['url_base'])
+    redirect("/%s/frame/home" % environment.config['global']['url_base'])
 
 
 def getAPIMap(environment):

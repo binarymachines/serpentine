@@ -38,6 +38,8 @@ global:
 content_registry:
     template_path: {{ config.template_path }}
     frames:
+            home:
+                   template:    main.html
         {% for frame in config.frames %}
             {{ config.frames[frame].name }}:
                    template:   {{ config.frames[frame].template }}
