@@ -772,6 +772,11 @@ class FieldSpec:
         self.hidden = hidden
         self.extraData = []
 
+        # displayClass is the CSS class designator for the field.
+        # we default to the standard for the Foundation CSS kit.
+
+        self.displayClass = 'input-text'
+
         if self.required:
             self.extraData.append("[validators.Required()]")
 
@@ -803,8 +808,7 @@ class SelectFieldSpec(FieldSpec):
 class FormSpec:
     """A specification for a WTForms form instance.
 
-      A FormSpec instance, when serialized in XML format by SConfigurator.generateXMLFormSpecs(), 
-      provides the basis for generating boilerplate code, templates, and Form instances 
+      A FormSpec instance provides the basis for generating boilerplate code, templates, and Form instances 
       in Serpentine.
       """
 
@@ -840,7 +844,7 @@ class FieldSpecFactory:
                          "DATE": DateField, 
                          "DATETIME": DateTimeField,
                          "INTEGER": IntegerField, 
-                         "TINYINT": IntegerField, 
+                         "TINYINT": BooleanField, 
                          "VARCHAR": TextField }
 
         self.selectFields = {}
