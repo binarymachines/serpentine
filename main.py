@@ -46,8 +46,6 @@ def getAPIMap(environment):
     apiReply['model_list'] = [ model for model in environment.frontController.controllerMap.keys() ]
     apiReply['responder_map'] = environment.responderMap
 
-    apiReply['controller_frame'] = environment.controllerFrame
-
     return apiReply
     
 
@@ -176,7 +174,7 @@ def invokeControllerUpdateGet(environment, objectType = 'none', objectID = 'none
     controller = environment.frontController.getController(objectType)
     session = request.environ[controller.sessionName]
     session[controller.typeSpecificIDSessionTag] = objectID
-    return controller.update(objectType, objectID, request, context)
+    return controller.update(objectID, request, context)
     
 
 #
@@ -195,7 +193,7 @@ def invokeControllerUpdatePost(environment, objectType= 'none', objectID = 'none
     if objectID is None:
         raise Exception("Update failed: No %s ID in session data." % objectType)
 
-    return controller.update(objectType, objectID, request, context)
+    return controller.update(objectID, request, context)
 
 
 @route('/controller/:objectType/update/:objectID', method='POST')
@@ -205,7 +203,7 @@ def invokeControllerUpdatePost(environment, objectType = 'none', objectID = 'non
     environment.frontController.validate(request)
     controller = environment.frontController.getController(objectType)
 
-    return controller.update(objectType, objectID, request, context)
+    return controller.update(objectID, request, context)
 
 
 #
@@ -259,7 +257,7 @@ def invokeControllerDeletePost(environment, objectType='none', objectID='none'):
     environment.frontController.validate(request)
     controller = environment.frontController.getController(objectType)
 
-    return controller.delete(objectType, objectID, request, context)
+    return controller.delete(objectID, request, context)
             
             
 #
@@ -272,7 +270,7 @@ def invokeControllerIndex(environment, objectType = 'none'):
     environment.frontController.validate(request)
     # Get the controller for the type in question
     controller = environment.frontController.getController(objectType)
-    return controller.index(objectType, request, context)
+    return controller.index(request, context)
 
 
 #
@@ -297,7 +295,7 @@ def invokeControllerIndexPaging(environment, objectType = 'none', pageNum = 'non
     if pageNumInt < 1:
         raise InvalidPageNumberError()
 
-    return controller.indexPage(objectType, int(pageNum), request, context)
+    return controller.indexPage(int(pageNum), request, context)
 
 
 #
@@ -340,7 +338,7 @@ def invokeControllerInsertPost(environment, objectType = 'none'):
     environment.frontController.validate(request)
     controller = environment.frontController.getController(objectType)
 
-    return controller.insert(objectType, request, context)
+    return controller.insert(request, context)
 
 
 @route('/controller/:objectType/:controllerMethod', method = 'POST')
