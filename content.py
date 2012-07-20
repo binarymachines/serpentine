@@ -422,12 +422,17 @@ class MenuDataSource(SQLDataSource):
         self.tableName = tableName
         self.nameField = nameField
         self.valueField = valueField
-        self.options = []
+        self.options = [] 
 
     def load(self, persistenceManager, **kwargs):
         self.options = []
         dataTable = persistenceManager.loadTable(self.tableName)
-        query = select([dataTable.columns[self.nameField], 
+        
+        query =  self._customQuery(dataTable, [dataTable.columns[self.nameField], 
+                        dataTable.columns[self.valueField]], persistenceManager, **kwargs)
+                        
+        if query is None:            
+            query = select([dataTable.columns[self.nameField], 
                         dataTable.columns[self.valueField]])
         query = self.filterByConditions(dataTable, query, **kwargs)
         
