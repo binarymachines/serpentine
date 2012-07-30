@@ -264,20 +264,21 @@ class Environment():
 
       def mapFramesToViews(self):
             viewManager = ViewManager(self.contentRegistry)
-            for controllerID in self.config['view_manager']['controllers']:
-                  if controllerID not in self.__controllerRegistry:
-                        raise ConfigError("No controller has been registered under alias '%s'; cannot assign to a frame." % controllerID)
-
-                  frameSet =  self.config['view_manager']['controllers'][controllerID]
-                  for record in frameSet:
-                        viewManager.mapFrameID(record['frame'], controllerID, record['method'])
+            if self.config['view_manager']['controllers']:
+                for controllerID in self.config['view_manager']['controllers']:
+                      if controllerID not in self.__controllerRegistry:
+                            raise ConfigError("No controller has been registered under alias '%s'; cannot assign to a frame." % controllerID)
+    
+                      frameSet =  self.config['view_manager']['controllers'][controllerID]
+                      for record in frameSet:
+                            viewManager.mapFrameID(record['frame'], controllerID, record['method'])
             
             self.viewManager = viewManager
             return viewManager
             
       def assignStylesheetsToXMLFrames(self):            
             displayManager = DisplayManager(self.stylesheetPath)
-            if self.config['display_manager']['frames'] is not None:
+            if self.config['display_manager']['frames']:
                   for frameID in self.config['display_manager']['frames']:
                         stylesheet = self.config['display_manager']['frames'][frameID]['stylesheet']
                         displayManager.assignStylesheet(stylesheet, frameID)
@@ -287,8 +288,11 @@ class Environment():
 
 
       def initializeDataStore(self):
+            if not self.config['databases']:
+                return 
+      
             startupDBName = self.config['global']['startup_db']
-            if startupDBName not in self.config['databases']:
+            if startupDBName and startupDBName not in self.config['databases']:
                   raise ConfigError(
                         "Startup database alias '%s' is not in the list of databases. Please check your config file." % startupDBName)
 
@@ -310,7 +314,9 @@ class Environment():
 
       def mapModelsToDatabase(self):
             # TODO: add logic to extract model aliases from the config if they've been provided
-
+            if not self.config['models']:
+                return 
+                
             leafModels = []
             for model in self.config['models']:
                   # "peer" models represent a one-to-one relationship
@@ -367,51 +373,52 @@ class Environment():
             return dispatcher
 
 
-      def assignControllers(self):
+      def assignControllers(self):                          
             frontController = FrontController()
-            for className in self.config['controllers']:
-                  packageName = self.config['global']['default_controller_package']
-
-                  # construct a fully qualified (fq...) class name from global settings
-                  fqClassName = '.'.join([packageName, className])
-                  controllerClass = self.classLoader.loadClass(fqClassName)
-
-                  # now get the alias
-                  attributes = self.config['controllers'][className]
-                  alias = attributes['alias']
-                  modelName = alias 
-                  if attributes.get('model') != None:
-                      modelName = attributes['model']
-                  
-                  # determine this Controller's Model class
-                  fqModelClassName = '.'.join([self.config['global']['default_model_package'], modelName])
-                  modelClass = self.classLoader.loadClass(fqModelClassName)
-
-                  # now get the Form class if there is one
-                  formClass = None
-                  formClassName = ''.join([modelName, 'Form']) 
-                  if attributes.get('form_class') != None:
-                      formClassName = attributes['form_class']
-                      fqFormClassName = '.'.join([self.config['global']['default_forms_package'], formClassName])                  
-                      formClass = self.classLoader.loadClass(fqFormClassName)
-
-                  controllerInstance = None
-                  
-                  #
-                  # Controllers should either be descended from BaseController -- in which case
-                  # they should take the model and form classes as constructor params -- or not, 
-                  # in which case they need only need to take the model instance.
-                  # 
-                  # TODO: eliminate this logic; all controllers will take a Model instance
-                  if issubclass(controllerClass, BaseController): 
-                        controllerInstance = controllerClass(modelClass)
-                  else:
-                        controllerInstance = controllerClass(modelClass())
-
-                  frontController.assignController(controllerInstance, alias)
-                  
-                  # not used externally; this is for error checking ViewManager entries elsewhere in the config
-                  self.__controllerRegistry[alias] = controllerInstance
-
+            if self.config['controllers']:
+                for className in self.config['controllers']:
+                      packageName = self.config['global']['default_controller_package']
+    
+                      # construct a fully qualified (fq...) class name from global settings
+                      fqClassName = '.'.join([packageName, className])
+                      controllerClass = self.classLoader.loadClass(fqClassName)
+    
+                      # now get the alias
+                      attributes = self.config['controllers'][className]
+                      alias = attributes['alias']
+                      modelName = alias 
+                      if attributes.get('model') != None:
+                          modelName = attributes['model']
+                      
+                      # determine this Controller's Model class
+                      fqModelClassName = '.'.join([self.config['global']['default_model_package'], modelName])
+                      modelClass = self.classLoader.loadClass(fqModelClassName)
+    
+                      # now get the Form class if there is one
+                      formClass = None
+                      formClassName = ''.join([modelName, 'Form']) 
+                      if attributes.get('form_class') != None:
+                          formClassName = attributes['form_class']
+                          fqFormClassName = '.'.join([self.config['global']['default_forms_package'], formClassName])                  
+                          formClass = self.classLoader.loadClass(fqFormClassName)
+    
+                      controllerInstance = None
+                      
+                      #
+                      # Controllers should either be descended from BaseController -- in which case
+                      # they should take the model and form classes as constructor params -- or not, 
+                      # in which case they need only need to take the model instance.
+                      # 
+                      # TODO: eliminate this logic; all controllers will take a Model instance
+                      if issubclass(controllerClass, BaseController): 
+                            controllerInstance = controllerClass(modelClass)
+                      else:
+                            controllerInstance = controllerClass(modelClass())
+    
+                      frontController.assignController(controllerInstance, alias)
+                      
+                      # not used externally; this is for error checking ViewManager entries elsewhere in the config
+                      self.__controllerRegistry[alias] = controllerInstance
+    
             self.frontController = frontController
             return frontController
