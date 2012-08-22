@@ -17,8 +17,8 @@ from core import *
 
 
 class NoSuchTableError(Exception):
-    def __init__(self, tableName):
-        Exception.__init__(self, "No table named '%s' exists in the current schema." % tableName)
+    def __init__(self, tableName, schemaName):
+        Exception.__init__(self, "No table named '%s' exists in database schema '%s'." % (tableName, schemaName))
 
 
 Session = scoped_session(sessionmaker(autoflush=False, autocommit=False, expire_on_commit=False))
@@ -87,7 +87,7 @@ class Database:
         """
 
         if name not in self.metadata.tables:
-            raise NoSuchTableError(name)
+            raise NoSuchTableError(name, self.schema)
 
         return self.metadata.tables[name]
 

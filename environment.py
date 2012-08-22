@@ -12,7 +12,9 @@ from content import *
 from db import *
 from events import *
 from core import *
+import content
 from reporting import *
+from metaobjects import *
 
 from sqlalchemy.orm import mapper
 from sqlalchemy.exc import SQLAlchemyError
@@ -28,15 +30,66 @@ class Properties( object ):
 
 
 class Environment():
+
+      def getAppName(self):
+            return self.config['app_name']
+
+      def getAppVersion(self):
+            return self.config['app_version']
+
+      def getAppRoot(self):
+            return self.config['app_root']
+
+      def getDatabases(self):
+            return self.databaseMap
+
+      def getTemplatePath(self):
+            return self.config['static_file_path']
+
+      def getTables(self):
+            if self.config.get('models', None):                  
+                  return [self.config['models'][model]['table'] for model in self.config['models']]
+            else:
+                  return []
+
+      def getOutputPath(self):
+            return self.config['output_file_path']
+
+      def getStylesheetPath(self):
+            return os.path.join(self.appRoot, self.config['display_manager']['stylesheet_path'])
+
+      def getURLBase(self):
+            return self.config['global']['url_base']
+
+      
+
+      
+
+      appName = property(getAppName)
+      appVersion = property(getAppVersion)
+      appRoot = property(getAppRoot)
+      databases = property(getDatabases)
+      tables = property(getTables)
+      templatePath = property(getTemplatePath)
+      staticFilePath = property(getTemplatePath)
+      outputPath = property(getOutputPath)
+      stylesheetPath = property(getStylesheetPath)
+      urlBase = property(getURLBase)
+
+
       def __init__(self):
-            self.appName = None
-            self.appVersion = None
-            self.config = None
-            self.contentRegistry = ContentRegistry()
-            self.dataSourceRegistry = DataSourceRegistry()
-            self.templatePath = None
-            self.outputPath = None
-            self.stylesheetPath = None
+            self.config = {}  # YAML configuration table
+            
+            ### Experiment: moving config data over from SConfigurator
+
+            self.hostname = None
+            self.port = None            
+            self.startupDB = None
+
+            ###
+
+            self.contentRegistry = content.ContentRegistry()
+            self.dataSourceRegistry = content.DataSourceRegistry()            
             self.classLoader = ClassLoader()
             self.templateManager = None
             self.persistenceManager = None
@@ -45,11 +98,54 @@ class Environment():
             self.frontController = None
             self.reportManager = None
             self.responderMap = {}
-            self.controlMap = {}
-            self.urlBase = None
-      
+            self.controlMap = {}   
+
+            self.databaseMap = {}
             self.__controllerRegistry = {}
-      
+
+            self.configSections = {}
+            globalSectionSettings = ['app_name', 'app_version', 'app_root', 'static_file_path', 'output_file_path', 'report_file_path', 
+                                   'default_form_package', 'default_model_package', 'default_helper_package', 'default_controller_package', 
+                                   'default_responder_package', 'default_datasource_package', 'default_report_package', 'startup_db', 'url_base']
+
+            apiSectionSettings = ['api_frame', 'doc_frame', 'config_frame', 'controller_frame', 'responder_frame']
+            contentRegistrySectionSettings = ['template_path']
+            databaseSectionSettings = ['databases']
+            displayManagerSectionSettings = ['stylesheet_path']
+            
+
+            self.configSections['global'] = globalSectionSettings
+            self.configSections['api'] = apiSectionSettings
+            self.configSections['content_registry'] = contentRegistrySectionSettings
+            self.configSections['display_manager'] = displayManagerSectionSettings
+            self.configSections['databases'] = databaseSectionSettings
+            
+            
+       
+      def exportGlobalSettings(self):
+            globalSettingNames = self.configSections['global']
+            settings = {}
+
+            for name in globalSettingNames:
+                  settings[name] = self.config['global'][name]
+                  
+            return settings
+
+
+      def importGlobalSettings(self, settingsDictionary):
+            for name in self.configSections['global']:
+                  self.config['global'][name] = settingsDictionary[name]
+
+
+
+      def exportDatabaseSettings(self):
+            return self.databaseMap
+
+
+      def importDatabaseSettings(self, dbConfigMap):
+            self.databaseMap.update(dbConfigMap)
+                  
+
       def bootstrap(self, initFileName):
             """Find and read an initialization file for startup.
             bootstrap() looks for a config file named <initFileName> 
@@ -72,13 +168,21 @@ class Environment():
                                                    config['content_registry']['template_path'])
                   j2Environment = jinja2.Environment(loader = jinja2.FileSystemLoader(self.templatePath), 
                                                     undefined = StrictUndefined, cache_size=0)
-                  self.templateManager = JinjaTemplateManager(j2Environment)
+                  self.templateManager = content.JinjaTemplateManager(j2Environment)
 
                   self.stylesheetPath = os.path.join(config['global']['app_root'], 
                                                      config['display_manager']['stylesheet_path'])
 
-                  self.reportManager = ReportManager(self.reportPath)
-                  
+                  self.reportManager = content.ReportManager(self.reportPath)
+
+                  for dbName in config['databases']:                        
+                        dbType = config['databases'][dbName]['type']
+                        dbHost = config['databases'][dbName]['host']
+                        dbSchema = config['databases'][dbName]['schema']
+                        username = config['databases'][dbName]['username']
+                        password = config['databases'][dbName]['password']
+                        dbConfig = DatabaseConfig(dbHost, dbSchema, username, password)
+                        self.databaseMap[dbName] = dbConfig
                   
                   self.config = config
                   return self

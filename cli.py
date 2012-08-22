@@ -106,12 +106,12 @@ class MenuPrompt:
             return self.selection
 
 class MultipleChoiceMenuPrompt:
-    def __init__(self, menu, prompt):
+    def __init__(self, menu, prompt, defaultSelections = []):
         self.menu = menu
         
         self.defaultMsg = ["Type * to exit.", "Type # to see the items you've selected.", "Type c to clear your selections."]
         self.defaultMsg.insert(0, prompt)
-        self.selections = []
+        self.selections = defaultSelections
         self.escaped = False
         self.selectedIndex = -1
         self.choice = ''
@@ -291,7 +291,7 @@ class TextSelectPrompt:
 
 
 class CursesDisplay:
-    def __init__(self, clientClass):
+    def __init__(self, clientClass, **kwargs ):
         self.client = clientClass()
 
     def open(self, **kwargs):

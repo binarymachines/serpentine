@@ -205,7 +205,6 @@ class FrontController(Singleton):
       return self.controllerMap[modelName]
 
 
-
 class HttpUtility(object):
     @classmethod 
     def getRequiredParameter(pClass, paramName, paramTypeString, httpRequestData):
@@ -232,6 +231,23 @@ class BaseController(object):
         self.typeSpecificIDSessionTag = ''.join([self.modelClass.__name__.lower(), '_id'])
         self.sessionName = 'beaker.session'
 
+
+    """"
+    def lookup(self, objectID, dbSession):
+        try:            
+            object = dbSession.query(self.modelClass).filter(self.modelClass.id == objectID).one()           
+            return object
+            
+        except NoResultFound, err:
+            raise Exception('No %s instance found in DB with primary key %s.' % (self.modelClass.__name__, str(objectID)))
+            
+            //raise err
+        except SQLAlchemyError, err:
+            
+            log('%s lookup failed with message: %s' % (self.modelClass.__name__, err.message))
+            # TODO: scaffolding to track down lookup 
+            raise err
+    """
     
     def lookup(self, objectID, dbSession, persistenceManager):
         
@@ -244,8 +260,10 @@ class BaseController(object):
             # should we raise err? Is not finding an object an exceptional condition?
             return None
         
-               
-    def assertObjectExists(self, objectID, persistenceManager):
+            
+     
+        
+    def assertObjectExists(self, modelName, objectID, persistenceManager):
         dbSession = persistenceManager.getSession()
         result =  self.lookup(objectID, dbSession, persistenceManager) 
         dbSession.close()
@@ -278,7 +296,8 @@ class BaseController(object):
         
 
 
-    def index(self, httpRequest, context, **kwargs):
+    def index(self, objectType, httpRequest, context, **kwargs):
+        
         frameID = context.viewManager.getFrameID(self.modelClass.__name__, 'index')
         frameObject = context.contentRegistry.getFrame(frameID)
         
@@ -302,9 +321,9 @@ class BaseController(object):
 
     # TODO: fix security hole, ensure pageNumber is an integer and a reasonable value
 
-    def indexPage(self, pageNumber, httpRequest, context, **kwargs):
+    def indexPage(self, objectType, pageNumber, httpRequest, context, **kwargs):
 
-        frameID = context.viewManager.getFrameID(self.modelClass.__name__, 'index')
+        frameID = context.viewManager.getFrameID(objectType, 'index')
         frameObject = context.contentRegistry.getFrame(frameID)
         
         # this is so that the render() call to the underlying XMLFrame object can look up its stylesheet
@@ -336,15 +355,15 @@ class BaseController(object):
         try:            
             dbSession.add(object) 
             dbSession.flush()
+            return object
         except SQLAlchemyError, err:    
             dbSession.rollback()
             log("%s failed with message: %s" % ('insert', err.message))
             raise err        
         
     
-    def insert(self, httpRequest, context, **kwargs):
+    def insert(self, objectType, httpRequest, context, **kwargs):
         
-        objectType = self.modelClass.__name__
         session = httpRequest.environ[self.sessionName]
         frameID = context.viewManager.getFrameID(objectType, 'insert')    
         frameObject = context.contentRegistry.getFrame(frameID)
@@ -369,23 +388,40 @@ class BaseController(object):
                 redirectTarget = '/%s/controller/%s/index' % (context.urlBase, objectType)
 
             redirect(redirectTarget)
+        except Exception, err:
+            dbSession.rollback()
+            raise err
         finally:
             dbSession.close()
         
     def _delete(self, object, dbSession, persistenceManager):
-        pass
+        
+        """"
+        try:
+            #dbSession.delete(object)
+            #setattr(object, "deleted", True)       
+            
+            dbSession.flush()
+            dbSession.commit()
+        except SQLAlchemyError, err:
+            dbSession.rollback()
+            log("%s %s failed with message: %s" % (self.modelClass, 'delete', err.message))
+            raise err 
+        """ 
 
-
-    def delete(self, objectID, httpRequest, context, **kwargs):
+    def delete(self, objectType, objectID, httpRequest, context, **kwargs):
     
-        objectType = self.modelClass.__name__
         pMgr = context.persistenceManager
         dbSession = pMgr.getSession()
-        targetObject = self.lookup(int(objectID), dbSession, pMgr)
         
         try:
-            self._delete(targetObject, dbSession, pMgr)   
+            targetObject = self.lookup(int(objectID), dbSession, pMgr)
+            self._delete(targetObject, dbSession, pMgr)  
+            dbSession.commit() 
             redirect('/bifrost/controller/%s/index' % objectType)         
+        except Exception, err:
+            dbSession.rollback()
+            raise err
         finally:
             dbSession.close()
         
@@ -394,7 +430,7 @@ class BaseController(object):
     def _update(self, object, dbSession, persistenceManager):       
         try:
             dbSession.flush()             
-            dbSession.commit()
+            
         except SQLAlchemyError, err:
             dbSession.rollback()
             log("%s %s failed with message: %s" % (self.modelClass, 'insert', err.message))
@@ -402,9 +438,8 @@ class BaseController(object):
         
             
             
-    def update(self, objectID, httpRequest, context, **kwargs):
+    def update(self, objectType, objectID, httpRequest, context, **kwargs):
 
-        objectType = self.modelClass.__name__
         targetFrameID = context.viewManager.getFrameID(objectType, 'update')
         formClass = context.contentRegistry.getFormClass(targetFrameID)
         frameObject = context.contentRegistry.getFrame(targetFrameID)
@@ -413,50 +448,54 @@ class BaseController(object):
         pMgr = context.persistenceManager
         dbSession = pMgr.getSession()
         
-        object = self.lookup(int(objectID), dbSession, pMgr)
-        if object is None:            
+        obj = self.lookup(int(objectID), dbSession, pMgr)
+        if obj is None: 
+            dbSession.close()           
             raise ObjectLookupError(objectType, objectID)
 
         if httpRequest.method == 'GET': 
-           
-            httpRequest.GET['object_id'] = int(objectID)
-            displayForm = formClass(None, object)
-
-
-            kwargs['form'] = displayForm
-            kwargs['frame_id'] = targetFrameID
-            kwargs['controller_alias'] = objectType
-
-            # Invoke helper function if one has been registered
-            helperFunction = context.contentRegistry.getHelperFunctionForFrame(targetFrameID)
-            if helperFunction is not None:
-                extraData = helperFunction(httpRequest, context)
-                kwargs.update(extraData)
-            dbSession.close()
-            return frameObject.render(httpRequest, context, **kwargs)
-
-        elif httpRequest.method == 'POST':     
-            
-            inputForm = formClass()
-            inputForm.process(httpRequest.POST)
-            if not inputForm.validate():
-                raise FormValidationError('update', objectType, inputForm.errors)
-
-            inputForm.populate_obj(object)
-            #dbSession = context.persistenceManager.getSession()
             try:
+                httpRequest.GET['object_id'] = int(objectID)
+                displayForm = formClass(None, obj)
+    
+                kwargs['form'] = displayForm
+                kwargs['frame_id'] = targetFrameID
+                kwargs['controller_alias'] = objectType
+    
+                # Invoke helper function if one has been registered
+                helperFunction = context.contentRegistry.getHelperFunctionForFrame(targetFrameID)
+                if helperFunction is not None:
+                    extraData = helperFunction(httpRequest, context)
+                    kwargs.update(extraData)
                 
-                self._update(object, dbSession, context.persistenceManager)
+                return frameObject.render(httpRequest, context, **kwargs)
+            finally:
+                dbSession.close()
+                
+        elif httpRequest.method == 'POST':     
+            try:
+                inputForm = formClass()
+                inputForm.process(httpRequest.POST)
+                if not inputForm.validate():
+                    raise FormValidationError('update', objectType, inputForm.errors)
+    
+                inputForm.populate_obj(obj)
+                
+                self._update(obj, dbSession, context.persistenceManager)
+                dbSession.commit()
                 
                 snapback = httpRequest.POST.get('snapback', '').strip()
                 if len(snapback):
                     redirectTarget = '/%s/%s' % (context.urlBase, snapback)
                 else:
                     redirectTarget = '/%s/controller/%s/index' % (context.urlBase, objectType)
-
-                redirect(redirectTarget)            
+            
+                redirect(redirectTarget)   
+            except Exception, err:
+                dbSession.rollback()
+                raise err         
             finally:
-                session[self.typeSpecificIDSessionTag] = None
+                session[self.typeSpecificIDSessionTag] = None                
                 dbSession.close()
 
     
