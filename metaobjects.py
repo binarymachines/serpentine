@@ -2,9 +2,9 @@
 from wtforms import *
 
 
-class NoSuchFieldSpecError(Exception):
+class NoSuchFieldConfigError(Exception):
     def __init__(self, name):
-        Exception.__init__(self, "No FieldSpec named %s in this FormSpec." % name)
+        Exception.__init__(self, "No FieldConfig named %s in this FormConfig." % name)
 
 
 class ControllerMethodConfig:
@@ -50,9 +50,9 @@ class FrameConfig:
 
 
 class ModelConfig(object):
-    def __init__(self, name, tableName, children = None):
+    def __init__(self, name, table, children = None):
         self.name = name
-        self.table = tableName
+        self.table = table
         if children is None:
             self._children  = []
         else:
@@ -78,13 +78,20 @@ class DataSourceParameter:
         self.value = value
 
 
-class DataSourceSpec:
+class DataSourceConfig:
     def __init__(self, type, parameterArray):
         self.type = type
         self.params = parameterArray
 
+    def __repr__(self):
+        result = ''
+        for p in self.params:
+            result += '%s: %s, ' % (p.name, p.value)
+
+        return result[:-2]
+
     
-class FieldSpec:
+class FieldConfig:
     """A specification for a field in a WTForms form instance."""
 
     def __init__(self, name, label, type, required = False, hidden = False):
@@ -117,7 +124,8 @@ class FieldSpec:
         else:
             return "%s = %s(u'%s', %s)" % (self.name, self.type.__name__, self.label, ",".join(self.extraData))
 
-class SelectFieldSpec(FieldSpec):
+
+class SelectFieldConfig(FieldConfig):
 
     def __init__(self, name, label, menuDict):
         FieldSpec.__init__(name, label, SelectField)
@@ -128,10 +136,11 @@ class SelectFieldSpec(FieldSpec):
 
         self.extraData.append("choices = [%s]" % ",".join(menuChoices))
 
-class FormSpec:
+
+class FormConfig:
     """A specification for a WTForms form instance.
 
-      A FormSpec instance provides the basis for generating boilerplate code, templates, and Form instances 
+      A FormConfig instance provides the basis for generating boilerplate code, templates, and Form instances 
       in Serpentine.
       """
 
@@ -141,23 +150,23 @@ class FormSpec:
         self.formClassName = "%sForm" % self.model
         self.fields = []
 
-    def addField(self, fieldSpec):
-        """Add the passed FieldSpec instance to this FormSpec."""
+    def addField(self, fieldConfig):
+        """Add the passed FieldConfig instance to this FormConfig."""
 
-        self.fields.append(fieldSpec)
+        self.fields.append(fieldConfig)
 
     def getField(self, name):
-        """Retrieve a FieldSpec by name."""
+        """Retrieve a FieldConfig by name."""
 
         for field in self.fields:
             if field.name == name:
                 return field
 
-        raise NoSuchFieldSpecError(name)
+        raise NoSuchFieldConfigError(name)
 
 
-class FieldSpecFactory:
-    """Use Factory pattern to create a FieldSpec from reflected information about a database column."""
+class FieldConfigFactory:
+    """Use Factory pattern to create a FieldConfig from reflected information about a database column."""
 
     def __init__(self):
         self.typeMap = { "BOOL": BooleanField, 
@@ -176,13 +185,13 @@ class FieldSpecFactory:
         self.selectFields[name] = dictionary
         
     def create(self, tableColumn):
-        """Create a field specification object based on the information in the column object.
+        """Create a field configuration object based on the information in the column object.
 
         Arguments:
         --tableColumn: an SQLAlchemy reflected Column object 
 
         Returns:
-        -- a valid FieldSpec instance
+        -- a valid FieldConfig instance
         """
 
         fieldName = tableColumn.name
@@ -192,13 +201,13 @@ class FieldSpecFactory:
             fieldType = HiddenField
             required = False
         elif fieldName in self.selectFields:
-            return SelectFieldSpec(fieldName, fieldLabel, self.selectFields[fieldName])
+            return SelectFieldConfig(fieldName, fieldLabel, self.selectFields[fieldName])
         else:
             fieldType = self.determineFieldType(str(tableColumn.type))
             required = not tableColumn.nullable
 
         # TODO: Add some logic for finding out about hidden fields
-        return FieldSpec(fieldName, fieldLabel, fieldType, required, False)
+        return FieldConfig(fieldName, fieldLabel, fieldType, required, False)
            
 
     def convertColumnNameToLabel(self, columnName):
@@ -231,10 +240,10 @@ class FieldSpecFactory:
             return TextField
            
 
-class ControlSpec:
-    """A specification for a Serpentine dynamic UI control.
+class ControlConfig:
+    """A configuration for a Serpentine dynamic UI control.
 
-    A ControlSpec is rendered directly into YAML by the SConfigurator.
+    A ControlConfig is rendered directly into YAML by the SConfigurator.
     """
 
     def __init__(self, type, name, dataSourceAlias, templateID = None):

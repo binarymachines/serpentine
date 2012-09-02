@@ -14,24 +14,42 @@ class MenuInputError: pass
 
 
 class Notice:
-    def __init__(self, text):
-        self.text = text
+    def __init__(self, message):
+        self.message = message
 
     def __str__(self):
-        return self.text
+        if self.message.__class__.__name__ == 'list':
+            return '\n'.join(message)
+
+        return self.message
 
     def show(self, screen):
-        buffer = StringIO()
-        buffer.write('%s' % self.text)
-        contents = buffer.getvalue()
-        bufferLineArray = contents.split('\n')
-        bufferLineCount = len(bufferLineArray)
-        
-        position = screen.getyx()
-        screen.move(position[0], 0)
-        screen.addstr(buffer.getvalue())
-        position = screen.getyx()
-        screen.move(position[0] + 1, 0)
+    
+        if self.message.__class__.__name__ == 'list':
+            buffer = StringIO()
+            
+            buffer.write('\n'.join(self.message))
+            contents = buffer.getvalue()
+            bufferLineArray = contents.split('\n')
+            bufferLineCount = len(bufferLineArray)
+            position = screen.getyx()
+            cursorRow = position[0] + bufferLineCount - 1
+            cursorColumn = len(bufferLineArray[bufferLineCount-1])
+
+            screen.addstr(buffer.getvalue())
+            screen.move(cursorRow, cursorColumn)
+        else:        
+            buffer = StringIO()
+            buffer.write('%s' % self.message)
+            contents = buffer.getvalue()
+            bufferLineArray = contents.split('\n')
+            bufferLineCount = len(bufferLineArray)
+            
+            position = screen.getyx()
+            screen.move(position[0], 0)
+            screen.addstr(buffer.getvalue())
+            position = screen.getyx()
+            screen.move(position[0] + 1, 0)
 
 
 
@@ -48,6 +66,9 @@ class Menu:
             index += 1
         return '\n'.join(entries)
 
+    def addItem(self, itemString):
+        self.values.append(itemString)
+
     def values(self):
         return self.values
 
@@ -55,9 +76,8 @@ class Menu:
 
 class MenuPrompt:
     def __init__(self, menu, prompt):
-            self.menu = menu
-            self.defaultMsg = ["(Hit the * key to exit)"]
-            self.defaultMsg.insert(0, prompt)
+            self.menu = menu            
+            self.instructions = [prompt, '(Enter * to exit)']
             self.selectedIndex = -1
             self.selection = ''
             self.escaped = False
@@ -67,7 +87,7 @@ class MenuPrompt:
             #screen.clear()
             
             buffer = StringIO()
-            buffer.write('%s\n%s\n:' % (self.menu, self.defaultMsg))
+            buffer.write('%s\n%s\n:' % (self.menu, '\n'.join(self.instructions)))
             contents = buffer.getvalue()
             bufferLineArray = contents.split('\n')
             bufferLineCount = len(bufferLineArray)
@@ -109,9 +129,10 @@ class MultipleChoiceMenuPrompt:
     def __init__(self, menu, prompt, defaultSelections = []):
         self.menu = menu
         
-        self.defaultMsg = ["Type * to exit.", "Type # to see the items you've selected.", "Type c to clear your selections."]
-        self.defaultMsg.insert(0, prompt)
-        self.selections = defaultSelections
+        self.instructions = ["Type * to exit.", "Type # to see the items you've selected.", "Type c to clear your selections."]
+        self.instructions.insert(0, prompt)
+        self.selections = []
+        self.selections.extend(defaultSelections)
         self.escaped = False
         self.selectedIndex = -1
         self.choice = ''
@@ -120,7 +141,7 @@ class MultipleChoiceMenuPrompt:
         #screen.clear()
         
         buffer = StringIO()
-        buffer.write('%s\n%s\n:' % (self.menu, '\n'.join(self.defaultMsg)))
+        buffer.write('%s\n\n%s\n:' % (self.menu, '\n'.join(self.instructions)))
         contents = buffer.getvalue()
         bufferLineArray = contents.split('\n')
         bufferLineCount = len(bufferLineArray)

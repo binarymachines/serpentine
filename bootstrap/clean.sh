@@ -2,7 +2,9 @@
 
 # clears out the Serpentine bootstrap directory
 
-rm *.html
+rm *_index.html
+rm *_update.html
+rm *_insert.html
 rm *.conf
 rm *.xml
 rm *.py

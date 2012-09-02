@@ -32,19 +32,19 @@ class Properties( object ):
 class Environment():
 
       def getAppName(self):
-            return self.config['app_name']
+            return self.config['global']['app_name']
 
       def getAppVersion(self):
-            return self.config['app_version']
+            return self.config['global']['app_version']
 
       def getAppRoot(self):
-            return self.config['app_root']
+            return self.config['global']['app_root']
 
       def getDatabases(self):
             return self.databaseMap
 
       def getTemplatePath(self):
-            return self.config['static_file_path']
+            return self.config['global']['static_file_path']
 
       def getTables(self):
             if self.config.get('models', None):                  
@@ -53,7 +53,7 @@ class Environment():
                   return []
 
       def getOutputPath(self):
-            return self.config['output_file_path']
+            return self.config['global']['output_file_path']
 
       def getStylesheetPath(self):
             return os.path.join(self.appRoot, self.config['display_manager']['stylesheet_path'])
@@ -61,20 +61,9 @@ class Environment():
       def getURLBase(self):
             return self.config['global']['url_base']
 
-      
 
-      
-
-      appName = property(getAppName)
-      appVersion = property(getAppVersion)
-      appRoot = property(getAppRoot)
       databases = property(getDatabases)
       tables = property(getTables)
-      templatePath = property(getTemplatePath)
-      staticFilePath = property(getTemplatePath)
-      outputPath = property(getOutputPath)
-      stylesheetPath = property(getStylesheetPath)
-      urlBase = property(getURLBase)
 
 
       def __init__(self):
@@ -104,6 +93,7 @@ class Environment():
             self.__controllerRegistry = {}
 
             self.configSections = {}
+            
             globalSectionSettings = ['app_name', 'app_version', 'app_root', 'static_file_path', 'output_file_path', 'report_file_path', 
                                    'default_form_package', 'default_model_package', 'default_helper_package', 'default_controller_package', 
                                    'default_responder_package', 'default_datasource_package', 'default_report_package', 'startup_db', 'url_base']
@@ -119,8 +109,48 @@ class Environment():
             self.configSections['content_registry'] = contentRegistrySectionSettings
             self.configSections['display_manager'] = displayManagerSectionSettings
             self.configSections['databases'] = databaseSectionSettings
+
+
+      def exportGlobalSettings(self):
+            result = {}
+            for name in self.configSections['global']:
+                  result[name] = self.config['global'][name]
+
+            return result
+
+
+      def exportDataSourceConfigs(self):
+            if not self.config.get('datasources'):
+                  return {}
+            else:
+                  result = {}
+                  for source in self.config['datasources']:
+                        dataSourceParams = []
+                        settings = self.config['datasources'][source]
+                        for paramName in settings.keys():
+                              paramValue = self.config['datasources'][source][paramName]
+                              dp = DataSourceParameter(paramName, paramValue)
+                              dataSourceParams.append(dp)
+                        sourceType = self.config['datasources'][source]['type']
+                        dSpec = DataSourceConfig(sourceType, dataSourceParams)
+                        result[source] = dSpec
+                  return result
+
             
-            
+      def exportUIControlConfigs(self):
+            if not self.config.get('ui-controls'):
+                  return {}
+            else:
+                  result = {}
+                  for ctrlName in self.config['ui-controls']:
+                        type = self.config['ui-controls'][ctrlName]['type']
+                        dataSourceName = self.config['ui-controls'][ctrlName]['datasource']
+                        templateID = self.config['ui-controls'][ctrlName].get('template', None)
+                        ccfg = ControlConfig(type, ctrlName, dataSourceName, templateID)
+                        result[ctrlName] = ccfg
+
+                  return result
+
        
       def exportGlobalSettings(self):
             globalSettingNames = self.configSections['global']
@@ -132,10 +162,12 @@ class Environment():
             return settings
 
 
-      def importGlobalSettings(self, settingsDictionary):
-            for name in self.configSections['global']:
-                  self.config['global'][name] = settingsDictionary[name]
-
+      def importGlobalSettings(self, settingsDictionary):     
+            if self.config.get('global', ''):       
+                self.config['global'].update(settingsDictionary)
+            else:
+                self.config['global'] = settingsDictionary
+            
 
 
       def exportDatabaseSettings(self):
@@ -144,6 +176,13 @@ class Environment():
 
       def importDatabaseSettings(self, dbConfigMap):
             self.databaseMap.update(dbConfigMap)
+                  
+                  
+                  
+      def importWSGIConfig(self, wsgiConfig):
+          self.hostname = wsgiConfig.host
+          self.port = wsgiConfig.port
+
                   
 
       def bootstrap(self, initFileName):
@@ -173,7 +212,7 @@ class Environment():
                   self.stylesheetPath = os.path.join(config['global']['app_root'], 
                                                      config['display_manager']['stylesheet_path'])
 
-                  self.reportManager = content.ReportManager(self.reportPath)
+                  self.reportManager = ReportManager(self.reportPath)
 
                   for dbName in config['databases']:                        
                         dbType = config['databases'][dbName]['type']
@@ -198,7 +237,7 @@ class Environment():
       
 
       def loadDatasources(self):
-            if not self.config['datasources']:
+            if not self.config.get('datasources'):
                   return
 
             factory = DataSourceFactory()
@@ -211,8 +250,8 @@ class Environment():
 
 
       def loadControls(self):
-            if not self.config['ui-controls']:
-                  return
+            if not self.config.get('ui-controls'):
+                  return 
 
             factory = ControlFactory()
             
@@ -226,7 +265,7 @@ class Environment():
       def initializeReporting(self):
             packageName = self.config['global']['default_report_package']
 
-            if not self.config['reports']:
+            if not self.config.get('reports'):
                   return
 
             for reportName in self.config['reports']:  
@@ -392,7 +431,7 @@ class Environment():
 
 
       def initializeDataStore(self):
-            if not self.config['databases']:
+            if not self.config.get('databases'):
                 return 
       
             startupDBName = self.config['global']['startup_db']

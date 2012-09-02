@@ -30,6 +30,7 @@ global:
         # control_frame:                control_frame.html
         # datasource_frame:             datasource_frame.html
         #helper_frame:                  helper_frame.html
+
 #        
 # Each entry in the content registry under 'frames' is a frame ID.
 # The 'type' is either html or xml; specification is optional, it's only
@@ -137,7 +138,7 @@ display_manager:
         stylesheet_path: {{ config.stylesheet_path }}
         frames:    
             {% for frame in config.xmlFrames %}
-            {{ frame.name }}:
+            {{ frame }}:
                 stylesheet:     {{ config.getStylesheet(frame) }} 
             {% endfor %}
 
