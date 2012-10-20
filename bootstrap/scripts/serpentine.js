@@ -1,3 +1,13 @@
+/**
+ * Client-side javascript utilities for Serpentine web stack
+ *
+ */
+
+
+
+String.prototype.killWhitespace = function() {
+    return this.replace(/\s/g, '');
+};
 
 
 // use a less common namespace than just 'log'

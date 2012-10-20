@@ -3,6 +3,12 @@ import sys, os
 os.chdir(os.path.dirname(__file__))
 sys.path = [os.path.dirname(__file__)] + sys.path
 
+
+os.sitedir = '/Library/Python/2.7/site-packages'
+
+
+ 
+
 import bottle
 
 from beaker.middleware import SessionMiddleware

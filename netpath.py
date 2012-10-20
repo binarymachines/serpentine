@@ -19,7 +19,7 @@ class NetPathStartupPlugin(object):
 
       name='NetPathEnvironment'
 
-      def __init__(self, initFileName='netpath.conf'):
+      def __init__(self, initFileName):
             environment = Environment().bootstrap(initFileName)
             
             environment.populateContentRegistry()

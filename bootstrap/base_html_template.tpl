@@ -38,7 +38,7 @@
 
     <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery-ui-timepicker-addon.js"></script>
     <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/serpentine.js"></script>
-    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/table_select_logic.js"></script>
+    
 
 	<!--[if lt IE 9]>
 		<link rel="stylesheet" href="stylesheets/ie.css">
