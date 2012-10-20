@@ -296,7 +296,7 @@ class BaseController(object):
         
 
 
-    def index(self, objectType, httpRequest, context, **kwargs):
+    def index(self, httpRequest, context, **kwargs):
         
         frameID = context.viewManager.getFrameID(self.modelClass.__name__, 'index')
         frameObject = context.contentRegistry.getFrame(frameID)
@@ -321,9 +321,9 @@ class BaseController(object):
 
     # TODO: fix security hole, ensure pageNumber is an integer and a reasonable value
 
-    def indexPage(self, objectType, pageNumber, httpRequest, context, **kwargs):
+    def indexPage(self, pageNumber, httpRequest, context, **kwargs):
 
-        frameID = context.viewManager.getFrameID(objectType, 'index')
+        frameID = context.viewManager.getFrameID(self.modelClass.__name__, 'index')
         frameObject = context.contentRegistry.getFrame(frameID)
         
         # this is so that the render() call to the underlying XMLFrame object can look up its stylesheet
@@ -362,7 +362,9 @@ class BaseController(object):
             raise err        
         
     
-    def insert(self, objectType, httpRequest, context, **kwargs):
+    def insert(self, httpRequest, context, **kwargs):
+        
+        objectType = self.modelClass.__name__
         
         session = httpRequest.environ[self.sessionName]
         frameID = context.viewManager.getFrameID(objectType, 'insert')    
@@ -409,8 +411,9 @@ class BaseController(object):
             raise err 
         """ 
 
-    def delete(self, objectType, objectID, httpRequest, context, **kwargs):
+    def delete(self, objectID, httpRequest, context, **kwargs):
     
+        objectType = self.modelClass.__name__
         pMgr = context.persistenceManager
         dbSession = pMgr.getSession()
         
@@ -438,8 +441,10 @@ class BaseController(object):
         
             
             
-    def update(self, objectType, objectID, httpRequest, context, **kwargs):
+    def update(self, objectID, httpRequest, context, **kwargs):
 
+        objectType = self.modelClass.__name__
+        
         targetFrameID = context.viewManager.getFrameID(objectType, 'update')
         formClass = context.contentRegistry.getFormClass(targetFrameID)
         frameObject = context.contentRegistry.getFrame(targetFrameID)

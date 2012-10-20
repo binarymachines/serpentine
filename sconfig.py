@@ -31,6 +31,8 @@ ConfigMode = Enum(['CREATE', 'UPDATE'])
 
 class ConfigurationPackage(object):
     def __init__(self, environment, **kwargs):
+    
+            #self.startup_db = None
             self.environment = environment
             self.frames = {}
             self.datasources = {}
@@ -68,6 +70,10 @@ class ConfigurationPackage(object):
         self.models[modelConfig.name] = modelConfig
 
 
+    def clearModelConfigs(self):
+        self.models.clear()
+
+
     def addControllerConfig(self, controllerConfig):
         self.controllers[controllerConfig.name] = controllerConfig
 
@@ -75,6 +81,10 @@ class ConfigurationPackage(object):
     def addFormConfig(self, formConfig):
         self.formConfigs.append(formConfig)
             
+
+    def clearFormConfigs(self):
+        del self.formConfigs[:]
+
 
     def getXMLFrames(self):
         return []
@@ -84,17 +94,22 @@ class ConfigurationPackage(object):
         pass
       
 
+    #def getStylesheetPath(self):
+    #    raise Exception('accessing stylesheet_path value. Environment reads: %s' % self.environment.getStylesheetPath())
+
 
     app_name = property(lambda self: self.environment.getAppName())
     app_root = property(lambda self: self.environment.getAppRoot())
     app_version = property(lambda self: self.environment.getAppVersion())
+    
     web_app_name = property(lambda self: self.environment.getURLBase())
     hostname = property(lambda self: self.environment.hostname)
     port = property(lambda self: self.environment.port)
+    startup_db = property(lambda self: self.environment.configurationDBAlias)
     xmlFrames = property(getXMLFrames)
-    static_file_path = property(lambda self: self.environment.getTemplatePath())
-    template_path = property(lambda self: self.environment.getTemplatePath())
-    stylesheet_path = property(lambda self: self.environment.getStylesheetPath())
+    static_file_directory = property(lambda self: self.environment.getTemplateDirectory())
+    template_directory = property(lambda self: self.environment.getTemplateDirectory())
+    xsl_stylesheet_directory = property(lambda self: self.environment.getXSLStylesheetDirectory())
     url_base = property(lambda self: self.environment.getURLBase())
       
     default_form_package = property(lambda self: self.environment.config['global']['default_form_package'])
@@ -103,6 +118,7 @@ class ConfigurationPackage(object):
     default_helper_package = property(lambda self: self.environment.config['global']['default_helper_package'])
     default_reporting_package = property(lambda self: self.environment.config['global']['default_report_package'])
     default_responder_package = property(lambda self: self.environment.config['global']['default_responder_package'])
+    default_datasource_package = property(lambda self: self.environment.config['global']['default_datasource_package'])
             
       
 
@@ -110,8 +126,7 @@ class ConfigurationPackage(object):
 class SConfigurator(object):
 
     def __init__(self, **kwargs):
-
-          self.startup_db = None
+          
           self.config_filename = None
           self.environment = None
           self.mode = None
@@ -141,7 +156,7 @@ class SConfigurator(object):
     def run(self, screen, **kwargs):
 
           configFilename = kwargs.get('config_file', '')
-          
+
           if configFilename:
               self.mode = ConfigMode.UPDATE              
               self.environment = Environment().bootstrap(configFilename)          
@@ -152,77 +167,506 @@ class SConfigurator(object):
               self.environment = Environment()
           
           
-          
           # user's changes to settings override old values
           self.environment.importGlobalSettings(globalSettings)
-
-          databases = self.setupDatabases(screen, self.environment) 
-          self.environment.importDatabaseSettings(databases)
-
+          
           configPackage = ConfigurationPackage(self.environment)
-
-          for dbName in databases:
-              configPackage.addDatabaseConfig(databases[dbName], dbName)
-
-          # we need the database connection to be live
-          #self.environment.initializeDataStore()
-          databaseInstance = self.connectToDatabase(screen, self.environment)
-
-          if databaseInstance:
-              tableList = self.selectTables(screen, databaseInstance, self.environment)
-          
-              # TODO: Add parent-child mapping selection logic
-              modelTableMap = self.createModelTableMap(tableList)
-
-              for name in modelTableMap:
-                    configPackage.addModelConfig(modelTableMap[name])
-
-              formConfigArray = self.createFormConfigs(modelTableMap, self.environment)
-              for fcfg in formConfigArray:
-                  configPackage.addFormConfig(fcfg)
-
-              # TODO: some frames will have helper functions
-              #self.designateHelperFunctions(formConfigArray, screen)
-    
-              #datasourceConfigs = self.setupDatasources(screen, self.environment)
-              #for name in datasourceConfigs:
-              #      configPackage.addDatasourceConfig(datasourceConfigs[name], name)
-    
-              
-              if len(tableList):
-                  uiControlConfigs = self.environment.exportUIControlConfigs()
-                  datasourceConfigs = self.environment.exportDataSourceConfigs()
-                  self.setupUIControls(screen, uiControlConfigs, datasourceConfigs, self.environment)
-                  
-                  for name in uiControlConfigs:                
-                        configPackage.addUIControlConfig(uiControlConfigs[name], name)
-          
-          
-          wsgiConfig = self.setupWSGI(screen)
-          
-          self.environment.importWSGIConfig(wsgiConfig)
           
           currentDir = os.getcwd()
           bootstrapDir = os.path.join(currentDir, "bootstrap")
           j2env = jinja2.Environment(loader = jinja2.FileSystemLoader(bootstrapDir))
           templateMgr = JinjaTemplateManager(j2env)
-                    
-          
 
+
+          self.mainSetup(configPackage, self.environment, templateMgr, screen)
+          
+          currentDir = os.getcwd()
+          bootstrapDir = os.path.join(currentDir, "bootstrap")
+          j2env = jinja2.Environment(loader = jinja2.FileSystemLoader(bootstrapDir))
+          templateMgr = JinjaTemplateManager(j2env)
+          
+          screen.clear()
+          Notice([' ', ':::[ Serpentine App Generator ]:::', ' ']).show(screen)   
+         
+          #--- Need to happen first?
+          Notice('Generating application controller classes...').show(screen)
+          self.generateControllerClasses(configPackage, templateMgr)   
+          
+          Notice('Generating HTML form classes...').show(screen)       
+          self.generateFormClasses(configPackage, templateMgr)
+          #---
+         
+          Notice('Generating application views...').show(screen)            
           contentFrames = self.generateApplicationTemplates(configPackage, templateMgr)
 
           for frame in contentFrames:
                 configPackage.addFrameConfig(contentFrames[frame])
           
-          
+          Notice('Generating application model classes...').show(screen)
           self.generateModelClasses(configPackage)
-          self.generateControllerClasses(configPackage, templateMgr)          
-          self.generateFormClasses(configPackage, templateMgr)
+          
+          Notice('Generating configuration shell scripts...').show(screen)
           self.generateShellScripts(configPackage, templateMgr)
           
           # now generate the config file
+          Notice('Generating Serpentine configuration file...').show(screen)
           self.generateConfigFile(configPackage, templateMgr)
+        
+          Notice('Done.').show(screen)
+          Notice('Hit any key to exit.').show(screen)
+          screen.getch()
+
+
+    def mainSetup(self, configPackage, environment, templateManager, screen):
+    
+        mainMenu = Menu(['Global Settings', 
+                         'Databases', 
+                         'Models', 
+                         'Views', 
+                         'UI Controls', 
+                         'Code Generator', 
+                         'Web Config',
+                         'Finish and Generate Files'])
+        
+        mainMenuPrompt = MenuPrompt(mainMenu, 'Please select a configuration activity.')
+        
+        databaseInstance = None
+        wsgiConfig = None
+        liveDB = False
+        tableList = []
+        uiControlConfigs = environment.exportUIControlConfigs()
+        datasourceConfigs = environment.exportDataSourceConfigs()
+        headerNotice = Notice([' ', ':::[ Serpentine Main Menu ]:::', ' '])
+        
+        while True:
+            screen.clear()            
+            headerNotice.show(screen)
+            Notice(['web application: "%s" version %s' % (environment.getAppName(), environment.getAppVersion()), ' ']).show(screen)
+            
+            if databaseInstance:
+                Notice(['connected to %s database "%s" on %s' %\
+                (databaseInstance.dbType, databaseInstance.schema, databaseInstance.host), '']).show(screen)
+            
+            mainMenuPrompt.show(screen)
+            
+            if mainMenuPrompt.escaped:
+                break
+            
+            if mainMenuPrompt.selectedIndex == 1: # Global Settings  
+                
+                updatedSettings = self.setupGlobalData(screen, environment)
+                environment.importGlobalSettings(updatedSettings)
+                
+                
+            if mainMenuPrompt.selectedIndex == 2: # Databases
+                connected = not(databaseInstance is None)
+                newDatabaseInstance = self.databaseSetup(configPackage, environment, screen, connected)
+                if newDatabaseInstance:
+                    databaseInstance = newDatabaseInstance
+            
+            if mainMenuPrompt.selectedIndex == 3:  # Models
+            
+                if not databaseInstance:
+                    Notice('Models: You must connect to a database in order to auto-generate model classes.').show(screen)
+                    Notice('Select the "Databases" option and either set up a new DB or connect to an existing one.').show(screen)
+                    Notice('Hit any key to continue.').show(screen)
+                    screen.getch()
+                    continue
+            
+                tableList = self.selectTables(databaseInstance, environment, screen)
           
+                # TODO: Add parent-child mapping selection logic
+                configPackage.clearModelConfigs()
+                configPackage.clearFormConfigs()
+                
+                modelTableMap = self.createModelTableMap(tableList)
+                
+                for name in modelTableMap:
+                    configPackage.addModelConfig(modelTableMap[name])
+
+                formConfigArray = self.createFormConfigs(modelTableMap, environment)
+                for fcfg in formConfigArray:
+                    configPackage.addFormConfig(fcfg)
+
+                # TODO: some frames will have helper functions
+                #self.designateHelperFunctions(formConfigArray, screen)
+    
+                #datasourceConfigs = self.setupDatasources(environment, screen)
+                #for name in datasourceConfigs:
+                #      configPackage.addDatasourceConfig(datasourceConfigs[name], name)
+
+                
+            if mainMenuPrompt.selectedIndex == 4: # Views (Serpentine Frames) 
+                Notice('Views: This section is not yet functional.').show(screen)
+                Notice('Hit any key to continue.').show(screen)
+                screen.getch()
+                continue
+                
+            if mainMenuPrompt.selectedIndex == 5:  # UIControls
+                if not databaseInstance:
+                    Notice('UI Controls: You must connect to a database in order to manage data-driven UI controls.').show(screen)
+                    Notice('Select the "Databases" option and either set up a new DB or connect to an existing one.').show(screen)
+                    Notice('Hit any key to continue.').show(screen)
+                    screen.getch()
+                else:                                        
+                    self.setupUIControls(uiControlConfigs, datasourceConfigs, databaseInstance, environment, screen)
+                  
+                    for name in uiControlConfigs:                
+                        configPackage.addUIControlConfig(uiControlConfigs[name], name)
+
+            if mainMenuPrompt.selectedIndex == 6: # Code Generator
+                self.generateCodeSegments(configPackage, uiControlConfigs, environment, templateManager, screen)
+
+                
+            if mainMenuPrompt.selectedIndex == 7: # WSGI Settings
+                 wsgiConfig = self.setupWSGI(screen, wsgiConfig)          
+                 environment.importWSGIConfig(wsgiConfig)
+
+            if mainMenuPrompt.selectedIndex == 8: # Finish and generate files                
+                break
+        
+    
+    def databaseSetup(self, configPackage, environment, screen, connected=False):
+    
+        dbSetupMenu = Menu(['Create new database configuration', 'Browse/edit databases', 'Connect to database'])
+        dbSetupMenuPrompt = MenuPrompt(dbSetupMenu, 'Please select a database activity.')
+        databaseInstance = None
+        headerNotice = Notice([' ', ':::[ Serpentine Database Configuration Section ]:::', ' '])
+        
+        while True:
+            screen.clear()
+            headerNotice.show(screen)
+            
+            if databaseInstance:
+                Notice(['connected to %s database "%s" on %s' %\
+                (databaseInstance.dbType, databaseInstance.schema, databaseInstance.host), '']).show(screen)
+            elif connected:
+                activeConfig = configPackage.databases[environment.configDBAlias]
+                Notice(['connected to %s database %s on host %s' %\
+                (activeConfig.dbType, activeConfig.schema, activeConfig.host), '']).show(screen)
+                
+            
+            selection = dbSetupMenuPrompt.show(screen)
+            
+            if dbSetupMenuPrompt.escaped:
+                if not databaseInstance and not connected:                        
+                    Notice('You have not connected to a live database instance.').show(screen)
+                    Notice('You will not be able to auto-generate Model classes or create data-driven UI controls.').show(screen)
+                    exit = TextPrompt('Really exit to main menu (y/n)?', 'n').show(screen)
+                    if exit == 'y':
+                        break                    
+                    else: 
+                        dbSetupMenuPrompt.reset()
+                        continue                
+                elif not databaseInstance and connected:
+                    Notice('You have not created a new database connection.').show(scren)
+                    Notice('Your existing connection will be used to generate Model classes and create data-driven controls.').show(screen)
+                    exit = TextPrompt('Really exit to main menu (y/n)?', 'y').show(screen)
+                    if exit == 'y':
+                        break                    
+                    else: 
+                        continue
+                else:
+                    break
+            
+            if dbSetupMenuPrompt.selectedIndex == 1:  # New DB config
+                hostname = TextPrompt("Host where database resides", "localhost").show(screen)
+                schema = TextPrompt("Enter database schema", environment.getURLBase()).show(screen)
+                username = TextPrompt("Enter database username", None).show(screen)
+                password = TextPrompt("Enter database password", None).show(screen)
+                dbConfigName = TextPrompt("Enter a name for this database instance", "localhost.%s" % schema).show(screen)
+                  
+                newConfig = DatabaseConfig(hostname, schema, username, password)
+                environment.importDatabaseSettings({dbConfigName: newConfig})
+                configPackage.addDatabaseConfig(newConfig, dbConfigName)
+                
+                screen.addstr("\n New database created. Hit any key to continue.")
+                screen.getch()
+                    
+            if dbSetupMenuPrompt.selectedIndex == 2: # Browse/Edit                            
+                if not configPackage.databases:                  
+                    Notice(["You haven't created any database configurations.", "Hit any key to continue."]).show(screen)
+                    screen.getch()
+                else:
+                    dbConfigMenu = Menu(configPackage.databases.keys())
+                    dbConfigPrompt = MenuPrompt(dbConfigMenu, 'Select a database configuration to edit')
+                    dbConfigName = dbConfigPrompt.show(screen)
+                    
+                    if not dbConfigPrompt.escaped:
+                        dbConfig = configPackage.databases[dbConfigName]
+    
+                        hostname = TextPrompt('Enter updated database host', dbConfig.host).show(screen)
+                        schema = TextPrompt('Enter updated database schema', dbConfig.schema).show(screen)
+                        username = TextPrompt('Enter updated database username', dbConfig.username).show(screen)
+                        password = TextPrompt('Enter updated database password', dbConfig.password).show(screen)
+                          
+                        updatedDBConfig = DatabaseConfig(hostname, schema, username, password)
+                        #configPackage.databases.pop(dbName)
+                        environment.importDatabaseSettings({dbConfigName: updatedDBConfig})
+                        configPackage.addDatabaseConfig(updatedDBConfig, dbConfigName)
+                            
+                        Notice('Database configuration updated. Hit any key to continue.').show(screen)
+                        screen.getch()
+             
+            if dbSetupMenuPrompt.selectedIndex == 3:    # Connect to database
+                                  
+                 if not configPackage.databases:
+                     Notice('You have not configured any databases.').show(screen)
+                     Notice('Hit any key to continue.').show(screen)
+                     screen.getch()
+                 else:
+                     screen.clear()
+                     headerNotice.show(screen)
+                     dbConnectMenu = Menu(configPackage.databases.keys())
+                     dbConnectMenuPrompt = MenuPrompt(dbConnectMenu, 'Select a target database to connect to')
+                     targetDBAlias = dbConnectMenuPrompt.show(screen)
+                     
+                     if not dbConnectMenuPrompt.escaped:
+                         targetDBConfig = configPackage.databases[targetDBAlias]
+                                                  
+                         while True:
+                            try:
+                                databaseInstance = self.connectToDatabase(targetDBConfig)
+                                Notice('Connected to database %s on host %s as user %s. Hit any key to continue.' % \
+                                (targetDBConfig.schema, targetDBConfig.host, targetDBConfig.username)).show(screen)
+                                environment.configurationDBAlias = targetDBAlias
+                                
+                                screen.getch()
+                                break
+                            except Exception, err:
+                                
+                                Notice(['Error logging into database %s on host %s:' % \
+                                (targetDBConfig.schema, targetDBConfig.host), err.message]).show(screen)
+                                
+                                Notice([' ', 'Please check your hostname, schema, username, and password.']).show(screen)
+                                retryPrompt = TextPrompt('Retry (y/n)?', 'y').show(screen)
+                    
+                                if retryPrompt == 'n':                                        
+                                    break
+                                else:
+                                    targetDBConfig.host = TextPrompt('hostname', targetDBConfig.host).show(screen)
+                                    targetDBConfig.schema = TextPrompt('schema', targetDBConfig.schema).show(screen)
+                                    targetDBConfig.username = TextPrompt('username', targetDBConfig.username).show(screen)
+                                    targetDBConfig.password = TextPrompt('password', targetDBConfig.password).show(screen)
+                                    
+        return databaseInstance      
+                       
+                         
+                         
+                         
+    def connectToDatabase(self, dbConfig):
+        
+            dbInstance = db.MySQLDatabase(dbConfig.host, dbConfig.schema)
+            dbInstance.login(dbConfig.username, dbConfig.password)
+            return dbInstance                        
+
+        
+    """"
+    def setupDatabases(self, screen, environment):
+
+
+          options = ["Create new database configuration", "List databases", "Edit database settings"]
+          databases = environment.exportDatabaseSettings() 
+
+          prompt = MenuPrompt(Menu(options), "Select an option from the menu.")
+          
+          
+          while not prompt.escaped:
+              screen.clear()
+              
+              Notice([' ', ':::[ Serpentine Database Configuration Menu ]:::', ' ']).show(screen)
+              Notice('Set up one or more database instances to connect to from the web application.').show(screen)
+              selection = prompt.show(screen)
+              if prompt.escaped:
+                  break
+              if prompt.selectedIndex == 1:
+                  schema = TextPrompt("Enter database schema", environment.getURLBase()).show(screen)
+                  username = TextPrompt("Enter database username", None).show(screen)
+                  password = TextPrompt("Enter database password", None).show(screen)
+                  dbName = TextPrompt("Enter a name for this database instance", "localhost.%s" % schema).show(screen)
+                  
+                  databases[dbName] = DatabaseConfig("localhost", schema, username, password)
+                  screen.addstr("\n New database created. Hit any key to continue.")
+                  screen.getch()
+                  screen.clear()
+              if prompt.selectedIndex == 2:     # list existing databases
+                  screen.addstr("\nDatabases: " + ", ".join(databases.keys()) + "\nHit any key to continue.")
+                  screen.getch()
+                  screen.clear()
+
+              if prompt.selectedIndex == 3:     # edit a database configuration
+                  screen.clear()
+                  if not len(databases.keys()):                  
+                      Notice(["You haven't created any database configurations.", "Hit any key to continue."]).show(screen)
+                      screen.getch()
+                  else:
+                      dbMenu = Menu(databases.keys())
+                      dbPrompt = MenuPrompt(dbMenu, 'Select a database configuration to edit')
+                      dbName = dbPrompt.show(screen)
+                      dbConfig = databases[dbName]
+
+                      schema = TextPrompt('Enter updated database schema', dbConfig.schema).show(screen)
+                      username = TextPrompt('Enter updated database username', dbConfig.username).show(screen)
+                      password = TextPrompt('Enter updated database password', dbConfig.password).show(screen)
+                      newDBName = TextPrompt('Enter an updated name for this database instance', dbName).show(screen)
+                      
+                      updatedDBConfig = DatabaseConfig('localhost', schema, username, password)
+    
+                      if newDBName == dbName:
+                          databases[newDBName] = updatedDBConfig
+                      else:
+                          databases.pop(dbName)
+                          databases[newDBName] = updatedDBConfig
+                      
+                      Notice('Database configuration updated. Hit any key to continue.').show(screen)
+                      screen.getch()
+                  screen.clear()
+                  
+          return databases
+    """
+    
+    def generateCodeSegments(self, configPackage, uiConfigs, environment, templateManager, screen):
+    
+        codeGenMenu = Menu(['Generate Serpentine URLs', 'Generate Javascript segments'])
+        cgMenuPrompt = MenuPrompt(codeGenMenu, 'Select the type of code you wish to generate:')
+        
+        
+        jsSegmentToTemplateMap = {'UI Control': 'js_uicontrol_segment.tpl'}
+        urlTypeToTupleMap = { 'Frame': ('url_frame_request.tpl', self.setupFrameRequestURLPackage), 
+                            'Controller': ('url_controller_call.tpl', self.setupControllerURLPackage), 
+                            'Responder': ('url_responder_call.tpl', self.setupResponderURLPackage), 
+                            'UI Control': ('url_uicontrol.tpl', self.setupUIControlURLPackage) }
+                            
+        urlTypeMenu = Menu(urlTypeToTupleMap.keys())
+        jsSegmentTypeMenu = Menu(jsSegmentToTemplateMap.keys())
+        headerNotice = Notice([' ', ':::[ Serpentine Code Segment Generator ]:::', ' '])
+        
+        while(True):            
+            screen.clear()
+            headerNotice.show(screen)
+            selection = cgMenuPrompt.show(screen)
+            
+            if cgMenuPrompt.escaped:
+                break
+                
+            if cgMenuPrompt.selectedIndex == 1: # Generate URLs  
+                screen.clear()
+                headerNotice.show(screen)                                          
+                segmentMenuPrompt = MenuPrompt(urlTypeMenu, 'Generate a URL for which object type?')
+                segmentType = segmentMenuPrompt.show(screen)                
+                
+                if segmentMenuPrompt.escaped:
+                    continue
+                
+                urlTemplateFilename = urlTypeToTupleMap[segmentType][0] # indexes into a tuple
+                setupFunction = urlTypeToTupleMap[segmentType][1]
+                
+                segmentPackage = setupFunction(configPackage, screen)
+                if not segmentPackage:
+                    return
+                
+                renderCodeSegment(urlTemplateFilename, 
+                                  segmentPackage, 
+                                  configPackage, 
+                                  environment, 
+                                  templateManager, 
+                                  screen)
+                                  
+            
+            if cgMenuPrompt.selectedIndex == 2: # Generate Javascript segments
+                screen.clear()
+                headerNotice.show(screen)
+                segmentMenuPrompt = MenuPrompt(jsSegmentTypeMenu, 'Generate Javascript for which object type?')                
+                segmentType = segmentMenuPrompt.show(screen)      
+                
+                if segmentMenuPrompt.escaped:
+                    continue
+                          
+                javascriptTemplateFilename = jsSegmentToTemplateMap[segmentType]
+                
+                if segmentType == 'UI Control':
+                    controlPackage = self.setupUIControlURLPackage(configPackage, screen)
+                    if not controlPackage:
+                        break
+                    self.renderCodeSegment(javascriptTemplateFilename, 
+                                        controlPackage, 
+                                        configPackage, 
+                                        environment, 
+                                        templateManager, 
+                                        screen)
+                    
+    
+    def setupFrameRequestURLPackage(self, configPackage, screen):
+    
+        if not configPackage.frames:
+            Notice(['You have not created any content frames.', '', 
+                    'Hit any key to continue.']).show(screen)
+            screen.getch()
+            return None
+    
+        frameMenu = Menu(configPackage.frames)
+        frameID = MenuPrompt(frameMenu, 'Select the Serpentine Frame you want to request').show(screen)
+        return FrameRequestURLPackage('frame', frameID)
+        
+                    
+    def setupControllerURLPackage(self, configPackage, screen):    
+        controllerMenu = Menu(configPackage.controllers)
+        controllerID = MenuPrompt(controllerMenu, 'Select the controller you want to call').show(screen)
+        methodName = TextPrompt('Type the name of the controller method you wish to invoke').show(screen)        
+        return ControllerURLPackage('controller', controllerID)
+        
+    
+    def setupResponderURLPackage(self, configPackage, screen):
+        responderMenu = Menu(configPackage.responders)
+        responderID = MenuPrompt(responderMenu, 'Select the responder you want to call').show(screen)    
+        return ResponderURLPackage('responder', responderID)
+    
+    
+    def setupUIControlURLPackage(self, configPackage, screen):
+    
+        if not configPackage.controls:
+            Notice(['You have not created any UI controls.', 
+                    'Please select UI Controls from the main menu to create a UI control.', '', 
+                    'Hit any key to continue.']).show(screen)
+            screen.getch()
+            return None
+        
+        uiControlMenu = Menu(configPackage.controls.keys())
+        controlID = MenuPrompt(uiControlMenu, 'Select the Serpentine UI Control you want to render').show(screen)        
+        targetDiv = TextPrompt('Target <div> id in the target HTML page', 'div_id').show(screen)
+        callbackName = TextPrompt('Javascript callback function to be called post-render', 'null').show(screen)
+        htmlName = TextPrompt('HTML name for this control', 'anonymous').show(screen)
+        
+        controlParams = []
+        controlParams.append(ObjectParameter('name', htmlName))
+        
+        while True:
+            addParameter = TextPrompt('Add another name/value parameter to the control (y/n)?', 'n').show(screen)
+            if addParameter == 'y':
+                paramName = TextPrompt('Control parameter name').show(screen)
+                paramValue = TextPrompt('Control parameter value').show(screen)
+                controlParams.append(ObjectParameter(paramName, paramValue))
+            else:
+                break
+        
+        return ControlPackage(controlID, targetDiv, controlParams, callbackName)
+         
+        
+        
+                
+    
+    def renderCodeSegment(self, templateName, dataPackage, configPackage, environment, templateManager, screen):
+    
+        screen.clear()
+        Notice([' ', ':::[ Serpentine Code Segment Generator ]:::', ' ']).show(screen)
+        segmentTemplate = templateManager.getTemplate(templateName)
+        segment = segmentTemplate.render(config = configPackage, control = dataPackage)
+        Notice(segment).show(screen)
+        Notice([' ', 'Hit any key to continue.']).show(screen)
+        screen.getch()
+    
+                 
+
 
 
     def generateConfigFile(self, configPackage, templateMgr):
@@ -230,7 +674,7 @@ class SConfigurator(object):
             wsgiFile = None
             wsgiVHostEntryFile = None
             
-            try:
+            try:                  
                   configFileTemplate = templateMgr.getTemplate('config_template.tpl')
                   configFilename = '%s.conf' % configPackage.web_app_name
                   configFile = open(os.path.join('bootstrap', configFilename), 'w')
@@ -267,9 +711,9 @@ class SConfigurator(object):
           pass
 
 
-    def _addLookupTable(self, lookupTableArray, screen, environment):
+    def _addLookupTable(self, lookupTableArray, databaseInstance, environment, screen):
           screen.clear()
-          tablesToAdd = self.selectTables(screen, environment)
+          tablesToAdd = self.selectTables(databaseInstance, environment, screen)
           tableNames = [table.name for table in tablesToAdd]
           result = lookupTableArray
           result.extend(tableNames)
@@ -279,7 +723,7 @@ class SConfigurator(object):
     def _removeLookupTable(self, lookupTableArray, screen):
           
           result = lookupTableArray
-          prompt = MultipleChoiceMenuPrompt(result, 'Select one or more tables to remove from the list.')
+          prompt = MultipleChoiceMenuPrompt(Menu(result), 'Select one or more tables to remove from the list.')
           while not prompt.escaped:
               screen.clear()
               tablesToRemove = prompt.show(screen)
@@ -289,9 +733,7 @@ class SConfigurator(object):
           return result
 
 
-
-
-    def setupUIControls(self, screen, uiControls, datasourceConfigs, environment):
+    def setupUIControls(self, uiControls, datasourceConfigs, databaseInstance, environment, screen):
           """Set up zero or more UI controls, to be rendered via templates and supplied with data
           via datasources
           """
@@ -305,6 +747,7 @@ class SConfigurator(object):
                    
           while not prompt.escaped:
             screen.clear()
+            Notice([' ', ':::[ Serpentine UI Control Configuration Menu ]:::', ' ']).show(screen)
             prompt.show(screen)
             
             if prompt.escaped:
@@ -312,9 +755,8 @@ class SConfigurator(object):
 
             
             if prompt.selectedIndex == 1: # create new control
-                  newControlMap = self.createUIControl(screen, uiControls, datasourceConfigs, environment)
-                  controlMap.update(newControlMap)
-
+                  newControlConfig = self.createUIControl(uiControls, datasourceConfigs, databaseInstance, environment, screen)
+                  uiControls[newControlConfig.name] = newControlConfig                  
                
             if prompt.selectedIndex == 2:   # browse existing controls
                 if not len(uiControls.keys()):
@@ -347,15 +789,16 @@ class SConfigurator(object):
                             screen.getch()
                   
             if prompt.selectedIndex == 3: #  Auto-generate from lookup tables
-                self._autoGenerateControls(screen, uiControls, datasourceConfigs, environment)
+                self._autoGenerateControls(uiControls, datasourceConfigs, databaseInstance, environment, screen)
 
           return 
 
 
 
-    def createUIControl(self, screen, uiControlMap, datasourceConfigMap, environment):
+    def createUIControl(self, uiControlMap, datasourceConfigMap, databaseInstance, environment, screen):
         controlNameOK = False
         controlName = None
+        headerNotice = Notice([':::[ Serpentine UI Control Configuration Section ]:::', ''])
                   
         while not controlNameOK:
             controlName = TextPrompt('Name for the new UI control (alphanumeric chars only, no spaces):').show(screen)
@@ -375,18 +818,80 @@ class SConfigurator(object):
                         controlNameOK = False
                         
         # Now generate the control
-        
-        return {}
+        # specify control type, datasource, and template
 
+        screen.clear()
+        headerNotice.show(screen)
+        
+        controlTypeMenu = Menu(['select', 'radiogroup', 'table'])
+        controlTypePrompt = MenuPrompt(controlTypeMenu, 'Select an HTML control type.')
+        controlType = controlTypePrompt.show(screen)
+
+        # control types are select, table, radiogroup
+        # valid datasource types are "menu" and "table"
+
+        datasources = None
+        
+        controlNotice = Notice('Setting up %s-type UIControl "%s"' % (controlType, controlName))
+        
+        while True:
+            screen.clear()
+            headerNotice.show(screen)
+            controlNotice.show(screen)
+            if controlType == 'select':
+                datasources = self._getDatasourceAliasesForControlType('menu', datasourceConfigMap)
+            if controlType == 'radiogroup':
+                datasources = self._getDatasourceAliasesForControlType('menu', datasourceConfigMap)
+            if controlType == 'table':
+                datasources = self._getDatasourceAliasesForControlType('table', datasourceConfigMap)
+
+            if not datasources:
+                Notice('No compatible datasources have been created for a %s-type control.' % controlType).show(screen)
+                shouldCreateSources =TextPrompt('Create one or more new datasources (y/n)?', 'y').show(screen)
+                if shouldCreateSources == 'y':
+                    newDatasourceConfigs = self.setupDataSources(databaseInstance, environment, screen)
+                    datasourceConfigMap.update(newDatasourceConfigs)
+                else:
+                    Notice('Cannot create a live UIControl without a datasource. Hit any key to exit to the main menu.').show(screen)
+                    screen.getch()
+                    return None
+            else:
+                break
+
+        screen.clear()
+        headerNotice.show(screen)
+        controlNotice.show(screen)
+        datasourceMenu = Menu(datasources)        
+        datasourcePrompt = MenuPrompt(datasourceMenu, 'Select the datasource that will populate the control.')
+        datasourceName = datasourcePrompt.show(screen)
+
+        newControl = ControlConfig(controlType, controlName, datasourceName)
+
+        Notice('Created new %s-type HTML control "%s" linked to datasource "%s".' % (controlType, controlName, datasourceName)).show(screen)
+        Notice('Hit any key to continue.').show(screen)
+        screen.getch()
+        return newControl
+
+
+    def _getDatasourceAliasesForControlType(self, controlTypeName, datasourceConfigs):
+
+        result = []
+        for key in datasourceConfigs:
+            dsConfig = datasourceConfigs[key]
+            if dsConfig.type == controlTypeName:
+                result.append(key)
+
+        return result
+            
 
     
-    def _autoGenerateControls(self, screen, uiControls, datasourceConfigs, environment):
+    def _autoGenerateControls(self, uiControls, datasourceConfigs, databaseInstance, environment, screen):
     
         actionMenu = Menu(['Generate Controls', 'Add Lookup Table', 'Show Lookup Tables', 'Remove Lookup Table', 'Clear Lookup Tables'])
         actionPrompt = MenuPrompt(actionMenu, 'Select an action to manage lookup tables.')
         
         
-        targetDBConfig = environment.databases[self.startup_db]
+        targetDBConfig = environment.databases[environment.configurationDBAlias]
         dbInstance = db.MySQLDatabase(targetDBConfig.host, targetDBConfig.schema)
         dbInstance.login(targetDBConfig.username, targetDBConfig.password)
         
@@ -396,9 +901,10 @@ class SConfigurator(object):
         
         while not actionPrompt.escaped:
             screen.clear()
+            Notice([' ', ':::[ Serpentine UIControl Generator ]:::', ' ']).show(screen)
             Notice('Serpentine will autogenerate HTML select controls from lookup tables in the database.').show(screen)
-            Notice('(Tables already bound to controls will be marked with an arrow.)').show(screen)
-            Notice('Compiling list...').show(screen)
+            Notice(['(Tables already bound to controls will be marked with an arrow.)', '']).show(screen)
+            
             
             # find out all the tables that have already been bound to controls
             boundTables = []                
@@ -446,7 +952,7 @@ class SConfigurator(object):
                 screen.getch()
                     
             if index == 2: # add 
-                lookupTables = self._addLookupTable(lookupTables, screen, environment)
+                lookupTables = self._addLookupTable(lookupTables, databaseInstance, environment, screen)
       
             if index == 3: # show
                 Notice(lookupTableDisplayList).show(screen)
@@ -475,24 +981,27 @@ class SConfigurator(object):
           pass
 
 
-    def setupDatasources(self, screen, environment):
+    def setupDataSources(self, database, environment, screen):
           """Specify zero or more data 'adapters' to populate UI controls & other data-driven types"""
 
-          sourceConfigs = environment.exportDatasourceConfigs()
+          sourceConfigs = environment.exportDataSourceConfigs()
 
-          options = ['Create new data source', 'List data sources']
+          options = ['Create new data source', 'Browse/Edit data sources']
           
           
           prompt = MenuPrompt(Menu(options), 'Select an option from the menu.')
-          screen.clear()
+          
 
-          Notice('Create one or more datasources to populate UI controls.').show(screen)
+          
           while not prompt.escaped:
+              screen.clear()
+              Notice([' ', ':::[ Serpentine Datasource Configuration Page ]:::', ' ']).show(screen)
+              Notice('Create one or more datasources to populate UI controls.').show(screen)
               selection = prompt.show(screen)
               if prompt.escaped:
                   break
               if prompt.selectedIndex == 1: # create datasource
-                  sourceNamePrompt = TextPrompt('Enter a name for the datasource:')
+                  sourceNamePrompt = TextPrompt('Enter a name for the datasource')
                   sourceName = sourceNamePrompt.show(screen)
                   
                   sourceTypeOptions = ['menu', 'table']
@@ -501,7 +1010,8 @@ class SConfigurator(object):
                   
                   sourceParams = []
 
-                  table = self.selectSingleTable(screen, environment, 'Select the target table for the datasource.')
+                  
+                  table = self.selectSingleTable(screen, database, environment, 'Select the target table for the datasource.')
                   screen.clear()
                   sourceParams.append(DataSourceParameter('table', table.name))
                   
@@ -512,7 +1022,7 @@ class SConfigurator(object):
                       columnMenu = Menu(columnNames)
                       valueFieldPrompt = MenuPrompt(columnMenu, 'Select the value field (usually the primary key field).')
                       valueField = valueFieldPrompt.show(screen)
-                      nameFieldPrompt = MenuPrompt(columnMenu, 'Select the name field (the value displayed in menus or other controls.')
+                      nameFieldPrompt = MenuPrompt(columnMenu, 'Select the name field (usually the value displayed in menus or other controls).')
                       nameField = nameFieldPrompt.show(screen)
                       
                       sourceParams.append(DataSourceParameter('name_field', nameField))
@@ -535,68 +1045,13 @@ class SConfigurator(object):
               return sourceConfigs
 
 
-
-    def setupDatabases(self, screen, environment):
-          """Allow the user to specify one or more named database instances from which to select later"""
-
-          options = ["Create new database configuration", "List databases", "Edit database settings"]
-          databases = environment.exportDatabaseSettings() 
-
-          prompt = MenuPrompt(Menu(options), "Select an option from the menu.")
-          screen.clear()
-          Notice('Set up one or more database instances to connect to from the web application.').show(screen)
-          while not prompt.escaped:
-              selection = prompt.show(screen)
-              if prompt.escaped:
-                  break
-              if prompt.selectedIndex == 1:
-                  schema = TextPrompt("Enter database schema", environment.getURLBase()).show(screen)
-                  username = TextPrompt("Enter database username", None).show(screen)
-                  password = TextPrompt("Enter database password", None).show(screen)
-                  dbName = TextPrompt("Enter a name for this database instance", "localhost.%s" % schema).show(screen)
-                  
-                  databases[dbName] = DatabaseConfig("localhost", schema, username, password)
-                  screen.addstr("\n New database created. Hit any key to continue.")
-                  screen.getch()
-                  screen.clear()
-              if prompt.selectedIndex == 2:     # list existing databases
-                  screen.addstr("\nDatabases: " + ", ".join(databases.keys()) + "\nHit any key to continue.")
-                  screen.getch()
-                  screen.clear()
-
-              if prompt.selectedIndex == 3:
-                  screen.clear()
-                  dbMenu = Menu(databases.keys())
-                  dbPrompt = MenuPrompt(dbMenu, 'Select a database configuration to edit')
-                  dbName = dbPrompt.show(screen)
-                  dbConfig = databases[dbName]
-                  
-                  schema = TextPrompt('Enter updated database schema', dbConfig.schema).show(screen)
-                  username = TextPrompt('Enter updated database username', dbConfig.username).show(screen)
-                  password = TextPrompt('Enter updated database password', dbConfig.password).show(screen)
-                  newDBName = TextPrompt('Enter an updated name for this database instance', dbName).show(screen)
-                  
-                  updatedDBConfig = DatabaseConfig('localhost', schema, username, password)
-
-                  if newDBName == dbName:
-                      databases[newDBName] = updatedDBConfig
-                  else:
-                      databases.pop(dbName)
-                      databases[newDBName] = updatedDBConfig
-                  
-                  Notice('Database configuration updated. Hit any key to continue.').show(screen)
-                  screen.getch()
-                  screen.clear()
-                  
-          return databases
-
-
     def _createGlobalSettings(self, screen):
             screen.clear()
             settings = {}
             
-            Notice('Welcome to SConfigurator, the Serpentine auto-config utility.').show(screen)
-            Notice('Set basic project information for the web app.').show(screen)
+            Notice([' ', ':::[ Serpentine Global Configuration Screen ]:::', ' ']).show(screen)
+            #Notice('Welcome to SConfigurator, the Serpentine auto-config utility.').show(screen)
+            
 
             projectNamePrompt = TextPrompt("Enter project name", None)
             settings['app_name'] = projectNamePrompt.show(screen)            
@@ -617,8 +1072,9 @@ class SConfigurator(object):
           screen.clear()
           settings = legacySettings
           
-          Notice('Welcome to SConfigurator, the Serpentine auto-config utility.').show(screen)
-          Notice('Update project information for existing Serpentine app: %s' % settings['app_name']).show(screen)
+          Notice([' ', ':::[ Serpentine Global Configuration Screen ]:::', ' ']).show(screen)
+          #Notice('Welcome to SConfigurator, the Serpentine auto-config utility.').show(screen)
+          Notice('Update project information for the Serpentine web app "%s"' % settings['app_name']).show(screen)
 
           projectNamePrompt = TextPrompt('Project name', settings['app_name'])
           settings['app_name'] = projectNamePrompt.show(screen)
@@ -647,16 +1103,10 @@ class SConfigurator(object):
             else:
                 globalSettings =  self._updateGlobalSettings(screen, environment.exportGlobalSettings())
 
-
-            
-          
-
-            # this is a standalone global in the config, so it must be an absolute path
-            globalSettings['static_file_path'] = os.path.join(globalSettings['app_root'], "templates") 
-
             # these are local to their respective sections in the config, so they are relative paths
-            globalSettings['template_path'] = "templates"
-            globalSettings['stylesheet_path'] = "stylesheets"
+            globalSettings['static_file_directory'] =  "templates"
+            globalSettings['template_directory'] = "templates"
+            globalSettings['xsl_stylesheet_directory'] = "stylesheets"
                        
             globalSettings['default_form_package'] = '%s_forms' % globalSettings['web_app_name'].lower()
             globalSettings['default_model_package'] = '%s_models' % globalSettings['web_app_name'].lower()
@@ -666,33 +1116,32 @@ class SConfigurator(object):
             globalSettings['default_report_package'] = '%s_reports' % globalSettings['web_app_name'].lower()
             globalSettings['default_datasource_package'] = '%s_datasources' % globalSettings['web_app_name'].lower()
             
-
-            scriptPath = [globalSettings['static_file_path'], 'scripts']
-            stylesPath = [globalSettings['static_file_path'], 'styles']
-            xmlPath = [globalSettings['static_file_path'], 'xml']
+            staticFilePath = os.path.join(globalSettings['app_root'], globalSettings['static_file_directory'])
+            scriptPath = os.path.join(globalSettings['app_root'], globalSettings['static_file_directory'], 'scripts')
+            stylesPath = os.path.join(globalSettings['app_root'], globalSettings['static_file_directory'], 'styles')
+            xmlPath = os.path.join(globalSettings['app_root'], globalSettings['static_file_directory'], 'xml')
+            xslStylesheetPath = os.path.join(globalSettings['app_root'], globalSettings['xsl_stylesheet_directory'])
             
             try:
-                if not os.path.exists(globalSettings['static_file_path']):
-                    os.system('mkdir %s' % globalSettings['static_file_path']) 
-                
-                if not os.path.exists(globalSettings['stylesheet_path']):
-                    os.system('mkdir %s' % globalSettings['stylesheet_path'])
+                if not os.path.exists(staticFilePath):
+                    os.system('mkdir %s' % staticFilePath) 
 
-                if not os.path.exists(os.path.join(scriptPath[0], scriptPath[1])):
-                    os.system('mkdir %s' % os.path.join(scriptPath[0], scriptPath[1]))
+                if not os.path.exists(scriptPath):
+                    os.system('mkdir %s' % scriptPath)
 
-                if not os.path.exists(os.path.join(stylesPath[0], stylesPath[1])):
-                    os.system('mkdir %s' % os.path.join(stylesPath[0], stylesPath[1]))
+                if not os.path.exists(stylesPath):
+                    os.system('mkdir %s' % stylesPath)
 
-                if not os.path.exists( os.path.join(xmlPath[0], xmlPath[1])):
-                    os.system('mkdir %s' % os.path.join(xmlPath[0], xmlPath[1]))
+                if not os.path.exists(xmlPath):
+                    os.system('mkdir %s' % xmlPath)
+                    
+                if not os.path.exists(xslStylesheetPath):
+                    os.system('mkdir %s' % xslStylesheetPath)
 
                 return globalSettings
             except IOError, err:
                 raise err
 
-
-            
             
 
     def selectSingleTable(self, screen, dbInstance, environment, screenMsg = None):          
@@ -713,60 +1162,17 @@ class SConfigurator(object):
               pass
 
 
-    def connectToDatabase(self, screen, environment):
-        screen.clear()
-        dbPrompt = MenuPrompt(Menu(environment.databases.keys()), "Select a DB instance to connect to.")
-            
-        dbName = None
-        while not dbName:
-            dbName = dbPrompt.show(screen)                    
-            if not dbName:
-                Notice('You cannot autogenerate models or forms or create data-bound controls without connecting to a database.').show(screen)            
-                skipDBConnect = TextPrompt('Are you sure you want to skip this step (y/n)?', 'n').show(screen)
-                
-                if skipDBConnect == 'y':
-                    break
-                    
-        if not dbName:
-            return None
-        else:
-            dbConfig = environment.databases[dbName]
-            self.startup_db = dbName
 
-            dbInstance = None
-            while True:
-                try:
-                    # first connect to the DB                
-                    dbInstance = db.MySQLDatabase(dbConfig.host, dbConfig.schema)
-                    dbInstance.login(dbConfig.username, dbConfig.password)
-                    Notice('Connected to database %s on host %s as user %s. Hit any key to continue.' % \
-                    (dbConfig.schema, dbConfig.host, dbConfig.username)).show(screen)
-                    screen.getch()
-                    break
-                except Exception, err:
-                    Notice(['Error logging into database %s on host %s:' % (dbConfig.schema, dbConfig.host), err.message]).show(screen)
-                    Notice([' ', 'Please check your username and password.']).show(screen)
-                    retryPrompt = TextPrompt('Retry (y/n?', 'y').show(screen)
-                    
-                    if retryPrompt == 'n':
-                        Notice('Returning to previous screen. Live-data configuration features will be unavailable.').show(screen)
-                        Notice('Hit any key to continue.').show(screen)
-                        dbInstance = None
-                        screen.getch()
-                        break
-                    else:
-                        dbConfig.username = TextPrompt('username').show(screen)
-                        dbConfig.password = TextPrompt('password').show(screen)
-                        continue
-            return dbInstance
-
-
-
-    def selectTables(self, screen, dbInstance, environment):
+    def selectTables(self, dbInstance, environment, screen):
             screen.clear()
             # get a listing of all tables and present in menu form
+            
+            header = Notice(['', ':::[ Serpentine Model Generator ]:::', '',
+             'Selected tables will be used to autogenerate Serpentine model classes.', ''])
+            
             m = Menu(dbInstance.listTables())
-            prompt = MultipleChoiceMenuPrompt(m, 'Select one or more database tables to add.', environment.tables)
+            
+            prompt = MultipleChoiceMenuPrompt(m, 'Select one or more database tables', environment.tables, header)
             selectedTableNames = prompt.show(screen)
 
             selectedTables = []
@@ -843,7 +1249,7 @@ class SConfigurator(object):
               pass
       
           
-    def setupWSGI(self, screen):
+    def setupWSGI(self, screen, existingWSGIConfig = None):
           """Get the settings for the app's interface with Apache
 
           Arguments:
@@ -852,12 +1258,20 @@ class SConfigurator(object):
           
 
           screen.clear()
-          wsgiSetup = {}
+                    
+          if not existingWSGIConfig:
+              defaultHostname = 'localhost'
+              defaultPort = 80
+          else:
+              defaultHostname = existingWSGIConfig.host
+              defaultPort = existingWSGIConfig.port
+          
+          Notice([' ', ':::[ Serpentine WSGI Configuration Screen ]:::', ' ']).show(screen)
           Notice('Enter WSGI config information.').show(screen)
-          hostPrompt = TextPrompt('Enter the hostname for this app: ', 'localhost')
+          hostPrompt = TextPrompt('Enter the hostname for this app: ', defaultHostname)
           hostname = hostPrompt.show(screen)
 
-          portPrompt = TextPrompt('Enter HTTP port for this app: ', '80')
+          portPrompt = TextPrompt('Enter HTTP port for this app: ', defaultPort)
           port = portPrompt.show(screen)
 
           return WSGIConfig(hostname, port)
@@ -947,8 +1361,13 @@ class SConfigurator(object):
             baseTemplateFile.write(baseTemplateData)
             baseTemplateFile.close()
 
-              
+            '''
+            if not configPackage.formConfigs:
+                raise Exception('No form configurations in this package. Terminating.')
+            '''
+             
             for fConfig in configPackage.formConfigs:
+
                     #
                     # Use each FormConfig object in our list to populate the seed template
                     # 
@@ -969,10 +1388,12 @@ class SConfigurator(object):
                     indexFrameFileRef = "%s_index.html" % fConfig.model.lower()
                     indexFrameAlias = "%s_index" % fConfig.model.lower()
                     frames[indexFrameAlias] = FrameConfig(indexFrameAlias, indexFrameFileRef, fConfig.formClassName, "html")
-                  
+
+                    
                     for controllerAlias in configPackage.controllers:
-                          if configPackage.controllers[controllerAlias].model == fConfig.model:
-                                configPackage.controllers[controllerAlias].addMethod(ControllerMethodConfig('index', indexFrameAlias))
+                          controllerConfig = configPackage.controllers[controllerAlias]
+                          if controllerConfig.model == fConfig.model:
+                                controllerConfig.addMethod(ControllerMethodConfig('index', indexFrameAlias))
 
                     # 
                     # The insert template: creates a form for adding a single object
@@ -995,8 +1416,8 @@ class SConfigurator(object):
                     frames[insertFrameAlias] = FrameConfig(insertFrameAlias, insertFrameFileRef, fConfig.formClassName, "html")
 
                     for controllerAlias in configPackage.controllers:
-                          if self.controllers[controllerAlias].model == fConfig.model:                          
-                                self.controllers[controllerAlias].addMethod(ControllerMethodConfig("insert", insertFrameAlias))
+                          if configPackage.controllers[controllerAlias].model == fConfig.model:                          
+                                configPackage.controllers[controllerAlias].addMethod(ControllerMethodConfig("insert", insertFrameAlias))
                            
                     # 
                     # update template: creates a form for modifying 

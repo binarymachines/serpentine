@@ -19,16 +19,17 @@ class Notice:
 
     def __str__(self):
         if self.message.__class__.__name__ == 'list':
-            return '\n'.join(message)
+            return '\n'.join(self.message) + '\n'
 
-        return self.message
+        return self.message + '\n'
 
     def show(self, screen):
     
         if self.message.__class__.__name__ == 'list':
             buffer = StringIO()
             
-            buffer.write('\n'.join(self.message))
+            #buffer.write('\n'.join(self.message) )
+            buffer.write(self.__str__())
             contents = buffer.getvalue()
             bufferLineArray = contents.split('\n')
             bufferLineCount = len(bufferLineArray)
@@ -55,22 +56,29 @@ class Notice:
 
 
 class Menu:
-    def __init__(self, valuesArray): 
-        self.values = valuesArray
+    def __init__(self, options): 
+        self._options = options
 
     def __str__(self):
         index = 1
         entries = []
-        for item in self.values:
+        for item in self._options:
             entries.append('[%s]\t%s' % (index, item))
             index += 1
         return '\n'.join(entries)
 
     def addItem(self, itemString):
-        self.values.append(itemString)
+        self._options.append(itemString)
 
-    def values(self):
-        return self.values
+    def getOptions(self):
+        return self._options
+
+    def getOption(self, optionIndex):
+        return self._options[optionIndex]
+
+    def getOptionValue(self, optionIndex):
+        # TODO: this behavior will change if option labels are mapped
+        return self._options[optionIndex]
 
 
 
@@ -82,12 +90,16 @@ class MenuPrompt:
             self.selection = ''
             self.escaped = False
             self.reply = ''
+    
+    def reset(self):
+        self.escaped = False
+        
                
     def show(self, screen):
             #screen.clear()
             
             buffer = StringIO()
-            buffer.write('%s\n%s\n:' % (self.menu, '\n'.join(self.instructions)))
+            buffer.write('%s\n\n%s\n:' % (self.menu, '\n'.join(self.instructions)))
             contents = buffer.getvalue()
             bufferLineArray = contents.split('\n')
             bufferLineCount = len(bufferLineArray)
@@ -107,7 +119,7 @@ class MenuPrompt:
                         self.selectedIndex = int(self.reply)
                         if self.selectedIndex < 1: 
                             raise IndexError
-                        self.selection = self.menu.values[self.selectedIndex - 1]
+                        self.selection = self.menu.getOption(self.selectedIndex - 1)
                         break
                 except IndexError:
                         screen.addstr('\nYou selected a menu index which is not available. Hit any key to continue.')
@@ -126,7 +138,7 @@ class MenuPrompt:
             return self.selection
 
 class MultipleChoiceMenuPrompt:
-    def __init__(self, menu, prompt, defaultSelections = []):
+    def __init__(self, menu, prompt, defaultSelections = [], headerNotice = None):
         self.menu = menu
         
         self.instructions = ["Type * to exit.", "Type # to see the items you've selected.", "Type c to clear your selections."]
@@ -136,6 +148,12 @@ class MultipleChoiceMenuPrompt:
         self.escaped = False
         self.selectedIndex = -1
         self.choice = ''
+        self.headerNotice = headerNotice
+
+
+    def reset(self):
+        self.escaped = False
+
 
     def show(self, screen):
         #screen.clear()
@@ -147,6 +165,8 @@ class MultipleChoiceMenuPrompt:
         bufferLineCount = len(bufferLineArray)
 
         while True:
+            if self.headerNotice:
+                self.headerNotice.show(screen)
             position = screen.getyx()
             cursorRow = position[0] + bufferLineCount - 1
             cursorColumn = len(bufferLineArray[bufferLineCount-1])
@@ -175,7 +195,7 @@ class MultipleChoiceMenuPrompt:
                     try:                        
                         if selectedIndex < 1: 
                             raise IndexError
-                        self.selections.append(self.menu.values[selectedIndex - 1])
+                        self.selections.append(self.menu.getOption(selectedIndex - 1))
                     except IndexError:
                         screen.addstr('\nYou selected a menu index which is not available. Hit any key to continue.')
                         screen.getch()
@@ -201,7 +221,7 @@ class MultipleChoiceMenuPrompt:
                 try:
                     selectedIndex = int(self.reply)
                     if selectedIndex < 1 : raise IndexError
-                    self.selections.append(self.menu.values[selectedIndex - 1])
+                    self.selections.append(self.menu.getOption(selectedIndex - 1))
 
                     screen.addstr('You have selected: ' + ', '.join(self.selections) + '\nHit any key to continue.')
                     screen.getch()

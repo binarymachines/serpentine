@@ -23,6 +23,8 @@ class ControllerConfig:
     def addMethod(self, controllerMethodConfig):
         self.methods.append(controllerMethodConfig)
 
+    def __repr__(self):
+        return 'Controller: %s | Alias: %s | Model: %s | Methods: %s' % (self.name, self.alias, self.model, self.methods)
 
 class WSGIConfig:
     def __init__(self, hostName, portNumber):
@@ -252,5 +254,77 @@ class ControlConfig:
         self.datasource = dataSourceAlias
         self.template = templateID
         
+
+
+class ObjectParameter:
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
         
+
+class ControlPackage:
+    """ A template populator for a generated Javascript code segment.
+    """
+    
+    
+    def __init__(self, name, div_name='div_id', params = [], callback='null'):
+        self.name = name
+        self.parameterList = params
+        self.div_name = div_name
+        self.callback = callback
+        
+    
+    def getParams(self):
+        if not self.parameterList:
+            return 'null'
+        
+        paramStrings = ['%s: "%s"' % (p.name, p.value) for p in self.parameterList]
+        result = "{ %s }" % (', '.join(paramStrings))
+        return result
+        
+        
+    params = property(getParams)
+
+
+class URLPackage:
+    def __init__(self):
+        self.object_type = None
+        self.object_name = None
+        self.parameterList = []
+    
+    def getQueryString(self):
+        paramStrings = ['%s=%s' % (p.name, p.value) for p in self.parameterList]
+        result = '?%s' % ('&'.join(paramStrings))
+        return result
+        
+    query_string = property(getQueryString)
+    
+    
+    
+class FrameRequestURLPackage(URLPackage):
+    def __init__(self, frameID):
+        self.object_name = frameID
+        self.object_type = 'frame'
+        
+
+class ControllerURLPackage(URLPackage):
+    """A template populator for a generated Controller URL."""
+    
+    def __init__(self, controllerID, methodName, objectParameters = []):        
+        self.object_name = controllerID
+        self.object_type = 'controller'
+        self.parameterList = objectParameters
+        
+    
+class ResponderURLPackage(URLPackage):
+    """A template populator for a generated Responder URL."""
+    
+    def __init__(self, responderID, objectParameters = []):
+        self.object_name = responderID
+        self.object_type = 'responder'
+        self.parameterList = objectParameters
+        
+    
+
+
 

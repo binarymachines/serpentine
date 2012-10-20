@@ -7,9 +7,10 @@ global:
         app_name:                       {{ config.app_name }}
         app_version:                    1.0
         app_root:                       {{ config.app_root }}        
-        static_file_path:               {{ config.static_file_path }}
-        output_file_path:               output
-        report_file_path:               reports
+        static_file_directory:          {{ config.static_file_directory }}
+        output_file_directory:          output
+        report_file_directory:          reports
+        xsl_stylesheet_directory:       {{ config.xsl_stylesheet_directory }}
         default_form_package:           {{ config.default_form_package }}
         default_model_package:          {{ config.default_model_package }}
         default_helper_package:         {{ config.default_helper_package }}
@@ -37,7 +38,7 @@ global:
 # consulted if the registry can't guess the type from the filename.
 #
 content_registry:
-    template_path: {{ config.template_path }}
+    template_directory: {{ config.template_directory }}
     frames:
             home:
                    template:    main.html
@@ -132,10 +133,10 @@ reports:
 # should be of type XMLFrame.
 # TODO: alter the program logic so that by default we don't need any entries here;
 # DisplayManager will auto-guess the stylesheet name based on the frame's name.
-# The stylesheet_path is relative to the global property base_dir.
+# Serpentine will look for stylesheets in the location specified by the global setting
+# xsl_stylesheet_directory (relative to the app_root directory).
 
 display_manager:
-        stylesheet_path: {{ config.stylesheet_path }}
         frames:    
             {% for frame in config.xmlFrames %}
             {{ frame }}:

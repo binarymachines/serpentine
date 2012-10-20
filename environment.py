@@ -43,8 +43,8 @@ class Environment():
       def getDatabases(self):
             return self.databaseMap
 
-      def getTemplatePath(self):
-            return self.config['global']['static_file_path']
+      def getTemplateDirectory(self):
+            return self.config['global']['static_file_directory']
 
       def getTables(self):
             if self.config.get('models', None):                  
@@ -52,11 +52,14 @@ class Environment():
             else:
                   return []
 
-      def getOutputPath(self):
-            return self.config['global']['output_file_path']
 
-      def getStylesheetPath(self):
-            return os.path.join(self.appRoot, self.config['display_manager']['stylesheet_path'])
+      def getOutputDirectory(self):
+            return self.config['global']['output_file_directory']
+
+
+      def getXSLStylesheetDirectory(self):
+            return self.config['global']['xsl_stylesheet_directory']
+            
 
       def getURLBase(self):
             return self.config['global']['url_base']
@@ -64,6 +67,7 @@ class Environment():
 
       databases = property(getDatabases)
       tables = property(getTables)
+      appRoot = property(getAppRoot)
 
 
       def __init__(self):
@@ -73,7 +77,6 @@ class Environment():
 
             self.hostname = None
             self.port = None            
-            self.startupDB = None
 
             ###
 
@@ -90,24 +93,42 @@ class Environment():
             self.controlMap = {}   
 
             self.databaseMap = {}
+            self.configurationDBAlias = None
+            
             self.__controllerRegistry = {}
 
             self.configSections = {}
             
-            globalSectionSettings = ['app_name', 'app_version', 'app_root', 'static_file_path', 'output_file_path', 'report_file_path', 
-                                   'default_form_package', 'default_model_package', 'default_helper_package', 'default_controller_package', 
-                                   'default_responder_package', 'default_datasource_package', 'default_report_package', 'startup_db', 'url_base']
+            globalSectionSettings = ['app_name', 
+                                     'app_version', 
+                                     'app_root', 
+                                     'static_file_directory', 
+                                     'output_file_directory', 
+                                     'report_file_directory', 
+                                     'xsl_stylesheet_directory',
+                                     'default_form_package', 
+                                     'default_model_package', 
+                                     'default_helper_package', 
+                                     'default_controller_package', 
+                                     'default_responder_package', 
+                                     'default_datasource_package', 
+                                     'default_report_package', 
+                                     'startup_db', 
+                                     'url_base']
 
-            apiSectionSettings = ['api_frame', 'doc_frame', 'config_frame', 'controller_frame', 'responder_frame']
-            contentRegistrySectionSettings = ['template_path']
+            apiSectionSettings = ['api_frame', 
+                                  'doc_frame', 
+                                  'config_frame', 
+                                  'controller_frame', 
+                                  'responder_frame']
+                                  
+            contentRegistrySectionSettings = ['template_directory']
             databaseSectionSettings = ['databases']
-            displayManagerSectionSettings = ['stylesheet_path']
-            
 
             self.configSections['global'] = globalSectionSettings
             self.configSections['api'] = apiSectionSettings
             self.configSections['content_registry'] = contentRegistrySectionSettings
-            self.configSections['display_manager'] = displayManagerSectionSettings
+            #self.configSections['display_manager'] = displayManagerSectionSettings
             self.configSections['databases'] = databaseSectionSettings
 
 
@@ -157,18 +178,18 @@ class Environment():
             settings = {}
 
             for name in globalSettingNames:
-                  settings[name] = self.config['global'][name]
+                  settings[name] = self.config['global'].get(name)
                   
             return settings
 
 
-      def importGlobalSettings(self, settingsDictionary):     
-            if self.config.get('global', ''):       
+      def importGlobalSettings(self, settingsDictionary):   
+            if self.config.get('global'):       
                 self.config['global'].update(settingsDictionary)
             else:
                 self.config['global'] = settingsDictionary
             
-
+           
 
       def exportDatabaseSettings(self):
             return self.databaseMap
@@ -177,7 +198,11 @@ class Environment():
       def importDatabaseSettings(self, dbConfigMap):
             self.databaseMap.update(dbConfigMap)
                   
-                  
+                
+      def setConfigurationDBAlias(self, dbAlias):
+          self.configurationDBAlias = dbAlias
+          
+                
                   
       def importWSGIConfig(self, wsgiConfig):
           self.hostname = wsgiConfig.host
@@ -200,17 +225,17 @@ class Environment():
                   self.appVersion = config['global']['app_version']
 
                   self.urlBase = config['global']['url_base']
-                  self.outputPath = os.path.join(config['global']['app_root'], config['global']['output_file_path'])
-                  self.reportPath = os.path.join(config['global']['app_root'], config['global']['report_file_path'])
-                  self.staticFilePath = os.path.join(config['global']['app_root'], config['global']['static_file_path'])
+                  self.outputPath = os.path.join(config['global']['app_root'], config['global']['output_file_directory'])
+                  self.reportPath = os.path.join(config['global']['app_root'], config['global']['report_file_directory'])
+                  self.staticFilePath = os.path.join(config['global']['app_root'], config['global']['static_file_directory'])
                   self.templatePath = os.path.join(config['global']['app_root'], 
-                                                   config['content_registry']['template_path'])
+                                                   config['content_registry']['template_directory'])
                   j2Environment = jinja2.Environment(loader = jinja2.FileSystemLoader(self.templatePath), 
                                                     undefined = StrictUndefined, cache_size=0)
                   self.templateManager = content.JinjaTemplateManager(j2Environment)
 
-                  self.stylesheetPath = os.path.join(config['global']['app_root'], 
-                                                     config['display_manager']['stylesheet_path'])
+                  self.xslStylesheetPath = os.path.join(config['global']['app_root'], 
+                                                     config['global']['xsl_stylesheet_directory'])
 
                   self.reportManager = ReportManager(self.reportPath)
 
@@ -420,7 +445,7 @@ class Environment():
             return viewManager
             
       def assignStylesheetsToXMLFrames(self):            
-            displayManager = DisplayManager(self.stylesheetPath)
+            displayManager = DisplayManager(self.xslStylesheetPath)
             if self.config['display_manager']['frames']:
                   for frameID in self.config['display_manager']['frames']:
                         stylesheet = self.config['display_manager']['frames'][frameID]['stylesheet']

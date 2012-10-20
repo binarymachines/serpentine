@@ -38,8 +38,8 @@ def getAPIMap(environment):
     configuration = environment.config
     apiReply = {}
 
-    apiReply['app_name'] = environment.appName
-    apiReply['app_version'] = environment.appVersion
+    apiReply['app_name'] = environment.getAppName()
+    apiReply['app_version'] = environment.getAppVersion()
     apiReply['controller_map'] = environment.frontController.controllerMap
     apiReply['frame_map'] = environment.contentRegistry.frames
     apiReply['helper_list'] = environment.getHelperFunctions()

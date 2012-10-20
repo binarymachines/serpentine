@@ -133,10 +133,10 @@ function getObjectID(){
 }
 
 
-function registerAction(actionMap, actionName, actionURL, dataValues, selectionMandatory){
+function registerAction(actionMap, actionName, functionOrURL, dataValues, selectionMandatory){
 
     valuesDict = (dataValues === null ) ? {} : dataValues;
-    actionMap[actionName] = { 'url': actionURL, 'data': valuesDict, 'must_select': selectionMandatory };    
+    actionMap[actionName] = { 'target': functionOrURL, 'data': valuesDict, 'must_select': selectionMandatory };    
 }
 
 
