@@ -398,9 +398,9 @@ class BaseController(object):
         
     def _delete(self, object, dbSession, persistenceManager):
         
-        """"
+        
         try:
-            #dbSession.delete(object)
+            dbSession.delete(object)
             #setattr(object, "deleted", True)       
             
             dbSession.flush()
@@ -409,7 +409,7 @@ class BaseController(object):
             dbSession.rollback()
             log("%s %s failed with message: %s" % (self.modelClass, 'delete', err.message))
             raise err 
-        """ 
+    
 
     def delete(self, objectID, httpRequest, context, **kwargs):
     

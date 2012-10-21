@@ -1442,6 +1442,30 @@ class SConfigurator(object):
                     for controllerAlias in configPackage.controllers:
                           if configPackage.controllers[controllerAlias].model == fConfig.model:                                                    
                                 configPackage.controllers[controllerAlias].addMethod(ControllerMethodConfig('update', updateFrameAlias))
+                                
+                    #
+                    # delete template: creates a form (really a confirmation page) for deleting an object
+                    #
+                    
+                    deleteSeedTemplate = templateManager.getTemplate('delete_template_seed.tpl')
+                    deleteSeedTemplateData = deleteSeedTemplate.render(formspec = fConfig, config = configPackage)
+                    
+                    deleteFilename = os.path.join('bootstrap', '%s_delete.html' % fConfig.model.lower())
+                    
+                    htmlFile = open(deleteFilename, 'w')
+                    htmlFile.write(deleteSeedTemplateData)
+                    htmlFile.close()
+                    
+                    deleteFrameFileRef = '%s_delete.html' % fConfig.model.lower()
+                    deleteFrameAlias = '%s_delete' % fConfig.model.lower()
+                    
+                    frames[deleteFrameAlias] = FrameConfig(deleteFrameAlias, deleteFrameFileRef, fConfig.formClassName, 'html')
+                    
+                    for controllerAlias in configPackage.controllers:
+                        if configPackage.controllers[controllerAlias].model == fConfig.model:
+                            configPackage.controllers[controllerAlias].addMethod(ControllerMethodConfig('delete', deleteFrameAlias))
+                            
+                    
             return frames                 
         finally:
               if htmlFile:

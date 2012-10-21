@@ -28,6 +28,11 @@
         registerAction(actions, "update", "/{{ config.url_base }}/controller/{{ formspec.model }}/update/{id}", 
                         { "id":  getObjectID }, 
                         true);
+                        
+        registerAction(actions, "delete", "/{{ config.url_base }}/controller/{{ formspec.model }}/delete/{id}", 
+                        { "id": getObjectID },
+                        true); 
+                        
         initTableSelectLogic(actions);
 
     });
@@ -45,7 +50,8 @@
     <div class="one column">
         <select name="action" id="action_selector">  			  
           			<option id="add" value="#">Add</option>
-          			<option id="update" value="#">Update</option>    	      		    
+          			<option id="update" value="#">Update</option>  
+          			<option id="delete" value="#">Delete</option>  	      		    
         </select>
     </div>
     <div class="eleven columns">
