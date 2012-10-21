@@ -9,6 +9,7 @@ from bottle import route, run, request, response, redirect, static_file
 import os
 import exceptions
 import sys
+import traceback
 import logging
 
 from db import *
@@ -22,7 +23,23 @@ from environment import *
 #------ Main module: routing & control --------
 
 
+
+
+
+
 from bottle import static_file
+
+
+def displayErrorPage(exception, context, environment):
+    exc_traceback = sys.exc_info()        
+    stackTrace = traceback.extract_tb(exc_traceback[2])
+        
+    errorFrame = environment.contentRegistry.getFrame('error_frame')
+    frameArgs = { 'exception': exception, 'stacktrace': stackTrace }
+    return errorFrame.render(request, context, **frameArgs)
+
+
+
 @route('/static/:path#.+#')
 def serve_static_file(path, environment):
     return static_file(path, root=environment.staticFilePath)
@@ -37,7 +54,6 @@ def getAPIMap(environment):
     
     configuration = environment.config
     apiReply = {}
-
     apiReply['app_name'] = environment.getAppName()
     apiReply['app_version'] = environment.getAppVersion()
     apiReply['controller_map'] = environment.frontController.controllerMap
@@ -79,86 +95,95 @@ def invokeResponderGet(environment, responderID='none'):
 
     response.header['Cache-Control'] = 'no-cache'
     
-
-    context = Context(environment)
-    environment.frontController.validate(request)
-
-    if not responderID in environment.responderMap:
-        raise NoSuchResponderError(responderID)
-
-
-    responder = environment.responderMap[responderID]
-    return responder.respond(request, context)
-
+    try:
+        context = Context(environment)
+        environment.frontController.validate(request)
+    
+        if not responderID in environment.responderMap:
+            raise NoSuchResponderError(responderID)
+    
+    
+        responder = environment.responderMap[responderID]
+        return responder.respond(request, context)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
+        
+    
 
 @route('/uicontrol/:controlID', method='GET')
 def invokeUIControlGet(environment, controlID='none'):
-    context = Context(environment)
-    environment.frontController.validate(request)
-
-    if not controlID in environment.controlMap:
-        raise NoSuchUIControlError(controlID)
-
-    control = environment.controlMap[controlID]
-    params = {}
-    params.update(request.GET)
-
-    # Invoke helper function if one has been registered
-    helper = environment.contentRegistry.getHelperFunctionForFrame(control.templateFrameID)
-    if helper:
-        extraData = helper(request, context)
-        params.update(extraData)
+    try:
+        context = Context(environment)
+        environment.frontController.validate(request)
     
-    return control.render(request, context, **params)
-
+        if not controlID in environment.controlMap:
+            raise NoSuchUIControlError(controlID)
+    
+        control = environment.controlMap[controlID]
+        params = {}
+        params.update(request.GET)
+    
+        # Invoke helper function if one has been registered
+        helper = environment.contentRegistry.getHelperFunctionForFrame(control.templateFrameID)
+        if helper:
+            extraData = helper(request, context)
+            params.update(extraData)
+        
+        return control.render(request, context, **params)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
 
 
 @route('/frame/:frameID')
 def handleFrameRequest(environment, frameID='none'):
     response.header['Cache-Control'] = 'no-cache'
     
-
-    context = Context(environment)
-    frameArgs ={}
-    # this frame  may or may not have an associated Form
-    inputForm = None
-
-    if environment.contentRegistry.hasForm(frameID):        
-        inputFormClass = environment.contentRegistry.getFormClass(frameID)
-        if inputFormClass is not None:
-            # get whatever data was passed to us
-            inputForm = inputFormClass()
-            inputForm.process(request.GET)     
-            frameArgs['form'] = inputForm
-
-    # Invoke helper function if one has been registered
-    helper = environment.contentRegistry.getHelperFunctionForFrame(frameID)
-    if helper is not None:
-        extraData = helper(request, context)
-        frameArgs.update(extraData)
-
-    frameArgs['frame_id'] = frameID
-    return environment.contentRegistry.getFrame(frameID).render(request, context, **frameArgs)
+    try:
+        context = Context(environment)
+        frameArgs ={}
+        # this frame  may or may not have an associated Form
+        inputForm = None
+    
+        if environment.contentRegistry.hasForm(frameID):        
+            inputFormClass = environment.contentRegistry.getFormClass(frameID)
+            if inputFormClass is not None:
+                # get whatever data was passed to us
+                inputForm = inputFormClass()
+                inputForm.process(request.GET)     
+                frameArgs['form'] = inputForm
+    
+        # Invoke helper function if one has been registered
+        helper = environment.contentRegistry.getHelperFunctionForFrame(frameID)
+        if helper is not None:
+            extraData = helper(request, context)
+            frameArgs.update(extraData)
+    
+        frameArgs['frame_id'] = frameID
+        return environment.contentRegistry.getFrame(frameID).render(request, context, **frameArgs)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
 
 
 @route('/report/:reportID', method='GET')
 def generateReport(environment, reportID = 'none'):
-    context = Context(environment)
-    reportMgr = environment.reportManager
-    return reportMgr.runReport(reportID, request, context)
-
+    try:
+        context = Context(environment)
+        reportMgr = environment.reportManager
+        return reportMgr.runReport(reportID, request, context)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
 
 
 @route('/event/:eventtype')
 def handleEvent(environment, eventtype = 'none'):
+    # TODO: use eventlet here
     newEvent = Event(eventtype, { 'time' : 'now', 'place' : 'here' })
     try:
+        context = Context(environment)
         status = environment.dispatcher.handleEvent(newEvent)
         return str(status)
-    except EventDispatchError as err:
-        return str(err)
-    except:
-        print sys.exc_info()
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
 
 #
 # Invoking the controller update() in this mode looks up the object with the specified ID
@@ -167,16 +192,21 @@ def handleEvent(environment, eventtype = 'none'):
 @route('/controller/:objectType/update/:objectID', method='GET')
 def invokeControllerUpdateGet(environment, objectType = 'none', objectID = 'none'):
     
-    context = Context(environment)
-    environment.frontController.validate(request)
-
-    # Get the controller for the type in question
-    controller = environment.frontController.getController(objectType)
-    session = request.environ[controller.sessionName]
-    session[controller.typeSpecificIDSessionTag] = objectID
-    return controller.update(objectID, request, context)
+    try:
+        context = Context(environment)
+        environment.frontController.validate(request)
     
-
+        # Get the controller for the type in question
+        controller = environment.frontController.getController(objectType)
+        session = request.environ[controller.sessionName]
+        session[controller.typeSpecificIDSessionTag] = objectID
+        return controller.update(objectID, request, context)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
+    
+        
+        
+        
 #
 # Invoking the controller update() in this mode triggers the actual database operation 
 # and saves the changed object.
@@ -184,27 +214,32 @@ def invokeControllerUpdateGet(environment, objectType = 'none', objectID = 'none
 @route('/controller/:objectType/update', method='POST')
 def invokeControllerUpdatePost(environment, objectType= 'none', objectID = 'none'):
     
-    context = Context(environment)    
-    environment.frontController.validate(request)
-    controller = environment.frontController.getController(objectType)
+    try:
+        context = Context(environment)    
+        environment.frontController.validate(request)
+        controller = environment.frontController.getController(objectType)
+    
+        session = request.environ['beaker.session']
+        objectID = session.get(controller.typeSpecificIDSessionTag)
+        if objectID is None:
+            raise Exception("Update failed: No %s ID in session data." % objectType)
+    
+        return controller.update(objectID, request, context)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
 
-    session = request.environ['beaker.session']
-    objectID = session.get(controller.typeSpecificIDSessionTag)
-    if objectID is None:
-        raise Exception("Update failed: No %s ID in session data." % objectType)
-
-    return controller.update(objectID, request, context)
 
 
 @route('/controller/:objectType/update/:objectID', method='POST')
 def invokeControllerUpdatePost(environment, objectType = 'none', objectID = 'none'):
 
-    context = Context(environment)    
-    environment.frontController.validate(request)
-    controller = environment.frontController.getController(objectType)
-
-    return controller.update(objectID, request, context)
-
+    try:
+        context = Context(environment)    
+        environment.frontController.validate(request)
+        controller = environment.frontController.getController(objectType)    
+        return controller.update(objectID, request, context)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
 
 #
 # Brings up the delete confirmation page.
@@ -212,65 +247,70 @@ def invokeControllerUpdatePost(environment, objectType = 'none', objectID = 'non
 @route('/controller/:objectType/delete/:objectID', method='GET')
 def invokeControllerDeleteGet(environment, objectType='none', objectID='none'):
 
-    context = Context(environment)    
-    environment.frontController.validate(request)
-    controller = environment.frontController.getController(objectType)
-    targetFrameID = context.viewManager.getFrameID(objectType, 'delete')
-    
-    formClass = context.contentRegistry.getFormClass(targetFrameID)
-    frameObject = context.contentRegistry.getFrame(targetFrameID)
-
-    dbSession = context.persistenceManager.getSession()
-    obj = controller.lookup(int(objectID), dbSession, context.persistenceManager)
-    dbSession.close()
-    
-    if not obj:
-        raise ObjectLookupError(objectType, objectID)
-    
-    request.GET['object_id'] = int(objectID)
-    displayForm = formClass(None, obj)
-   
-    frameArgs = {}
-    frameArgs['controller'] = controller
-    frameArgs['form'] = displayForm
-    frameArgs['frame_id'] = targetFrameID
-    frameArgs['controller_alias'] = objectType
-    frameArgs['url_base'] = environment.urlBase
-    
-    # Invoke helper function if one has been registered
-    helper = environment.contentRegistry.getHelperFunctionForFrame(targetFrameID)
-    if helper is not None:
-        extraData = helper(request, context)
-        frameArgs.update(extraData)
+    try:
+        context = Context(environment)    
+        environment.frontController.validate(request)
+        controller = environment.frontController.getController(objectType)
+        targetFrameID = context.viewManager.getFrameID(objectType, 'delete')
         
-    frameObject = context.contentRegistry.getFrame(targetFrameID)
-    return frameObject.render(request, context, **frameArgs)
-
+        formClass = context.contentRegistry.getFormClass(targetFrameID)
+        frameObject = context.contentRegistry.getFrame(targetFrameID)
+    
+        dbSession = context.persistenceManager.getSession()
+        obj = controller.lookup(int(objectID), dbSession, context.persistenceManager)
+        dbSession.close()
+        
+        if not obj:
+            raise ObjectLookupError(objectType, objectID)
+        
+        request.GET['object_id'] = int(objectID)
+        displayForm = formClass(None, obj)
+       
+        frameArgs = {}
+        frameArgs['controller'] = controller
+        frameArgs['form'] = displayForm
+        frameArgs['frame_id'] = targetFrameID
+        frameArgs['controller_alias'] = objectType
+        frameArgs['url_base'] = environment.urlBase
+        
+        # Invoke helper function if one has been registered
+        helper = environment.contentRegistry.getHelperFunctionForFrame(targetFrameID)
+        if helper is not None:
+            extraData = helper(request, context)
+            frameArgs.update(extraData)
+            
+        frameObject = context.contentRegistry.getFrame(targetFrameID)
+        return frameObject.render(request, context, **frameArgs)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
 
 
 #
 # Invokes the delete() method on the controller for the selected type.
+#
 @route('/controller/:objectType/delete/:objectID', method='POST')
-def invokeControllerDeletePost(environment, objectType='none', objectID='none'):
-
-    context = Context(environment)    
-    environment.frontController.validate(request)
-    controller = environment.frontController.getController(objectType)
-
-    return controller.delete(objectID, request, context)
-            
+def invokeControllerDeletePost(environment, objectType='none', objectID='none'):    
+    try:
+        context = Context(environment)    
+        environment.frontController.validate(request)
+        controller = environment.frontController.getController(objectType)    
+        return controller.delete(objectID, request, context)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)    
             
 #
 # Invokes the index() method on the controller for the selected type.
 #
 @route('/controller/:objectType/index')
 def invokeControllerIndex(environment, objectType = 'none'): 
-    
-    context = Context(environment);
-    environment.frontController.validate(request)
-    # Get the controller for the type in question
-    controller = environment.frontController.getController(objectType)
-    return controller.index(request, context)
+    try:
+        context = Context(environment);
+        environment.frontController.validate(request)
+        # Get the controller for the type in question
+        controller = environment.frontController.getController(objectType)
+        return controller.index(request, context)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
 
 
 #
@@ -287,16 +327,18 @@ def invokeControllerIndexDefault(environment, objectType = 'none'):
 #    
 @route('/controller/:objectType/index/page/:pageNum')
 def invokeControllerIndexPaging(environment, objectType = 'none', pageNum = 'none'):
-    context = Context(environment);
-    environment.frontController.validate(request)
-    controller = environment.frontController.getController(objectType)
-
-    pageNumInt = int(pageNum)
-    if pageNumInt < 1:
-        raise InvalidPageNumberError()
-
-    return controller.indexPage(int(pageNum), request, context)
-
+    try:
+        context = Context(environment);
+        environment.frontController.validate(request)
+        controller = environment.frontController.getController(objectType)
+    
+        pageNumInt = int(pageNum)
+        if pageNumInt < 1:
+            raise InvalidPageNumberError()
+    
+        return controller.indexPage(int(pageNum), request, context)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
 
 #
 # Issuing a controller insert() will either display a form or perform an insert,
@@ -304,41 +346,46 @@ def invokeControllerIndexPaging(environment, objectType = 'none', pageNum = 'non
 #
 @route('/controller/:objectType/insert', method = 'GET')
 def invokeControllerInsertGet(environment, objectType = 'none'):
-
-    context = Context(environment)    
-    environment.frontController.validate(request)
-    controller = environment.frontController.getController(objectType)
-    frameID = context.viewManager.getFrameID(objectType, 'insert')
-   
-    inputFormClass = context.contentRegistry.getFormClass(frameID) # will raise exception if no form exists
-    inputForm = inputFormClass()
-    inputForm.process(request.GET) 
-    
-
-    frameArgs = {}
-    frameArgs['controller'] = controller
-    frameArgs['form'] = inputForm
-    frameArgs['frame_id'] = frameID
-    frameArgs['controller_alias'] = objectType
-
-    # Invoke helper function if one has been registered
-    helper = environment.contentRegistry.getHelperFunctionForFrame(frameID)
-    if helper is not None:
-        extraData = helper(request, context)
-        frameArgs.update(extraData)
+    try:
+        context = Context(environment)    
+        environment.frontController.validate(request)
+        controller = environment.frontController.getController(objectType)
+        frameID = context.viewManager.getFrameID(objectType, 'insert')
+       
+        inputFormClass = context.contentRegistry.getFormClass(frameID) # will raise exception if no form exists
+        inputForm = inputFormClass()
+        inputForm.process(request.GET) 
         
-    frameObject = context.contentRegistry.getFrame(frameID)
-    return frameObject.render(request, context, **frameArgs)
+    
+        frameArgs = {}
+        frameArgs['controller'] = controller
+        frameArgs['form'] = inputForm
+        frameArgs['frame_id'] = frameID
+        frameArgs['controller_alias'] = objectType
+    
+        # Invoke helper function if one has been registered
+        helper = environment.contentRegistry.getHelperFunctionForFrame(frameID)
+        if helper is not None:
+            extraData = helper(request, context)
+            frameArgs.update(extraData)
+            
+        frameObject = context.contentRegistry.getFrame(frameID)
+        return frameObject.render(request, context, **frameArgs)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
+
 
 
 @route('/controller/:objectType/insert', method = 'POST')
 def invokeControllerInsertPost(environment, objectType = 'none'):
+    try:
+        context = Context(environment)    
+        environment.frontController.validate(request)
+        controller = environment.frontController.getController(objectType)
     
-    context = Context(environment)    
-    environment.frontController.validate(request)
-    controller = environment.frontController.getController(objectType)
-
-    return controller.insert(request, context)
+        return controller.insert(request, context)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
 
 
 @route('/controller/:objectType/:controllerMethod', method = 'POST')
@@ -346,19 +393,23 @@ def invokeControllerMethodPost(environment, objectType='none', controllerMethod=
     
     response.headers['Cache-Control'] = 'no-cache'
     response.headers['Expires'] = 0
-
-    context = Context(environment);
-    environment.frontController.validate(request)
-
-    # Get the controller for the type in question
-    targetController = environment.frontController.getController(objectType)
-    targetMethod = getattr(targetController, controllerMethod, None)
     
-    if callable(targetMethod):        
-        return targetMethod(request, context, controller_alias=objectType)            
-    else:
-        return NoControllerMethodError(controllerMethod, objectType).message
+    try:
+        context = Context(environment);
+        environment.frontController.validate(request)
     
+        # Get the controller for the type in question
+        targetController = environment.frontController.getController(objectType)
+        targetMethod = getattr(targetController, controllerMethod, None)
+        
+        if callable(targetMethod):        
+            return targetMethod(request, context, controller_alias=objectType)            
+        else:
+            raise NoControllerMethodError(controllerMethod, objectType)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
+
+
 
 @route('/controller/:objectType/:controllerMethod', method='GET')
 def invokeControllerMethodGet(environment, objectType='none', controllerMethod='none'):
@@ -366,40 +417,44 @@ def invokeControllerMethodGet(environment, objectType='none', controllerMethod='
     response.header['Cache-Control'] = 'no-cache'
     response.header['Expires'] = 0
 
-    context = Context(environment);
-    environment.frontController.validate(request)
-
-    # Get the controller for the type in question
-    targetController = environment.frontController.getController(objectType)
-    targetMethod = getattr(targetController, controllerMethod, None)
-    if callable(targetMethod):
-
-        mode = request.GET.get('mode', '').strip()
-        if mode == 'bypass':
-            return targetMethod(request, context, controller_alias=objectType)
-
-        
-        targetFrameID = environment.viewManager.getFrameID(objectType, controllerMethod)    
-        frameObject = environment.contentRegistry.getFrame(targetFrameID)
-        context.frame = frameObject
-
-        inputForm = None
-        if environment.contentRegistry.hasForm(targetFrameID):            
-            inputFormClass = environment.contentRegistry.getFormClass(targetFrameID)
-            inputForm = inputFormClass()
-            inputForm.process(request.GET)
-
-        frameArgs = {}
-        frameArgs['form'] = inputForm
-        frameArgs['frame_id'] = targetFrameID
-        frameArgs['controller_alias'] = objectType
-
-        # Invoke helper function if one has been registered
-        helper = environment.contentRegistry.getHelperFunctionForFrame(targetFrameID)
-        if helper is not None:
-            extraData = helper(request, context)
-            frameArgs.update(extraData)
-        
-        return frameObject.render(request, context, **frameArgs)
-    else:
-        return NoControllerMethodError(controllerMethod, objectType).message
+    try:
+        context = Context(environment);
+        environment.frontController.validate(request)
+    
+        # Get the controller for the type in question
+        targetController = environment.frontController.getController(objectType)
+        targetMethod = getattr(targetController, controllerMethod, None)
+        if callable(targetMethod):
+    
+            mode = request.GET.get('mode', '').strip()
+            if mode == 'bypass':
+                return targetMethod(request, context, controller_alias=objectType)
+    
+            
+            targetFrameID = environment.viewManager.getFrameID(objectType, controllerMethod)    
+            frameObject = environment.contentRegistry.getFrame(targetFrameID)
+            context.frame = frameObject
+    
+            inputForm = None
+            if environment.contentRegistry.hasForm(targetFrameID):            
+                inputFormClass = environment.contentRegistry.getFormClass(targetFrameID)
+                inputForm = inputFormClass()
+                inputForm.process(request.GET)
+    
+            frameArgs = {}
+            frameArgs['form'] = inputForm
+            frameArgs['frame_id'] = targetFrameID
+            frameArgs['controller_alias'] = objectType
+    
+            # Invoke helper function if one has been registered
+            helper = environment.contentRegistry.getHelperFunctionForFrame(targetFrameID)
+            if helper is not None:
+                extraData = helper(request, context)
+                frameArgs.update(extraData)
+            
+            return frameObject.render(request, context, **frameArgs)
+        else:
+            raise NoControllerMethodError(controllerMethod, objectType)
+            
+    except Exception, err:
+        return displayErrorPage(err, context, environment)

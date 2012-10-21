@@ -1361,6 +1361,15 @@ class SConfigurator(object):
             baseTemplateFile.write(baseTemplateData)
             baseTemplateFile.close()
 
+            # Render the default error page which will show when a system-level exception is thrown
+            #
+            errorTemplate = templateManager.getTemplate('error_html_template.tpl')
+            errorTemplateData = errorTemplate.render(config = configPackage)
+            errorTemplateFilename = os.path.join('bootstrap', 'error.html')
+            errorTemplateFile = open(errorTemplateFilename, 'w')
+            errorTemplateFile.write(errorTemplateData)
+            errorTemplateFile.close()
+
             '''
             if not configPackage.formConfigs:
                 raise Exception('No form configurations in this package. Terminating.')

@@ -1,0 +1,548 @@
+
+.valid_asset_cell{
+    background-image: url('/bifrost/static/styles/images/checkmark_24h.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: inherit;
+}
+
+body {
+	font: 78.5%/1.6em "Lucida Grande", "Lucida Sans Unicode", verdana, geneva, sans-serif;
+	word-spacing:2px;
+	color: #333333;
+	margin:20px;
+	background: #f6f6f6;
+}
+
+
+* {
+	margin:0;
+	padding:0;
+	
+}
+
+#wrapper {
+	background:#fff;
+	border:3px solid #f1f1f1;
+	max-width:1200px;
+	width:expression(this.width > 320 ? "320px" : this.width);
+	min-width:760px;
+	margin:0 auto;
+	min-height: 600px;
+}
+
+
+#innerwrapper {
+	margin:1px;
+	background: top repeat-x;
+	padding:20px;
+}
+
+#header input {
+	width:150px;
+	padding:5px;
+	background:#fff;
+	border:2px solid #f6f6f6;
+	font:150% Arial;
+	color:#999;
+}
+
+#header input:hover {
+	border:2px solid #ccc;
+}
+
+#header input:focus {
+	border:2px solid #79B5D6;
+	color:#555;
+}
+
+#header form {
+	padding:27px 25px 20px 25px;
+	float:right;
+	background:#fff;
+	width:160px;
+	margin:-20px -20px 0 0 !important;
+	margin:-20px -10px 0 0;
+	border:none;
+}
+
+#header h1 {
+	float:left;
+	font:250% Arial;
+	color:#333;
+	padding:5px 20px 5px 5px;
+	border-right:1px solid #ccc;
+	margin:0 20px 0 0;
+}
+
+#header h1 a {
+	color:#333;
+	text-decoration:none;
+	border-bottom:2px solid #f6f6f6;
+}
+
+#header h1 a:hover {
+	color:#111;
+	border-bottom:2px solid #79B5D6;
+}
+
+#header h2 {
+	font:150% Arial;
+	color:#666;
+	padding:16px 0 0 0;
+	border:none;
+}
+
+#header h2 a {
+	color:#444;
+	text-decoration:none;
+	border-bottom:2px solid #f6f6f6;
+}
+
+#header h2 a:hover {
+	border-bottom:2px solid #79B5D6;
+}
+
+#header a em {
+	font-style:normal;
+	text-decoration:underline;
+}
+
+
+#nav {
+    color: silver;
+	clear:both;
+	background: #4F9EC9;
+	border-bottom:2px solid #388CBA;
+	border-top:2px solid #388CBA;
+	border-left:2px solid #388CBA;
+	border-right:2px solid #388CBA;
+	padding:10px 10px 10px 0 !important;
+	padding:4px 10px 10px 0;
+}
+
+
+#nav a {
+	color: white;
+	font:140% Trebuchet MS;
+	text-decoration:none;
+	padding:10px;
+	border: 1px solid #4F9EC9;
+}
+
+#nav a:hover {
+    border: 1px solid white;
+	background:#4e9dDD;
+}
+
+#nav a.active {
+	background:#4F9EC9;
+}
+
+#nav li {
+	display:inline;
+	list-style:none;
+	margin:0 1px 0 0;
+}
+
+#header #subnav {
+	background:#4F9EC9;
+	padding:5px 7px 7px 7px;
+	font:90% Verdana;
+	color:#DEEDF5;
+	border-bottom:2px solid #388CBA;
+	border-left:2px solid #388CBA;
+	border-right:2px solid #388CBA;
+}
+
+#header #subnav li {
+	list-style:none;
+	display:inline;
+}
+
+#header #subnav a {
+	color:#DEEDF5;
+	text-decoration:none;
+	font:100% Verdana;
+	padding:5px;
+	border-bottom:2px solid #4F9EC9;
+}
+
+#header #subnav a:hover {
+	border-bottom:2px solid #388CBA;
+	color:#fff;
+}
+
+#header #subnav a.active {
+	border-bottom:2px solid #388CBA;
+	color:#fff;
+}
+
+
+#sidebar {
+	background:#333;
+	width:200px;
+	padding:10px 20px 20px 20px;
+	float:left;
+	color:#666;
+	border-top:2px solid #000;
+	border-bottom:10px solid #000;
+}
+
+#sidebar h2 {
+	font:160% Arial;
+	color:#999;
+	margin:10px 0 10px 0;
+	background:url(../images/sidebarh2.jpg) right no-repeat;
+	border:none;
+}
+
+#sidebar h3 {
+	color:#FF8040;
+	font:90% Verdana;
+	font-weight:bold;
+	letter-spacing:2px;
+}
+
+#sidebar p {
+	margin:15px 0;
+}
+
+#sidebar p.news {
+	background:#323232;
+}
+
+#sidebar p.news a.more {
+	color:#ccc;
+	display:block;
+	text-align:right;
+	font:80% Verdana;
+	text-transform:uppercase;
+	letter-spacing:1px;
+	text-decoration:none;
+	padding:10px 0;
+}
+
+#sidebar p.news a:hover {
+	color:#98D158;
+}
+
+#sidebar .subnav {
+	border-top:1px solid #2C2C2C;
+}
+
+#sidebar .subnav li {
+	list-style:none;
+	padding:5px;
+	border-bottom:1px solid #2C2C2C;
+}
+
+#sidebar .subnav li a {	
+	color:#ccc;
+	text-decoration:none;
+	display:block;
+}
+
+#sidebar .subnav li a:hover {
+	color:#98D158;
+}
+
+#sidebar .subnav li a b {
+	float:right;
+	display:none;
+	color:#666;
+}
+
+#sidebar .subnav li a:hover b {
+	display:inline;
+}
+
+#sidebar input {
+	padding:4px;
+	background:#2c2c2c;
+	border:1px solid #222222;
+	color:#ccc;
+	font:90% Verdana;
+	width:190px;
+}
+
+#sidebarright {
+	width:170px;
+	float:right;
+	padding:10px 0 0 20px;
+	background: top left no-repeat;
+}
+
+#sidebarright p {
+	font:90% Verdana;
+	color:#777;
+	line-height:20px;
+	margin:10px 0;
+}
+
+#sidebarright h2 {
+	font:140% Arial;
+	color:#333;
+	margin:10px 0;
+	border:none;
+}
+
+#sidebarright ul {
+	margin:10px 0 10px 15px;
+	font:90% Verdana;
+}
+
+#sidebarright ul li {
+	margin:5px 0;
+}
+
+#sidebarright a {
+	border-bottom:1px dotted #eee;
+	color:#444;
+	text-decoration:none;
+}
+
+#sidebarright a:hover {
+	border-bottom:1px solid #ccc;
+}
+
+
+#content {
+	margin:0 210px 0 240px;
+	padding:20px 0 0 20px;
+}
+
+#contentnorightbar {
+	margin:0 0 0 240px;
+	background:url(../images/content.jpg) top left no-repeat;
+	padding:20px 0 0 20px;
+}
+
+p {
+	margin:15px 0;
+	line-height:22px;
+}
+
+h2 {
+	font:190% Arial;
+	color:#79B933;
+	border-bottom:2px solid #f6f6f6;
+	
+	margin-top: 15px;
+}
+
+h2 a {
+	color:#79B933;
+	text-decoration:none;
+}
+
+h2 a:hover {
+	color:#5F9128;
+}
+
+
+#footer {
+	clear:both;
+	border-top:1px solid #eee;
+	padding:10px;
+	margin:30px 0 0;
+}
+
+a {
+	color:#222;
+}
+
+a:hover {
+	text-decoration:none;
+}
+
+h3 {
+	font:140% Trebuchet MS;
+	margin:10px 0;
+}
+
+#content ul {
+	margin:15px 0 15px 0;
+	line-height:25px;
+	padding:15px 0 15px 15px;
+	border-top:1px solid #eee;
+	border-bottom:1px solid #eee;
+	color:#79B933;
+}
+#content ul span {
+	color:#444;
+}
+#contentnorightbar ul {
+	margin:15px 0 15px 20px;
+	line-height:25px;
+	padding:15px 0;
+	border-top:1px solid #eee;
+	border-bottom:1px solid #eee;
+	color:#79B933;
+}
+#contentnorightbar ul span {
+	color:#444;
+}
+
+img {
+	padding:1px;
+	background:#ccc;
+	border:4px solid #f6f6f6;
+}
+
+table{
+    margin: 10px;
+    border: 1px solid silver;
+    border-collapse: collapse;
+    font: 10pt "Lucida Grande", "Lucida Sans Unicode", verdana, geneva, sans-serif;
+}
+
+thead{
+    color: #f6f6f6;
+    background-color: gray;
+}
+
+thead th{
+    padding-left: 1em;
+    padding-right: 1em;
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+}
+
+td{
+    text-align: center;
+    padding-left: 1em;
+    padding-right: 1em;
+    padding-top: 0.6em;
+    padding-bottom: 0.6em;
+    border-right: 1px solid silver;
+}
+
+form {
+	padding: 5px;
+	border:1px solid #f6f6f6;
+}
+
+
+.right_aligned {
+	height: 10em;
+	line-height: 2em; 
+	
+	
+	
+}
+
+.right_aligned label {
+	display: block;
+	float: left;
+	clear: left;
+	width: 30%;
+	padding-right: 1em;
+	text-align: right;
+	vertical-align: baseline;
+	
+}
+
+.right_aligned select {
+	display: block;
+	float:left;
+	vertical-align: bottom;
+	position: relative;
+	
+    top: 3px;
+}
+
+.right_aligned table {
+	display: block;
+	float:left;
+	vertical-align: bottom;
+	position: relative;
+	
+    top: 3px;
+}
+
+
+
+.right_aligned input {
+	display: block;
+	float:left;
+	vertical-align: bottom;
+	position: relative;
+	width: 12em;
+    top: 3px;
+}
+
+
+.right_aligned checkbox{
+    float:left;
+    vertical-align: bottom;
+    top: 6px;
+}
+
+.right_aligned button{
+    display: block;
+	float:left;
+	vertical-align: bottom;
+	position: relative;	
+    top: 3px;
+    margin-bottom: 3px;
+    width: 5em;
+    height: 2.5em;
+}
+
+.right_aligned textarea{
+    display: block;
+    float:left;
+    vertical-align: bottom;
+    position: relative;
+	width: 32em;
+	height: 6em;
+	top: 3px;
+	margin-bottom: 3px;
+}
+
+/*
+label {
+	display:block;
+	font-weight:bold;
+	color:#444;
+	margin:5px 0;
+
+}
+
+input {
+	width:300px;
+	padding:4px;	
+	font:90% Verdana;
+	color:#777;
+}
+
+textarea {
+	width:400px;
+	padding:4px;
+	font:90% Verdana;
+	border:1px solid #eee;
+	height:200px;
+	display:block;
+	color:#777;
+}
+*/
+
+/* css for timepicker */
+.ui-timepicker-div .ui-widget-header{ margin-bottom: 8px; }
+.ui-timepicker-div dl{ text-align: left; }
+.ui-timepicker-div dl dt{ height: 25px; }
+.ui-timepicker-div dl dd{ margin: -25px 0 10px 65px; }
+.ui-timepicker-div td { font-size: 90%; }
+
+p img {
+	float:left;
+	margin:0 10px 0 0;
+}
+
+blockquote p {
+	font:160% Georgia;
+	color:#aaa;
+	padding:0 10% 0 0;
+	line-height:30px;
+}

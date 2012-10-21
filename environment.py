@@ -428,6 +428,11 @@ class Environment():
             creg.addFrame(HTMLFrame(selectControlTemplateObject), 'select_control')
             creg.addFrame(HTMLFrame(tableTemplateObject), 'table')
             creg.addFrame(HTMLFrame(radioGroupTemplateObject), 'radio_group_control')
+            
+            # the frame we use to render exceptions
+            errorTemplateObject = self.templateManager.getTemplate('error.html')
+            errorFrameObject = self._createFrame(errorTemplateObject)
+            creg.addFrame(HTMLFrame(errorTemplateObject), 'error_frame')
 
 
       def mapFramesToViews(self):

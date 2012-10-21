@@ -34,11 +34,13 @@ class MissingDataSourceParameterError(Exception):
         % (dataSourceClass.__name__, requiredParameterArray)
         Exception.__init__(self, message)
 
+
 class MissingControlParameterError(Exception):
     def __init__(self, controlClass, requiredParameterArray):
         message = '%s init call is missing one or more of the following required parameters: %s' \
          % (controlClass.__name__, requiredParameterArray)
         Exception.__init__(self, message)
+
 
 class UnsupportedDataSourceTypeError(Exception):
     def __init__(self, dataSourceType):
@@ -48,13 +50,13 @@ class UnsupportedDataSourceTypeError(Exception):
 
 class UnsupportedControlTypeError(Exception):
     def __init__(self, controlType):
-        message = 'Control type %s is not suported.' % controlType
+        message = 'UIControl type %s is not supported.' % controlType
         Exception.__init__(self, message)
 
 
 class NoSuchUIControlError(Exception):
-    def __init_(self, controlID):
-        message = 'No UI control object has been registered under the name %s.' % controlID
+    def __init__(self, controlID):
+        message = 'No UIControl has been registered under the alias %s.' % controlID
         Exception.__init__(self, message)
 
 
@@ -69,6 +71,7 @@ class BadSQLDataSourceConditionError(Exception):
         message = 'Badly formatted condition string [%s] passed to SQLDataSource.' % conditionString
         Exception.__init__(self, message)
         
+        
 class MissingConditionVariableError(Exception):
     def __init__(self, sqlCondition):
         message = \
@@ -76,6 +79,8 @@ class MissingConditionVariableError(Exception):
         % (sqlCondition.predicate, sqlCondition)
         
         Exception.__init__(self, message)
+
+
 
 class JinjaTemplateManager:
     def __init__(self, environment):
