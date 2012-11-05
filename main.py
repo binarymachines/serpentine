@@ -96,7 +96,10 @@ def invokeLoginGet(environment):
         loginFrame = environment.contentRegistry.getFrame('login')
         return loginFrame.render(request, context)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 
 
@@ -139,7 +142,10 @@ def invokeResponderGet(environment, responderID='none'):
         responder = environment.responderMap[responderID]
         return responder.respond(request, context)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
         
     
 
@@ -164,7 +170,10 @@ def invokeUIControlGet(environment, controlID='none'):
         
         return control.render(request, context, **params)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 
 @route('/frame/:frameID', method='GET')
@@ -244,7 +253,10 @@ def generateReport(environment, reportID = 'none'):
         reportMgr = environment.reportManager
         return reportMgr.runReport(reportID, request, context)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 
 @route('/event/:eventtype')
@@ -256,7 +268,10 @@ def handleEvent(environment, eventtype = 'none'):
         status = environment.dispatcher.handleEvent(newEvent)
         return str(status)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 #
 # Invoking the controller update() in this mode looks up the object with the specified ID
@@ -275,7 +290,10 @@ def invokeControllerUpdateGet(environment, objectType = 'none', objectID = 'none
         session[controller.typeSpecificIDSessionTag] = objectID
         return controller.update(objectID, request, context)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
     
         
         
@@ -299,7 +317,10 @@ def invokeControllerUpdatePost(environment, objectType= 'none', objectID = 'none
     
         return controller.update(objectID, request, context)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 
 
@@ -312,7 +333,10 @@ def invokeControllerUpdatePost(environment, objectType = 'none', objectID = 'non
         controller = environment.frontController.getController(objectType)    
         return controller.update(objectID, request, context)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 #
 # Brings up the delete confirmation page.
@@ -355,7 +379,10 @@ def invokeControllerDeleteGet(environment, objectType='none', objectID='none'):
         frameObject = context.contentRegistry.getFrame(targetFrameID)
         return frameObject.render(request, context, **frameArgs)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 
 #
@@ -369,7 +396,10 @@ def invokeControllerDeletePost(environment, objectType='none', objectID='none'):
         controller = environment.frontController.getController(objectType)    
         return controller.delete(objectID, request, context)
     except Exception, err:
-        return displayErrorPage(err, context, environment)    
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
             
 #
 # Invokes the index() method on the controller for the selected type.
@@ -383,7 +413,10 @@ def invokeControllerIndex(environment, objectType = 'none'):
         controller = environment.frontController.getController(objectType)
         return controller.index(request, context)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 
 #
@@ -411,7 +444,10 @@ def invokeControllerIndexPaging(environment, objectType = 'none', pageNum = 'non
     
         return controller.indexPage(int(pageNum), request, context)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 #
 # Issuing a controller insert() will either display a form or perform an insert,
@@ -445,7 +481,10 @@ def invokeControllerInsertGet(environment, objectType = 'none'):
         frameObject = context.contentRegistry.getFrame(frameID)
         return frameObject.render(request, context, **frameArgs)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 
 
@@ -458,7 +497,10 @@ def invokeControllerInsertPost(environment, objectType = 'none'):
     
         return controller.insert(request, context)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 
 @route('/controller/:objectType/:controllerMethod', method = 'POST')
@@ -480,7 +522,10 @@ def invokeControllerMethodPost(environment, objectType='none', controllerMethod=
         else:
             raise NoControllerMethodError(controllerMethod, objectType)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 
 
@@ -530,4 +575,7 @@ def invokeControllerMethodGet(environment, objectType='none', controllerMethod='
             raise NoControllerMethodError(controllerMethod, objectType)
             
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
