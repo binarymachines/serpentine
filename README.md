@@ -63,7 +63,7 @@ And then in your client-side javascript you can render say
 (if you reference serpentine.js):
 
 ````javascript
-renderControl("MyWidgetApp, "widget_style_selector", "target_div");
+renderControl("MyWidgetApp", "widget_style_selector", "target_div");
 ````
 
 to render an HTML dropdown control within the target div, where the options in the dropdown
