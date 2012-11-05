@@ -80,7 +80,7 @@
     <div class="twelve columns">
       <div class="panel">
         <h3>Login.</h3>
-        <p>{% config.app_name %} user login page</p>
+        <p>{{ config.app_name }} user login page</p>
       </div>
     </div>
   </div>
@@ -99,8 +99,8 @@
         <div class="one column"><i class="foundicon-right-arrow" style="font-size:28pt; color:blue"></i></div>
         <div class="eleven columns">
 
-          <form class="" method="POST" action="/{% config.url_base %}/login">
-            <<div class="row">
+          <form class="" method="POST" action="/{{ config.url_base }}/login">
+            <div class="row">
                 <div class="two mobile-one columns">
                     <label class="right inline">Username:</label>
                 </div>

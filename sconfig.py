@@ -1337,6 +1337,16 @@ class SConfigurator(object):
                 controllerPkgFile.close()
 
 
+    def generateSingleTemplate(self, sourceTemplateFilename, outputTemplateFilename, configPackage, templateManager):
+        
+        templateObject = templateManager.getTemplate(sourceTemplateFilename)
+        templateData = templateObject.render(config = configPackage)
+        outputTemplateFullPath = os.path.join('bootstrap', outputTemplateFilename)
+        templateFile = open(outputTemplateFullPath, 'w')
+        templateFile.write(templateData)
+        templateFile.close()
+        
+
     def generateApplicationTemplates(self, configPackage, templateManager):
         """Create the master template files for the application under construction"""
 
@@ -1348,8 +1358,11 @@ class SConfigurator(object):
         generatedFiles = {}
         frames = {}
         try:
+            # TDOD: Factor these sections down into a series of function calls
             # First render the base HTML template from which our other templates will inherit
             #
+            # self.generateSingleTemplate('base_html_template.tpl', 'base_template.html', configPackage, templateManager)
+            
             baseTemplate = templateManager.getTemplate('base_html_template.tpl')
             baseTemplateData = baseTemplate.render(config = configPackage)
             baseTemplateFilename = os.path.join('bootstrap', 'base_template.html')
@@ -1366,6 +1379,24 @@ class SConfigurator(object):
             errorTemplateFile.write(errorTemplateData)
             errorTemplateFile.close()
 
+            # The default login page
+            loginTemplate = templateManager.getTemplate('login_html_template.tpl')
+            loginTemplateData = loginTemplate.render(config = configPackage)
+            loginTemplateFilename = os.path.join('bootstrap', 'login.html')
+            loginTemplateFile = open(loginTemplateFilename, 'w')
+            loginTemplateFile.write(loginTemplateData)
+            loginTemplateFile.close()
+            
+            
+            # The default access-denied page which will show if a user lacks the privileges
+            # to access a secured object
+            deniedTemplate = templateManager.getTemplate('denied_html_template.tpl')
+            deniedTemplateData = deniedTemplate.render(config=configPackage)
+            deniedTemplateFilename = os.path.join('bootstrap', 'denied.html')
+            deniedTemplateFile = open(deniedTemplateFilename, 'w')
+            deniedTemplateFile.write(deniedTemplateData)
+            deniedTemplateFile.close()
+            
             '''
             if not configPackage.formConfigs:
                 raise Exception('No form configurations in this package. Terminating.')
