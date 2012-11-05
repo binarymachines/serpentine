@@ -882,13 +882,13 @@ class ViewManager:
         self.contentRegistry = contentRegistry
         self.frameMap = {}
 
-    def mapFrameID(self, frameID, objectType, controllerMethod):
-        self.frameMap[(objectType, controllerMethod)] = frameID
+    def mapFrameID(self, frameID, controllerID, controllerMethod):
+        self.frameMap[(controllerID, controllerMethod)] = frameID
         
-    def getFrameID(self, objectType, controllerMethod):
-        if (objectType, controllerMethod) not in self.frameMap:
-            raise NoSuchViewError(objectType, controllerMethod)
-        return self.frameMap[(objectType, controllerMethod)]
+    def getFrameID(self, controllerID, controllerMethod):
+        if (controllerID, controllerMethod) not in self.frameMap:
+            raise NoSuchViewError(controllerID, controllerMethod)
+        return self.frameMap[(controllerID, controllerMethod)]
 
 
 

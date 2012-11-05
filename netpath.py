@@ -27,13 +27,18 @@ class NetPathStartupPlugin(object):
             environment.mapFramesToViews()
             environment.assignStylesheetsToXMLFrames()
             environment.initializeDataStore()
+            
             environment.initializeEventDispatcher()
             environment.mapModelsToDatabase()
             environment.loadResponders()
             environment.loadDatasources()
+           
             environment.loadControls()
             environment.dispatcher = EventDispatcher()
             environment.initializeReporting()
+            
+            environment.initializeSecurity()
+            
             self.environment = environment
             self.keyword = 'environment'
 

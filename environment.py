@@ -12,6 +12,7 @@ from content import *
 from db import *
 from events import *
 from core import *
+from security import *
 import content
 from reporting import *
 from metaobjects import *
@@ -19,8 +20,16 @@ from metaobjects import *
 from sqlalchemy.orm import mapper
 from sqlalchemy.exc import SQLAlchemyError
 
-logging.basicConfig( filename = 'bifrost.log', level = logging.INFO, format = "%(asctime)s - %(message)s" )
-log = logging.info
+
+
+class InvalidConfigFileFormatError(Exception):
+    def __init__(self, message):
+        Exception.__init__(self, message)
+
+class MissingGlobalConfigSectionError(Exception):
+    def __init__(self, configSection):
+        Exception.__init__(self, 'The application config file is missing the global configuration section "%s".' % configSection)
+
 
 
 
@@ -85,6 +94,7 @@ class Environment():
             self.classLoader = ClassLoader()
             self.templateManager = None
             self.persistenceManager = None
+            self.securityManager = None
             self.persistenceManagerMap = {}
             self.displayManager = None
             self.frontController = None
@@ -114,7 +124,9 @@ class Environment():
                                      'default_datasource_package', 
                                      'default_report_package', 
                                      'startup_db', 
-                                     'url_base']
+                                     'security_posture',
+                                     'url_base',
+                                     'login_template']
 
             apiSectionSettings = ['api_frame', 
                                   'doc_frame', 
@@ -208,8 +220,8 @@ class Environment():
           self.hostname = wsgiConfig.host
           self.port = wsgiConfig.port
 
-                  
-
+      
+                     
       def bootstrap(self, initFileName):
             """Find and read an initialization file for startup.
             bootstrap() looks for a config file named <initFileName> 
@@ -220,7 +232,19 @@ class Environment():
                   f = open(initFileName)
                   config = yaml.load(f.read())
                   log('Opened config file, reading settings...')
-
+                  
+                  if not config.get('global'):
+                      raise InvalidConfigFileFormatError('Application config file is missing the "global" configuration section.')
+                  
+                  #TODO: verify correct config file format using assertions
+                  missingSetting = None
+                  try:                      
+                      for setting in self.configSections['global']:
+                          missingSetting = setting
+                          assert config['global'].get(setting)
+                  except AssertionError:
+                      raise MissingGlobalConfigSectionError(missingSetting)
+                    
                   self.appName = config['global']['app_name']
                   self.appVersion = config['global']['app_version']
 
@@ -259,7 +283,141 @@ class Environment():
                   raise err
             finally:
                   pass
+
+
+      def initializeSecurity(self):        
+                 
+            userAuthenticator = SQLUserAuthenticator(self.persistenceManager)
+            idGenerator = IDGenerator()
+            authTokenLifespanSeconds = 3600
+            loggingAgent = SecurityLoggingAgent()
+            
+            posture = self.config['global'].get('security_posture', 'open') # default to an open security posture
+            if posture == SecurityPosture.OPEN or posture == SecurityPosture.CLOSED:
+                self.securityPosture = posture
+            else:
+                raise Exception('Unrecognized security posture "%s" specified in config. Accepted values are "open" and "closed".' % posture)
+                
+            self.securityManager = SecurityManager(userAuthenticator, idGenerator, authTokenLifespanSeconds, loggingAgent)
+            
+            registry = self.config.get('security_registry')
+            
+            if registry:
+                securedObjectGroups = registry['secured_object_groups']
+    
+                for objectGroup in securedObjectGroups:
+                    objectType = securedObjectGroups[objectGroup]['object_type']
+                    denialRedirectRoute = securedObjectGroups[objectGroup]['denial_redirect_route']
+                    
+                    # the memberListString should be in the form
+                    #
+                    # (designator1[, designator2]. . . )
+                    #
+                    # where each designator is the name of an object
+                    # in the group. Wildcard matches are accepted;
+                    # for example, members: (*) for an object group 
+                    # whose object_type is "frame" will yield a list of all
+                    # registered frames. members: (*.index) for an object
+                    # group of type "method" will yield a list containing
+                    # every registered Controller's index method.
+                    #
+                    memberListString = securedObjectGroups[objectGroup]['members']
+                    groupMembers = self._findObjectAliases(memberListString, objectType)
+                    
+                    # The login frame must never be secured, so remove it if present
+                    if objectType == ObjectType.FRAME:
+                        if 'login' in groupMembers:
+                            groupMembers.remove('login')
+                        
+                    # first secure the named objects in the group. This does not
+                    # (necessarily) deny access to the object; it simply directs
+                    # the SecurityManager to create an empty ACL for the object
+                    #
+                    for objectID in groupMembers:
+                        self.securityManager.secureObject(objectID, objectType, denialRedirectRoute)
+                    
+                        # now explicitly grant or deny permissions on the secured object,
+                        # according to the init file
+                        
+                        permissionsArray = securedObjectGroups[objectGroup]['permissions']
+                        self.securityManager.configureObjectAccess(objectID, objectType, permissionsArray)
+                        
+                        
       
+      
+      def _findObjectAliases(self, memberListString, objectType):
+           
+           # remove the parentheses
+           setDesignator = memberListString.strip('(').rstrip(')')
+           if objectType == 'frame':
+                return self.getFrameIDs(setDesignator)
+           if objectType == 'method': 
+                return self.getMethodIDs(setDesignator)
+      
+      
+      def getFrameIDs(self, setDesignator):
+           if setDesignator == '*':
+                return self.contentRegistry.frames.keys()
+           else:
+                frameIDList = [id.strip() for id in setDesignator.split(',')]
+                return [frameID for frameID in frameIDList if frameID in self.contentRegistry.frames]
+      
+      
+      
+      def getMethodIDs(self, setDesignator):
+            results = []
+            controllerIDMethodTuples = self.viewManager.frameMap.keys()
+            if setDesignator == '*.*':                                
+                for element in controllerIDMethodTuples:
+                    results.append('%s.%s' % (element[0], element[1]))
+            else:
+                methodIDList = [id.strip() for id in setDesignator.split(',')]
+                for methodID in methodIDList:
+                    # TODO: verify correct method ID format using regex match.
+                    # THe method identifier may have a wildcard character in 
+                    # either position; for example:
+                    #
+                    #   Controller.*
+                    #   or
+                    #   *.methodName
+                    #
+                    # so account for that first.
+                                        
+                    methodWildcardRX = re.compile(r'[a-zA-Z_]+[.][*]')
+                    controllerWildcardRX = re.compile(r'[*][.][a-zA-Z_]+')
+                    methodNameRX = re.compile(r'[a-zA-Z_]+[.][a-zA-Z_]+')
+                    
+                    if methodWildcardRX.match(methodID):
+                        # the designator ControllerX.* should return
+                        # all the exposed methods of ControllerX
+                        #                         
+                        controllerName = methodID[0:methodID.index('.')]
+                        for tuple in controllerIDMethodTuples:
+                            if tuple[0] == controllerName:
+                                results.append('%s.%s' % (tuple[0], tuple[1]))
+                    
+                    elif controllerWildcardRX.match(methodID):
+                        # the designator *.methodX should return 
+                        # all methods named methodX from every 
+                        # registered Controller
+                        #
+                         methodName = methodID[methodID.index('.')+1:]
+                         for tuple in controllerIDMethodTuples:
+                            if tuple[1] == methodName:
+                                results.append('%s.%s' % (tuple[0], tuple[1]))
+                    
+                    elif methodNameRX.match(methodID):
+                        # the designator ControllerX.methodX
+                        # should return only the named method
+                        #
+                        controllerName = methodID[0:methodID.index('.')] 
+                        methodName = methodID[methodID.index('.')+1:]
+                    
+                        if (controllerName, methodName) in controllerIDMethodTuples:
+                            results.append(methodID)
+                    
+            return results
+
 
       def loadDatasources(self):
             if not self.config.get('datasources'):
@@ -353,9 +511,9 @@ class Environment():
                              templateName = self.config['responders'][className]['template']
                              responder.template = self.templateManager.getTemplate(templateName)
 
-
                         responderAlias = self.config['responders'][className]['alias']
                         self.responderMap[responderAlias] = responder
+
       
       def _createFrame(self, templateObject):
             if templateObject.filename.endswith('html') or templateObject.filename.endswith('tpl'):
@@ -370,9 +528,6 @@ class Environment():
 
                   templateName = self.config['content_registry']['frames'][frameID]['template'] # the underlying filename
                   templateObject = self.templateManager.getTemplate(templateName)
-                  
-                  
-                  
                   frameObject = self._createFrame(templateObject)
 
                   if frameObject is None:
@@ -383,8 +538,7 @@ class Environment():
                         formPkg = self.config['global']['default_form_package']
                         fqFormClassname = formPkg + '.'
                         fqFormClassname = fqFormClassname + form
-                        formClass = self.classLoader.loadClass(fqFormClassname)
-                        
+                        formClass = self.classLoader.loadClass(fqFormClassname)                        
                         creg.addFrame(frameObject, frameID, formClass)
                   else:
                         creg.addFrame(frameObject, frameID)
@@ -396,6 +550,16 @@ class Environment():
                         fqFunctionName = '.'.join([helperPkg, helperFunctionName])
                         helperFunction = self.classLoader.loadClass(fqFunctionName)  # not a "class" really, but so what?
                         creg.setHelperFunctionForFrame(frameID, helperFunction)
+
+            # Security: every Serpentine app has a login frame.
+            # Users do not need to explicitly register this frame;
+            # they only need to specify the login_template as a filename
+            # in the global config section. Its alias will always be 'login'.
+            #
+            loginTemplateName = self.config['global']['login_template']
+            loginTemplateObject = self.templateManager.getTemplate(loginTemplateName)
+            loginFrame = self._createFrame(loginTemplateObject)
+            creg.addFrame(loginFrame, 'login')
 
             # self-documenting features
             # users do not need to explicitly register the documentation frames,
@@ -448,6 +612,7 @@ class Environment():
             
             self.viewManager = viewManager
             return viewManager
+
             
       def assignStylesheetsToXMLFrames(self):            
             displayManager = DisplayManager(self.xslStylesheetPath)
@@ -484,6 +649,7 @@ class Environment():
             
             self.persistenceManager = self.persistenceManagerMap[startupDBName]
             return self.persistenceManager
+
 
       def mapModelsToDatabase(self):
             # TODO: add logic to extract model aliases from the config if they've been provided

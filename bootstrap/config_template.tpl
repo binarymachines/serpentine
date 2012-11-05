@@ -20,6 +20,8 @@ global:
         default_report_package:         {{ config.default_reporting_package }}
         startup_db:                     {{ config.startup_db }}
         url_base:                       {{ config.url_base }}
+        security_posture:               open
+        login_template:                 login.html
         
 # experimental support for self-documenting features
         api_frame:                      api.html
@@ -31,6 +33,28 @@ global:
         # control_frame:                control_frame.html
         # datasource_frame:             datasource_frame.html
         #helper_frame:                  helper_frame.html
+
+
+
+security_registry:
+    secured_object_groups:
+            frames_default:
+                    object_type:            frame
+                    members:                ()
+                    permissions:
+                                            - action: render                                         
+                                              access: allow(&users), deny(&guests)                         
+                    denial_redirect_route:  frame/login
+                                        
+            methods_default:
+                    object_type:            method
+                    members:                () 
+                    permissions:
+                                            - action: call
+                                              access: allow(&users), deny(&guests)
+                    denial_redirect_route:  frame/deny 
+
+
 
 #        
 # Each entry in the content registry under 'frames' is a frame ID.

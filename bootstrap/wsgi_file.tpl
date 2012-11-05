@@ -5,7 +5,9 @@ sys.path = [os.path.dirname(__file__)] + sys.path
 
 
 os.sitedir = '/Library/Python/2.7/site-packages'
-
+eggFiles = [file for file in os.listdir(os.sitedir) if file[-3:] == 'egg']
+for item in eggFiles:
+    sys.path = [os.path.join(os.sitedir, item)] + sys.path
 
  
 

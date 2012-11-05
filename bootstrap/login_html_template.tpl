@@ -16,7 +16,7 @@
 	<title>
     
         {% block title %}
-            {{ config.app_name }} Error Page
+            {{ config.app_name }} Login Page
         {% endblock %}
     
     </title>
@@ -79,8 +79,8 @@
   <div class="row">
     <div class="twelve columns">
       <div class="panel">
-        <h3>Error.</h3>
-        <p>{{ config.app_name }} error handler page</p>
+        <h3>Login.</h3>
+        <p>{% config.app_name %} user login page</p>
       </div>
     </div>
   </div>
@@ -96,27 +96,35 @@
       
       <!-- Feed Entry -->
       <div class="row">
-        <div class="one column"><i class="foundicon-remove" style="font-size:28pt; color:red"></i></div>
+        <div class="one column"><i class="foundicon-right-arrow" style="font-size:28pt; color:blue"></i></div>
         <div class="eleven columns">
-          <h6><strong>Exception: {% raw %}{{exception.__class__.__name__}}{% endraw %}.</strong></h6>
-          ({% raw %}{{exception.message}}{% endraw %})</p>
-          <!--
-          <ul class="link-list">
-            <li><a href="">Reply</a></li>
-            <li><a href="">Share</a></li>
-          </ul>
-          -->
-          
-          <h6><strong>Stacktrace:</strong></h6>
-          {% raw %}
-          {% for entry in stacktrace %}
-          <div class="row">            
-            <div class="twelve columns">
-                <p>File: {{ entry[0] }}, line {{ entry[1] }} <br/>Function: {{ entry[2] }}(...)</p>
-            </div>            
-          </div>
-          {% endfor %}
-          {% endraw %}
+
+          <form class="" method="POST" action="/{% config.url_base %}/login">
+            <<div class="row">
+                <div class="two mobile-one columns">
+                    <label class="right inline">Username:</label>
+                </div>
+                <div class="ten mobile-three columns">
+                    <input type="text" class="four" name="username"/>
+                </div>                
+            </div>
+            <div class="row">
+                <div class="two mobile-one columns">
+                    <label class="right inline">Password:</label>
+                </div>
+                <div class="ten mobile-three columns">
+                    <input type="password" class="four" name="password"/>
+                </div>                
+            </div>
+            <div class="row">
+                <div class="three mobile-two columns">
+                    &nbsp;
+                </div>
+                <div class="nine mobile-three columns">
+                    <input id="submit_button" type="submit" value="Login"/>
+                </div>
+            </div>
+          </form>
         </div>
       </div>
       
@@ -135,7 +143,7 @@
         </div>
         <div class="six columns">
           <ul class="link-list right">
-            <li><a href="#">Section 1</a></li>
+            
             
           </ul>
         </div>

@@ -17,7 +17,7 @@ from core import *
 from events import *
 from reporting import *
 from environment import *
-
+from security import *
 
 
 #------ Main module: routing & control --------
@@ -50,8 +50,7 @@ def index(environment):
     redirect("/%s/frame/home" % environment.config['global']['url_base'])
 
 
-def getAPIMap(environment):
-    
+def getAPIMap(environment):    
     configuration = environment.config
     apiReply = {}
     apiReply['app_name'] = environment.getAppName()
@@ -78,7 +77,6 @@ def describeController(environment, controllerName='none'):
     context = Context(environment)
     apiMap = getAPIMap(environment) 
     
-
     controllerFrame = environment.contentRegistry.getFrame('controller')
     return controllerFrame.render(request, 
                                   context, 
@@ -88,12 +86,47 @@ def describeController(environment, controllerName='none'):
 @route('/env')
 def env(environment):
     return "Placeholder for environment info page"
+
+
+
+@route('/login', method='GET')
+def invokeLoginGet(environment):
+    context = Context(environment)
+    try:
+        loginFrame = environment.contentRegistry.getFrame('login')
+        return loginFrame.render(request, context)
+    except Exception, err:
+        return displayErrorPage(err, context, environment)
+
+
+
+@route('/login', method='POST')
+def invokeLoginPost(environment):
+    context = Context(environment)
+    securityManager = environment.securityManager
+    try:
+        httpSession = request.environ['beaker.session']
+        #raise Exception(httpSession.keys())
+        #sessionID = httpSession.id
+        securityManager.login(request)
+        redirect('/bifrost/frame/home')
+    except SecurityException, err:
+        return displayErrorPage(err, context, environment)
     
+
+
+@route('/logout', method='GET')
+def invokeLogoutGet(environment):
+    securityMgr = environment.securityManager
+    securityMgr.clearAuthToken(request)
+    redirect(securityMgr.loginRedirectRoute)
+
+
 
 @route('/responder/:responderID', method='GET')
 def invokeResponderGet(environment, responderID='none'):
 
-    response.header['Cache-Control'] = 'no-cache'
+    response.headers['Cache-Control'] = 'no-cache'
     
     try:
         context = Context(environment)
@@ -134,12 +167,49 @@ def invokeUIControlGet(environment, controlID='none'):
         return displayErrorPage(err, context, environment)
 
 
-@route('/frame/:frameID')
+@route('/frame/:frameID', method='GET')
 def handleFrameRequest(environment, frameID='none'):
-    response.header['Cache-Control'] = 'no-cache'
-    
+    response.headers['Cache-Control'] = 'no-cache'
+    accessGranted = False
+    context = Context(environment)
     try:
-        context = Context(environment)
+        httpSession = request.environ['beaker.session']
+        securityMgr = environment.securityManager
+        loginRedirectTarget = '/%s/%s' % (environment.urlBase, securityMgr.loginRedirectRoute)
+        
+        if environment.securityPosture == SecurityPosture.CLOSED:
+            # in a CLOSED security posture, all users need an auth token.
+            # Papers, please!
+            authToken = securityMgr.getAuthToken(request, environment)
+            if not authToken:
+                # TODO: make this a SECURITY redirect, to hold the user's place 
+                # and send them back to the current route once their credentials are
+                # in order
+                redirect(loginRedirectTarget)
+            
+            validationStatus = securityMgr.validateObjectRequest(authToken, frameID, ObjectType.FRAME, environment.securityPosture)
+            if not validationStatus.ok:
+                objectRedirectTarget = '/%s/%s' % (environment.getAppRoot(), validationStatus.redirectRoute)
+                redirect(objectRedirectTarget)                                        
+        else:
+            # in an OPEN security posture, user only needs an auth token 
+            # when accessing a secured object
+            
+            if securityMgr.objectIsSecured(frameID, ObjectType.FRAME):
+                authToken = securityMgr.getAuthToken(request, environment)
+                if not authToken:
+                    redirect(loginRedirectTarget)
+
+                validationStatus = securityMgr.validateObjectRequest(authToken, 
+                                                                    frameID, 
+                                                                    ObjectType.FRAME, 
+                                                                    ActionType.RENDER, 
+                                                                    environment.securityPosture)                
+                if not validationStatus.ok:                    
+                    objectRedirectTarget = '/%s/%s' % (environment.getURLBase(), validationStatus.redirectRoute)                    
+                    redirect(objectRedirectTarget)                                        
+           
+        # If they've made it here without being redirected, they're OK     
         frameArgs ={}
         # this frame  may or may not have an associated Form
         inputForm = None
@@ -161,7 +231,10 @@ def handleFrameRequest(environment, frameID='none'):
         frameArgs['frame_id'] = frameID
         return environment.contentRegistry.getFrame(frameID).render(request, context, **frameArgs)
     except Exception, err:
-        return displayErrorPage(err, context, environment)
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)
 
 
 @route('/report/:reportID', method='GET')
