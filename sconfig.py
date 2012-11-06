@@ -307,8 +307,9 @@ class SConfigurator(object):
                 else:                                        
                     self.setupUIControls(uiControlConfigs, datasourceConfigs, databaseInstance, environment, screen)
                   
-                    for name in uiControlConfigs:                
-                        configPackage.addUIControlConfig(uiControlConfigs[name], name)
+                    configPackage.controls.update(uiControlConfigs)
+                    configPackage.datasources.update(datasourceConfigs)
+                    
 
             if mainMenuPrompt.selectedIndex == 6: # Code Generator
                 self.generateCodeSegments(configPackage, uiControlConfigs, environment, templateManager, screen)
@@ -786,7 +787,7 @@ class SConfigurator(object):
                   
             if prompt.selectedIndex == 3: #  Auto-generate from lookup tables
                 self._autoGenerateControls(uiControls, datasourceConfigs, databaseInstance, environment, screen)
-
+                
           return 
 
 
