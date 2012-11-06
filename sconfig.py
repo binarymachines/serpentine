@@ -306,9 +306,9 @@ class SConfigurator(object):
                     screen.getch()
                 else:                                        
                     self.setupUIControls(uiControlConfigs, datasourceConfigs, databaseInstance, environment, screen)
-                  
-                    for name in uiControlConfigs:                
-                        configPackage.addUIControlConfig(uiControlConfigs[name], name)
+                    configPackage.controls.update(uiControlConfigs)
+                    configPackage.datasources.update(datasourceConfigs)
+
 
             if mainMenuPrompt.selectedIndex == 6: # Code Generator
                 self.generateCodeSegments(configPackage, uiControlConfigs, environment, templateManager, screen)
