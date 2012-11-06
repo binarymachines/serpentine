@@ -19,7 +19,8 @@ content_registry:
 ````
 
 Register a controller like this:
-(the model classes are generated automatically from your database schema, or you can write your own)
+(the model and controller classes are generated automatically from your database schema, 
+or you can write your own)
 
 ````yaml
 controllers:
