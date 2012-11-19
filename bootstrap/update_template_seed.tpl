@@ -36,6 +36,7 @@
             {% endif %}
             {% endfor %}
 		
-		    <label for="submit_button">&nbsp;</label><input id="submit_button" type="submit" value="Save"/>
+		    <label for="submit_button">&nbsp;</label>
+            <input id="submit_button" type="submit" value="Save" class="small button"/>
 	     </form>
 {% raw %}{% endblock %}{% endraw %}

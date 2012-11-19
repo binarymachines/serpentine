@@ -135,6 +135,8 @@ class SConfigurator(object):
           tempName = tableName
           if tableName[-3:] == 'ies':
               tempName = tableName[0:-3] + 'y'
+          elif tableName[-2:] == 'es':
+              tempName = tableName[0:-2] 
           elif tableName[-1:] == 's':
               tempName = tableName[0:-1]
 
