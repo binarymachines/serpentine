@@ -1,11 +1,11 @@
 Serpentine
 ==========
 
-A new Python web application stack built on top of the bottle web framework. 
-It's MVC, database-forward, tweak-friendly, AJAX- and JSON-aware.
+A new Python web application stack built on top of the bottle HTTP 
+microframework. It's MVC, database-forward, tweak-friendly, AJAX- and JSON-aware.
 It deals with complexity in an intelligent way -- while letting
-simple things be simple. Build CRUD apps or RESTful API's quickly
-and reusably.
+simple things be simple. Build CRUD apps, RESTful API's, or back ends 
+for mobile applications quickly and reusably.
 
 
 * Single point of configuration (YAML config file). Create a view like this:
@@ -65,14 +65,14 @@ datasources:
             table:          lookup_widget_styles  # this table must exist in your schema
 ````
 
-And then in your client-side javascript you can render say
-(once you reference serpentine.js):
+And then in your client-side javascript (once you reference serpentine.js) you can say:
+
 
 ````javascript
 renderControl("MyWidgetApp", "widget_style_selector", "target_div");
 ````
 
-to render an HTML dropdown control within the target div, where the options in the dropdown
+to render an HTML select control within the target div, where the options in the dropdown
 are provided by the server-side datasource.
 
 
@@ -107,7 +107,7 @@ and then invoke it via URL:
 http://localhost:port/serpentine/responder/myresp
 ````
 
-
+to pull down the JSON emitted by the target responder.
 
 
         
