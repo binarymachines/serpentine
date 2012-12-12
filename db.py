@@ -103,6 +103,18 @@ class MySQLDatabase(Database):
         return "%s://%s:%s@%s/%s" % (self.dbType, username, password, self.host, self.schema)
 
 
+class PostgreSQLDatabase(Database):
+    """A Database type for connecting to PostgreSQL instances."""
+
+    def __init__(self, host, schema, port='5432'):
+        Database.__init__(self, "postgresql+psycopg2", host, schema)
+        self.port =  port
+        
+        
+    def __createURL__(self, dbType, username, password):
+        return "%s://%s:%s@%s:%s/%s" % (self.dbType, username, password, self.host, self.port, self.schema)
+        
+
 class NoSuchPluginError(Exception):
     def __init__(self, pluginName):
         Exception.__init__(self, "No plugin registered under the name '%s'." % pluginName)

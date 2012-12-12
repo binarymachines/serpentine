@@ -44,6 +44,7 @@ def displayErrorPage(exception, context, environment):
 def serve_static_file(path, environment):
     return static_file(path, root=environment.staticFilePath)
 
+
 @route('/')
 def index(environment):
     # TODO: add full diagnostics to splash page; make splash user-configurable
@@ -60,7 +61,6 @@ def getAPIMap(environment):
     apiReply['helper_list'] = environment.getHelperFunctions()
     apiReply['model_list'] = [ model for model in environment.frontController.controllerMap.keys() ]
     apiReply['responder_map'] = environment.responderMap
-
     return apiReply
     
 
@@ -70,6 +70,7 @@ def describe(environment):
     apiReply = getAPIMap(environment)
     apiFrame = environment.contentRegistry.getFrame('api')
     return apiFrame.render(request, context, **apiReply)
+
 
 
 @route('/api/controller/:controllerName', method='GET')
@@ -137,8 +138,7 @@ def invokeResponderGet(environment, responderID='none'):
     
         if not responderID in environment.responderMap:
             raise NoSuchResponderError(responderID)
-    
-    
+        
         responder = environment.responderMap[responderID]
         return responder.respond(request, context)
     except Exception, err:
@@ -176,6 +176,7 @@ def invokeUIControlGet(environment, controlID='none'):
             return displayErrorPage(err, context, environment)
 
 
+
 @route('/frame/:frameID', method='GET')
 def handleFrameRequest(environment, frameID='none'):
     response.headers['Cache-Control'] = 'no-cache'
@@ -196,7 +197,10 @@ def handleFrameRequest(environment, frameID='none'):
                 # in order
                 redirect(loginRedirectTarget)
             
-            validationStatus = securityMgr.validateObjectRequest(authToken, frameID, ObjectType.FRAME, environment.securityPosture)
+            validationStatus = securityMgr.validateObjectRequest(authToken, 
+                                                                 frameID, 
+                                                                 ObjectType.FRAME, 
+                                                                 environment.securityPosture)                                                                 
             if not validationStatus.ok:
                 objectRedirectTarget = '/%s/%s' % (environment.getAppRoot(), validationStatus.redirectRoute)
                 redirect(objectRedirectTarget)                                        
