@@ -28,7 +28,7 @@ class Database:
 
     """
 
-    def __init__(self, dbType, host, schema):
+    def __init__(self, dbType, host, schema, port):
         """Create a Database instance ready for user login.
 
         Arguments:
@@ -39,6 +39,7 @@ class Database:
 
         self.dbType = dbType
         self.host = host
+        self.port = port
         self.schema = schema
         self.engine = None
         self.metadata = None
@@ -96,23 +97,23 @@ class Database:
 class MySQLDatabase(Database):
     """A Database type for connecting to MySQL instances."""
 
-    def __init__(self, host, schema):
-        Database.__init__(self, "mysql", host, schema)
+    def __init__(self, host, schema, port=3306):        
+        Database.__init__(self, "mysql", host, schema, port)
+        
         
     def __createURL__(self, dbType, username, password):
-        return "%s://%s:%s@%s/%s" % (self.dbType, username, password, self.host, self.schema)
+        return "%s://%s:%s@%s:%d/%s" % (self.dbType, username, password, self.host, self.port, self.schema)
 
 
 class PostgreSQLDatabase(Database):
     """A Database type for connecting to PostgreSQL instances."""
 
-    def __init__(self, host, schema, port='5432'):
-        Database.__init__(self, "postgresql+psycopg2", host, schema)
-        self.port =  port
+    def __init__(self, host, schema, port=5432):
+        Database.__init__(self, "postgresql+psycopg2", host, schema, port)
         
         
     def __createURL__(self, dbType, username, password):
-        return "%s://%s:%s@%s:%s/%s" % (self.dbType, username, password, self.host, self.port, self.schema)
+        return "%s://%s:%s@%s:%d/%s" % (self.dbType, username, password, self.host, self.port, self.schema)
         
 
 class NoSuchPluginError(Exception):
