@@ -1,9 +1,11 @@
+
+
 """Plugin for run-once Netpath initialization code
 
 
 """
 
-import inspect
+from inspect import getargspec
 from environment import *
 from reporting import *
 
@@ -58,7 +60,7 @@ class NetPathStartupPlugin(object):
       def apply(self, callback, context):
             conf = context['config'].get(self.name) or {}
             keyword = conf.get('keyword', self.keyword)
-            args = inspect.getargspec(context['callback'])[0]
+            args = getargspec(context['callback'])[0]
             if keyword not in args:
                   return callback
 

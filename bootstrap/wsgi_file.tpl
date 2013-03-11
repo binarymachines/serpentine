@@ -1,15 +1,11 @@
-import sys, os
+
+import sys, os, site
 
 os.chdir(os.path.dirname(__file__))
 sys.path = [os.path.dirname(__file__)] + sys.path
 
+site.addsitedir(os.path.abspath('{{ config.site_packages_directory }}'))
 
-os.sitedir = '/Library/Python/2.7/site-packages'
-eggFiles = [file for file in os.listdir(os.sitedir) if file[-3:] == 'egg']
-for item in eggFiles:
-    sys.path = [os.path.join(os.sitedir, item)] + sys.path
-
- 
 
 import bottle
 

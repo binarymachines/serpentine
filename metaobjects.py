@@ -1,5 +1,6 @@
 
 from wtforms import *
+from plugin import *
 
 
 class NoSuchFieldConfigError(Exception):
@@ -39,6 +40,66 @@ class DatabaseConfig:
         self.schema = schema
         self.username = username
         self.password = password
+
+
+
+class PluginSlotConfig:
+    def __init__(self, methodName, urlRoute, requestType):
+        self.method = methodName
+        self.variables = []
+        
+        self.routeExtensionObject = RouteExtension(urlRoute)
+        self.route_extension_string = str(self.routeExtensionObject)
+        for element in self.routeExtensionObject:
+            if not element.isStatic():
+                self.variables.append(element.elementString)
+        self.request_type = requestType
+        self.plugin_alias = None
+        
+
+    def generateRoutingFunctionName(self):
+        pluginString = self.plugin_alias  # [0].upper() + self.plugin_alias[1:]
+        methodString = self.method[0].upper() + self.method[1:]
+        requestTypeString = self.request_type.lower().capitalize()
+        return 'plugin_%sMethod%s%s' % (pluginString, methodString, requestTypeString)
+
+    def generateFunctionSignature(self):
+        return 'environment, %s' % (', '.join("%s = 'none'" % variable for variable in self.variables))
+
+
+    #def getPluginMethodArgs(self):
+    #    for var in variables
+
+    functionName = property(generateRoutingFunctionName)
+    functionSignature = property(generateFunctionSignature)
+    #pluginMethodArgs = property(getPluginMethodArgs)
+    
+
+class PluginConfig:
+    def __init__(self, pluginClassname, pluginAlias, moduleName = 'user_plugins'):
+        self.classname = pluginClassname
+        self.alias = pluginAlias
+        self.modulename = lower(moduleName)
+        self._slots = {}
+
+
+    def addSlot(self, pluginSlotConfig):
+        pluginSlotConfig.plugin_alias = self.alias
+        self._slots[pluginSlotConfig.method] = pluginSlotConfig
+                          
+
+    def getSlots(self):
+        return self._slots.values()
+
+
+    def getSlot(self, methodName):
+        return self._slots.get(methodName)
+
+
+    def listSlots(self):
+        return self._slots.keys()
+        
+    slots = property(getSlots)
 
 
 

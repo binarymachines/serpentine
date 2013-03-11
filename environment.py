@@ -31,8 +31,6 @@ class MissingGlobalConfigSectionError(Exception):
         Exception.__init__(self, 'The application config file is missing the global configuration section "%s".' % configSection)
 
 
-
-
 class Properties( object ):
       def __init__(self, **kwargs):
             self.__dict__.update(kwargs)
@@ -86,14 +84,17 @@ class Environment():
 
             self.hostname = None
             self.port = None            
-
+            
             ###
+
+            self.sitePackagesDirectory = None
 
             self.contentRegistry = content.ContentRegistry()
             self.dataSourceRegistry = content.DataSourceRegistry()            
             self.classLoader = ClassLoader()
             self.templateManager = None
             self.persistenceManager = None
+            self.pluginManager = None
             self.securityManager = None
             self.persistenceManagerMap = {}
             self.displayManager = None
@@ -121,7 +122,7 @@ class Environment():
                                      'default_helper_package', 
                                      'default_controller_package', 
                                      'default_responder_package', 
-                                     'default_datasource_package', 
+                                     'default_datasource_package',                                     
                                      'default_report_package', 
                                      'startup_db', 
                                      'security_posture',
@@ -258,6 +259,8 @@ class Environment():
                                                     undefined = StrictUndefined, cache_size=0)
                   self.templateManager = content.JinjaTemplateManager(j2Environment)
 
+                  self.pluginManager = PluginManager()
+
                   self.xslStylesheetPath = os.path.join(config['global']['app_root'], 
                                                      config['global']['xsl_stylesheet_directory'])
 
@@ -342,8 +345,12 @@ class Environment():
                         permissionsArray = securedObjectGroups[objectGroup]['permissions']
                         self.securityManager.configureObjectAccess(objectID, objectType, permissionsArray)
                         
-                        
-      
+
+
+      def initializeUserPlugins(self):          
+          if not self.config.get('plugins'):
+              return
+
       
       def _findObjectAliases(self, memberListString, objectType):
            
@@ -434,13 +441,13 @@ class Environment():
 
       def loadControls(self):
             if not self.config.get('ui-controls'):
-                  return 
+                return 
 
-            factory = ControlFactory()
-            
+            factory = ControlFactory()            
             for controlName in self.config['ui-controls']:
                 params = self.config['ui-controls'][controlName]
-                controlType = params['type']                
+                controlType = params['type']      
+                template = params.get('template')          
                 newControl = factory.createControl(controlType, self.dataSourceRegistry, **params)
                 self.controlMap[controlName] = newControl
 
@@ -550,6 +557,8 @@ class Environment():
                         fqFunctionName = '.'.join([helperPkg, helperFunctionName])
                         helperFunction = self.classLoader.loadClass(fqFunctionName)  # not a "class" really, but so what?
                         creg.setHelperFunctionForFrame(frameID, helperFunction)
+
+            # We create these content frames implicitly; user doesn't have to specify
 
             # Security: every Serpentine app has a login frame.
             # Users do not need to explicitly register this frame;

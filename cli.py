@@ -285,13 +285,13 @@ class TextSelectPrompt:
     def __init__(self, prompt, allowedValuesDictionary, defaultValue = None):
           self.allowedValuesDictionary = allowedValuesDictionary
           self.selection = None
-          self.selectionString = "/".join(self.allowedValuesDictionary.keys())
+          self.selectionString = " / ".join(self.allowedValuesDictionary.keys())
           self.errorPrompt = "Please select one of the following values: '%s'" % self.selectionString
-           
-          if defaultValue is None:
+          self.defaultValue = defaultValue
+          
+          if self.defaultValue is None:
               self.prompt = "%s %s :" % (prompt,  self.selectionString)
-          else:              
-              self.defaultValue = defaultValue
+          else:                            
               self.prompt = "%s %s [%s] :" % (prompt, self.selectionString, self.defaultValue)
       
     

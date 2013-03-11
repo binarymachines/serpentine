@@ -18,6 +18,7 @@ global:
         default_responder_package:      {{ config.default_responder_package }}
         default_datasource_package:     {{ config.default_datasource_package }}
         default_report_package:         {{ config.default_reporting_package }}
+	default_plugin_package:		{{ config.default_plugin_package }}
         startup_db:                     {{ config.startup_db }}
         url_base:                       {{ config.url_base }}
         security_posture:               open
@@ -54,6 +55,19 @@ security_registry:
                                               access: allow(&users), deny(&guests)
                     denial_redirect_route:  frame/deny 
 
+
+
+plugins:
+{% for plugin_alias in config.plugins %}	
+	{{ plugin_alias }}:
+		class: {{ config.plugins[plugin_alias].class_name }}
+		slots:
+		{% for slot in config.plugins[plugin_alias].slots %}
+			- method:	{{ slot.method }}
+			  route:  	{{ slot.route_extension }}
+			  request_type:	{{ slot.request_type }}
+	        {% endfor %}
+{% endfor %}
 
 
 #        

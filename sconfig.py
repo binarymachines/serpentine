@@ -37,6 +37,7 @@ class ConfigurationPackage(object):
             self.controls = {}
             self.frames = {}
             self.controllers = {}
+            self.plugins = {}
             
             self.views = {}
             self.databases = {}
@@ -74,6 +75,10 @@ class ConfigurationPackage(object):
         self.controllers[controllerConfig.name] = controllerConfig
 
 
+    def addPluginConfig(self, pluginConfig):
+        self.plugins[pluginConfig.name] = pluginConfig
+
+
     def addFormConfig(self, formConfig):
         self.formConfigs.append(formConfig)
             
@@ -97,6 +102,7 @@ class ConfigurationPackage(object):
     app_name = property(lambda self: self.environment.getAppName())
     app_root = property(lambda self: self.environment.getAppRoot())
     app_version = property(lambda self: self.environment.getAppVersion())
+    site_packages_directory = property(lambda self: self.environment.sitePackagesDirectory)
     
     web_app_name = property(lambda self: self.environment.getURLBase())
     hostname = property(lambda self: self.environment.hostname)
@@ -113,6 +119,7 @@ class ConfigurationPackage(object):
     default_controller_package = property(lambda self: self.environment.config['global']['default_controller_package'])
     default_helper_package = property(lambda self: self.environment.config['global']['default_helper_package'])
     default_reporting_package = property(lambda self: self.environment.config['global']['default_report_package'])
+    #default_plugin_package = property(lambda self: self.environment.config['global']['default_plugin_package'])
     default_responder_package = property(lambda self: self.environment.config['global']['default_responder_package'])
     default_datasource_package = property(lambda self: self.environment.config['global']['default_datasource_package'])
             
@@ -150,6 +157,43 @@ class SConfigurator(object):
 
           return className
 
+    def getSiteDirLocation(self, screen, isUsingVirtualEnv, **kwargs):
+
+        if not isUsingVirtualEnv:
+            siteDirLocation = TextPrompt('Please enter the full path to your Python site directory.').show(screen)
+        
+        if isUsingVirtualEnv:
+            virtualEnvHome = os.environ.get('WORKON_HOME')
+            environments = []
+            fileList = os.listdir(virtualEnvHome)
+            for f in fileList:
+                if os.path.isdir(os.path.join(virtualEnvHome, f)):
+                    environments.append(f)
+
+            envMenu = Menu(environments)
+
+            while True:
+                screen.clear()
+                envPrompt = MenuPrompt(envMenu, 'Select the virtual environment this application will use.')
+                selectedEnv = envPrompt.show(screen)
+
+                if envPrompt.escaped:
+                    Notice('You must select a virtual environment.' ).show(screen)
+                    Notice('Hit any key to retry.').show(screen)
+                    screen.getch()
+                else:
+                    pyVersions = os.listdir(os.path.sep.join([virtualEnvHome, selectedEnv, 'lib']))
+                    versionMenu = Menu(pyVersions)
+                    versionPrompt = MenuPrompt(versionMenu, 'Please select the python version you wish to use.')
+                    pythonVersion = versionPrompt.show(screen)
+                    if versionPrompt.escaped:
+                        pythonVersion = 'python2.7' # default to 2.7
+                    
+                    siteDirLocation = os.path.sep.join([virtualEnvHome, selectedEnv, 'lib', pythonVersion, 'site-packages'])
+                    break
+                
+        return siteDirLocation
+
 
     def run(self, screen, **kwargs):
 
@@ -160,10 +204,30 @@ class SConfigurator(object):
               self.environment = Environment().bootstrap(configFilename)          
               globalSettings = self.setupGlobalData(screen, self.environment)              
           else:
-              self.mode = ConfigMode.CREATE              
-              globalSettings = self.setupGlobalData(screen)
+              self.mode = ConfigMode.CREATE
+
               self.environment = Environment()
-          
+              prompt = TextPrompt('Are you using virtualenv and virtualenvwrapper to manage python dependencies (y/n)?', 'y')
+              answer = prompt.show(screen)
+              if answer == 'y':
+                  siteDir = self.getSiteDirLocation(screen, True)
+                  
+              if answer == 'n':
+                  Notice('We STRONGLY recommend that you install and configure virtualenv and virtualenvwrapper before using Serpentine.').show(screen)
+                  if TextPrompt('Do you wish to exit and install these tools before proceeding (y/n)?', 'y').show(screen) == 'n':
+                      siteDir = self.getSiteDirLocation(screen, False)
+                  else:
+                      return     # exit the program
+                      
+              self.environment.sitePackagesDirectory = siteDir
+
+              Notice('Initializing Serpentine using Python site directory: %s' % siteDir).show(screen)
+              Notice('Hit any key to continue.').show(screen)
+              screen.getch()
+              
+              globalSettings = self.setupGlobalData(screen)
+              
+               
           
           # user's changes to settings override old values
           self.environment.importGlobalSettings(globalSettings)
@@ -221,7 +285,8 @@ class SConfigurator(object):
                          'Databases', 
                          'Models', 
                          'Views', 
-                         'UI Controls', 
+                         'UI Controls',
+                         'Plugins',
                          'Code Generator', 
                          'Web Config',
                          'Finish and Generate Files'])
@@ -312,15 +377,20 @@ class SConfigurator(object):
                     configPackage.datasources.update(datasourceConfigs)
 
 
-            if mainMenuPrompt.selectedIndex == 6: # Code Generator
+            if mainMenuPrompt.selectedIndex == 6: # Plugins
+                pluginConfigs = self.setupPlugins(environment, screen)
+                configPackage.plugins.update(pluginConfigs)
+                
+ 
+            if mainMenuPrompt.selectedIndex == 7: # Code Generator
                 self.generateCodeSegments(configPackage, uiControlConfigs, environment, templateManager, screen)
 
                 
-            if mainMenuPrompt.selectedIndex == 7: # WSGI Settings
+            if mainMenuPrompt.selectedIndex == 8: # WSGI Settings
                  wsgiConfig = self.setupWSGI(screen, wsgiConfig)          
                  environment.importWSGIConfig(wsgiConfig)
 
-            if mainMenuPrompt.selectedIndex == 8: # Finish and generate files                
+            if mainMenuPrompt.selectedIndex == 9: # Finish and generate files                
                 break
         
     
@@ -452,76 +522,133 @@ class SConfigurator(object):
                          
                          
                          
-    def connectToDatabase(self, dbConfig):
-        
+    def connectToDatabase(self, dbConfig):        
             dbInstance = db.MySQLDatabase(dbConfig.host, dbConfig.schema)
             dbInstance.login(dbConfig.username, dbConfig.password)
             return dbInstance                        
 
         
-    """"
-    def setupDatabases(self, screen, environment):
 
+    def setupPlugins(self, environment, screen):
+        pluginSetupMenu = Menu(['Create new plugin', 'Browse/edit existing plugin configs', 'Set user plugin module'])
+        prompt = MenuPrompt(pluginSetupMenu, 'Please select a plugin activity.')
+        headerNotice = Notice([' ', ':::[ Serpentine Plugin Configuration Section ]:::', ' '])
 
-          options = ["Create new database configuration", "List databases", "Edit database settings"]
-          databases = environment.exportDatabaseSettings() 
-
-          prompt = MenuPrompt(Menu(options), "Select an option from the menu.")
-          
-          
-          while not prompt.escaped:
-              screen.clear()
-              
-              Notice([' ', ':::[ Serpentine Database Configuration Menu ]:::', ' ']).show(screen)
-              Notice('Set up one or more database instances to connect to from the web application.').show(screen)
+        # TODO: initialize with existing configs on subsequent calls
+        plugins = {}
+        
+        while not prompt.escaped:
+              screen.clear()              
+              headerNotice.show(screen)
+              Notice('Register one or more plugins to handle specialized tasks.').show(screen)
               selection = prompt.show(screen)
               if prompt.escaped:
                   break
-              if prompt.selectedIndex == 1:
-                  schema = TextPrompt("Enter database schema", environment.getURLBase()).show(screen)
-                  username = TextPrompt("Enter database username", None).show(screen)
-                  password = TextPrompt("Enter database password", None).show(screen)
-                  dbName = TextPrompt("Enter a name for this database instance", "localhost.%s" % schema).show(screen)
+              if prompt.selectedIndex == 1: # new plugin
+                  pluginClassname = TextPrompt("Enter plugin class name", None).show(screen)
+                  pluginAlias = TextPrompt("Enter an alias for this plugin", None).show(screen)
+                  pluginModule = TextPrompt('Enter the Python module name for this plugin [user_plugins]', None)
+                  pluginConfig = PluginConfig(pluginClassname, pluginAlias, pluginModule)
                   
-                  databases[dbName] = DatabaseConfig("localhost", schema, username, password)
-                  screen.addstr("\n New database created. Hit any key to continue.")
-                  screen.getch()
-                  screen.clear()
-              if prompt.selectedIndex == 2:     # list existing databases
-                  screen.addstr("\nDatabases: " + ", ".join(databases.keys()) + "\nHit any key to continue.")
-                  screen.getch()
-                  screen.clear()
+                                                      
+                  while True:                      
+                      slotPrompt = TextPrompt('Create new slot for plugin "%s" (%d existing slots) y/n?' \
+                                          % (pluginConfig.alias, len(pluginConfig.slots)), 'y')
+                      choice = slotPrompt.show(screen)
+                      if choice == 'n':
+                          break
+                      else:
+                          routeNotice = \
+                          Notice(["Enter a URL route: one or more strings separated by forward slashes.",
+                                  "(Strings representing variables must have leading colons.)",
+                                  "The URL route directs an inbound HTTP request to the specified method for this slot;",
+                                  "for example, search/:widget_id might be the route for a plugin function that searches for a user-supplied id.", "\n"])
+                          routeNotice.show(screen)
+                                                    
+                          route = TextPrompt('Enter a URL route for this plugin slot: ').show(screen)
 
-              if prompt.selectedIndex == 3:     # edit a database configuration
+                          methodNotice = Notice(["\n", "Next enter a method name.",
+                                                 "The plugin method name you specify will be invoked by Serpentine",
+                                                 "when it receives a URL on the specified route.", "\n"])
+                          methodNotice.show(screen) 
+                          
+                          methodName = TextPrompt('Enter a plugin method name for this slot: ').show(screen)
+                          
+                          requestTypes = {'get': 'GET', 'post': 'POST' }
+                          requestType = TextSelectPrompt('Select the HTTP request type for this plugin slot: ', requestTypes).show(screen)
+                          
+                          pluginConfig.addSlot(PluginSlotConfig(methodName, route, requestType))
+
+                          Notice(['\n', 'Slot created: URL route %s will invoke method "%s" on plugin class %s for HTTP %s requests.' \
+                                  % (route, methodName, pluginClassname, requestType)]).show(screen)
+                          
+
+                                  #Notice('Done.').show(screen)                          
+                          Notice('Hit any key to continue.').show(screen)
+                          screen.getch()
+                          screen.clear()
+                          headerNotice.show(screen)
+
+                  plugins[pluginConfig.alias] = pluginConfig
+                  screen.addstr("\n New plugin created and registered. Hit any key to continue.")
+                  screen.getch()
                   screen.clear()
-                  if not len(databases.keys()):                  
-                      Notice(["You haven't created any database configurations.", "Hit any key to continue."]).show(screen)
+                          
+              if prompt.selectedIndex == 2:     # edit a plugin configuration
+                  screen.clear()
+                  headerNotice.show(screen)
+                  if not len(plugins.keys()):                  
+                      Notice(["You haven't configured any plugins.", "Hit any key to continue."]).show(screen)
                       screen.getch()
                   else:
-                      dbMenu = Menu(databases.keys())
-                      dbPrompt = MenuPrompt(dbMenu, 'Select a database configuration to edit')
-                      dbName = dbPrompt.show(screen)
-                      dbConfig = databases[dbName]
+                      pluginMenu = Menu(plugins.keys())
+                      pluginPrompt = MenuPrompt(pluginMenu, 'Select a plugin configuration to edit')
+                      Notice('').show(screen)
+                      pluginAlias = pluginPrompt.show(screen)
+                      pluginConfig = plugins[pluginAlias]
+                      
+                      #alias = TextPrompt('Enter updated plugin alias', pluginConfig.alias).show(screen)
 
-                      schema = TextPrompt('Enter updated database schema', dbConfig.schema).show(screen)
-                      username = TextPrompt('Enter updated database username', dbConfig.username).show(screen)
-                      password = TextPrompt('Enter updated database password', dbConfig.password).show(screen)
-                      newDBName = TextPrompt('Enter an updated name for this database instance', dbName).show(screen)
+                      slotConfigSectionHeader = Notice('Plugin "%s" has the following slots configured: ')
+                      slotMenu = Menu(pluginConfig.listSlots())
+                      slotPrompt = MenuPrompt(slotMenu, 'Select a plugin slot to update')
                       
-                      updatedDBConfig = DatabaseConfig('localhost', schema, username, password)
-    
-                      if newDBName == dbName:
-                          databases[newDBName] = updatedDBConfig
-                      else:
-                          databases.pop(dbName)
-                          databases[newDBName] = updatedDBConfig
-                      
-                      Notice('Database configuration updated. Hit any key to continue.').show(screen)
-                      screen.getch()
+                      while not slotPrompt.escaped:
+                          slotConfigSectionHeader.show(screen)
+                          slotName = slotPrompt.show(screen)
+                          if slotPrompt.escaped:
+                              break
+                          
+                          pluginSlot = pluginConfig.getSlot(slotName)
+                          updatedRoute = TextPrompt('URL route for this plugin slot: ', pluginSlot.route_extension).show(screen)
+                          updatedMethod = TextPrompt("Target method for this slot's URL route: ", pluginSlot.method).show(screen)
+                          updatedRequestType = TextPrompt('HTTP request type for this slot: ', pluginSlot.request_type).show(screen)
+                          
+                          pluginSlot.route_extension = updatedRoute
+                          pluginSlot.method = updatedMethod
+                          pluginSlot.request_type = updatedRequestType
+                          
+                          Notice('Plugin slot updated. Hit any key to continue.').show(screen)
+                          screen.getch()
+                          screen.clear()
+                          headerNotice.show(screen)
                   screen.clear()
+              if prompt.selectedIndex == 3: # Designate the python module which will hold user plugins
+                  pass
+                  """
+                  screen.clear()
+                  headerNotice.show(screen)
+
+                  Notice('')
+                  p = TextPrompt('Load existing python module')
                   
-          return databases
-    """
+                  pluginFileListing = self.getCandidatePluginModules()
+                  moduleNameMenu = Menu(pluginFileListing)
+                  moduleNamePrompt
+                  """
+                
+        return plugins
+
     
     def generateCodeSegments(self, configPackage, uiConfigs, environment, templateManager, screen):
     
@@ -1111,6 +1238,7 @@ class SConfigurator(object):
             globalSettings['default_controller_package'] = '%s_controllers' % globalSettings['web_app_name'].lower()
             globalSettings['default_helper_package'] = '%s_helpers' % globalSettings['web_app_name'].lower()
             globalSettings['default_responder_package'] = '%s_responders' % globalSettings['web_app_name'].lower()
+            # globalSettings['default_plugin_package'] = 'user_plugins' 
             globalSettings['default_report_package'] = '%s_reports' % globalSettings['web_app_name'].lower()
             globalSettings['default_datasource_package'] = '%s_datasources' % globalSettings['web_app_name'].lower()
             
@@ -1347,6 +1475,10 @@ class SConfigurator(object):
         templateFile = open(outputTemplateFullPath, 'w')
         templateFile.write(templateData)
         templateFile.close()
+
+
+    def generatePluginCode(self, pluginConfig):
+        pass
         
 
     def generateApplicationTemplates(self, configPackage, templateManager):
@@ -1360,8 +1492,41 @@ class SConfigurator(object):
         generatedFiles = {}
         frames = {}
         try:
-            # TDOD: Factor these sections down into a series of function calls
-            # First render the base HTML template from which our other templates will inherit
+            # TODO: Factor these sections down into a series of function calls
+            #
+            # The file that connects user-defined routes with plugin methods
+            #
+            if len(configPackage.plugins.keys()):
+                slots = []
+                modules = []
+                for p in configPackage.plugins:
+                    slots.extend(configPackage.plugins[p].slots)
+                    moduleName = configPackage.plugins[p].modulename
+                    if moduleName not in modules:
+                        modules.append(moduleName)
+
+                Notice(['Generating plugin %s into the Python module %s.py in the <app_root>/plugins directory...' \
+                                  % (p.modulename)]).show(screen)
+                self.generatePluginCode(p)
+                
+                
+                pluginRoutingTemplate = templateManager.getTemplate('plugin_routing_template.tpl')
+                pluginRoutingFilename = os.path.join('bootstrap', 'plugin_routes.py')
+                pluginRoutingFile = open(pluginRoutingFilename, 'w')
+                try:
+                    routingBlock = pluginRoutingTemplate.render(plugin_modules = modules, plugin_slots = slots)
+                    pluginRoutingFile.write('%s\n' % routingBlock)                    
+                except Exception, err:
+                    raise err
+                finally:
+                    if pluginRoutingFile:
+                        pluginRoutingFile.close()
+
+                
+                
+
+            
+            # The base HTML template from which our other templates will inherit
             #
             # self.generateSingleTemplate('base_html_template.tpl', 'base_template.html', configPackage, templateManager)
             
@@ -1398,21 +1563,15 @@ class SConfigurator(object):
             deniedTemplateFile = open(deniedTemplateFilename, 'w')
             deniedTemplateFile.write(deniedTemplateData)
             deniedTemplateFile.close()
-            
-            '''
-            if not configPackage.formConfigs:
-                raise Exception('No form configurations in this package. Terminating.')
-            '''
-             
+                    
+            # The index template, for viewing all objects of a given type
+            indexSeedTemplate = templateManager.getTemplate('index_template_seed.tpl')
             for fConfig in configPackage.formConfigs:
-
                     #
                     # Use each FormConfig object in our list to populate the seed template
                     # 
-
-                    # The index template, for viewing all objects of a given type
-                  
-                    indexSeedTemplate = templateManager.getTemplate('index_template_seed.tpl')
+                    
+                                      
                     indexSeedTemplateData = indexSeedTemplate.render(formspec = fConfig, config = configPackage)
 
                     # Now write the actual HTML model index file 

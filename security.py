@@ -344,6 +344,7 @@ class AuthStatus:
         self.message = message
 
 
+
 class AuthStatusOK(AuthStatus):
     def __init__(self, token):
         AuthStatus.__init__(self, True, token)
