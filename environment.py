@@ -7,6 +7,8 @@ import os
 import logging
 import yaml
 
+
+from plugin import PluginManager
 from jinja2 import StrictUndefined
 from content import *
 from db import *
@@ -84,10 +86,8 @@ class Environment():
 
             self.hostname = None
             self.port = None            
-            
-            ###
 
-            self.sitePackagesDirectory = None
+            ###
 
             self.contentRegistry = content.ContentRegistry()
             self.dataSourceRegistry = content.DataSourceRegistry()            
