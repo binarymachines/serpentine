@@ -102,7 +102,7 @@ def invokeLoginPost(environment):
         #raise Exception(httpSession.keys())
         #sessionID = httpSession.id
         securityManager.login(request)
-        redirect('/bifrost/frame/home')
+        redirect('/%s' % context.urlBase)
     except SecurityException, err:
         return displayErrorPage(err, context, environment)
     
@@ -136,6 +136,8 @@ def identifyPlugin(environment, pluginID='none'):
 def invokeResponderGet(environment, responderID='none'):
     response.headers['Cache-Control'] = 'no-cache'
     
+    # TODO: Do we need separate responder-get and responder-post functions?
+    #
     try:
         context = Context(environment)
         environment.frontController.validate(request)
@@ -150,7 +152,27 @@ def invokeResponderGet(environment, responderID='none'):
             raise err
         else:
             return displayErrorPage(err, context, environment)
+            
+
+
+@route('/responder/:responderID', method='POST')
+def invokeResponderGet(environment, responderID='none'):
+    
+    try:
+        context = Context(environment)
+        environment.frontController.validate(request)
+    
+        if not responderID in environment.responderMap:
+            raise NoSuchResponderError(responderID)
         
+        responder = environment.responderMap[responderID]
+        return responder.respond(request, context, 'POST')
+    except Exception, err:
+        if err.message == 'HTTP Response 303':  # Bottle does redirects by raising an Exception. Do not catch.
+            raise err
+        else:
+            return displayErrorPage(err, context, environment)          
+     
     
 
 @route('/uicontrol/:controlID', method='GET')
@@ -556,9 +578,9 @@ def invokeControllerMethodGet(environment, objectType='none', controllerMethod='
         targetController = environment.frontController.getController(objectType)
         targetMethod = getattr(targetController, controllerMethod, None)
         if callable(targetMethod):
-    
+            
             mode = request.GET.get('mode', '').strip()
-            if mode == 'bypass':
+            if mode == 'bypass':                
                 return targetMethod(request, context, controller_alias=objectType)
     
             
@@ -571,7 +593,7 @@ def invokeControllerMethodGet(environment, objectType='none', controllerMethod='
                 inputFormClass = environment.contentRegistry.getFormClass(targetFrameID)
                 inputForm = inputFormClass()
                 inputForm.process(request.GET)
-    
+                
             frameArgs = {}
             frameArgs['form'] = inputForm
             frameArgs['frame_id'] = targetFrameID
