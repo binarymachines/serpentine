@@ -1,6 +1,5 @@
-
 from wtforms import *
-from plugin import *
+#from plugin import *
 
 
 class NoSuchFieldConfigError(Exception):
