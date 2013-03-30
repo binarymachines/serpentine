@@ -135,7 +135,7 @@ class PersistenceManager:
         self._typeMap = {}
         self.modelAliasMap = {}
         self.database = database
-        self.metaData = database.getMetaData()
+        self.metaData = self.database.getMetaData()
         self.pluginTable = {}
         self.mappers = {}
 
@@ -145,6 +145,10 @@ class PersistenceManager:
 
     def getSession(self):
         return self.database.getSession()
+
+    def refreshMetaData(self):
+        self.metaData = self.database.getMetaData()
+
 
     def loadTable(self, tableName):
         """Retrieve table data using SQLAlchemy reflection"""

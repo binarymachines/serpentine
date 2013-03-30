@@ -223,7 +223,7 @@ class MultipleChoiceMenuPrompt:
                     if selectedIndex < 1 : raise IndexError
                     self.selections.append(self.menu.getOption(selectedIndex - 1))
 
-                    screen.addstr('You have selected: ' + ', '.join(self.selections) + '\nHit any key to continue.')
+                    screen.addstr('\nYou have selected: %s. Hit any key to continue.'  % (', '.join(self.selections)))
                     screen.getch()
                     #screen.refresh()
                     screen.clear()
