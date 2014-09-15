@@ -18,8 +18,11 @@ function stripe(id) {
     // if arguments are provided to specify the colours
     // of the even & odd rows, then use the them;
     // otherwise use the following defaults:
-    var evenColor = arguments[1] ? arguments[1] : "#fff";
-    var oddColor = arguments[2] ? arguments[2] : "#e8e8e8";
+    //var evenColor = arguments[1] ? arguments[1] : "#ffffff";
+    //var oddColor = arguments[2] ? arguments[2] : "#888888";
+
+    var oddColor = "#ffffff";
+    var evenColor = "#dddddd";
   
     // obtain a reference to the desired table
     // if no such table exists, abort
@@ -29,6 +32,10 @@ function stripe(id) {
     // by definition, tables can have more than one tbody
     // element, so we'll have to get the list of child
     // &lt;tbody&gt;s 
+
+    var header = table.getElementsByTagName("thead");
+    header[0].style.backgroundColor = "#bbbbbb";
+
     var tbodies = table.getElementsByTagName("tbody");
 
     // and iterate through them...

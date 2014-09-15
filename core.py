@@ -242,6 +242,9 @@ class BaseController(object):
 
         # The type of object we are managing
         self.modelClass = modelClass
+        
+        self.primaryKeyFieldName = 'id'
+        
         self.model = None
         self.collection = []
         # The name we use to retrieve a generic object ID from the session
@@ -404,6 +407,7 @@ class BaseController(object):
         try:            
             dbSession.add(object) 
             dbSession.flush()
+            
             return object
         except SQLAlchemyError, err:    
             dbSession.rollback()
