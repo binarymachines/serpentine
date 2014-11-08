@@ -32,7 +32,7 @@ class Database:
         """Create a Database instance ready for user login.
 
         Arguments:
-        dbType -- for now, 'mysql' only
+        dbType -- for now, mysql and postgres only
         host -- host name or IP
         schema -- the database schema housing the desired tables
         """
@@ -45,11 +45,18 @@ class Database:
         self.metadata = None
         
         
+        
 
     def __createURL__(self, dbType, username, password):
-        """Implement in subclasses to provide database-type-specific URL formats."""
-
+        """Implement in subclasses to provide database-type-specific connection URLs."""
         pass
+
+
+    def jdbcURL(self):
+        """Return the connection URL without user credentials."""
+        return 'jdbc:%s://%s:%s/%s' % (self.dbType, self.host, self.port, self.schema)
+
+    
 
     def login(self, username, password):    
         """Connect as the specified user."""
@@ -92,7 +99,7 @@ class Database:
 
         return self.metadata.tables[name]
 
-
+    
 
 class MySQLDatabase(Database):
     """A Database type for connecting to MySQL instances."""
@@ -105,6 +112,8 @@ class MySQLDatabase(Database):
         return "%s://%s:%s@%s:%d/%s" % (self.dbType, username, password, self.host, self.port, self.schema)
 
 
+    
+
 class PostgreSQLDatabase(Database):
     """A Database type for connecting to PostgreSQL instances."""
 
@@ -114,6 +123,8 @@ class PostgreSQLDatabase(Database):
         
     def __createURL__(self, dbType, username, password):
         return "%s://%s:%s@%s:%d/%s" % (self.dbType, username, password, self.host, self.port, self.schema)
+
+
         
 
 class NoSuchPluginError(Exception):

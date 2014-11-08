@@ -11,7 +11,7 @@ import re
 import jinja2
 
 import wtforms
-from wtforms import HiddenField, validators
+from wtforms import IntegerField, BooleanField, HiddenField, validators
 
 from sqlalchemy.sql.expression import select
 from lxml import etree
@@ -25,6 +25,41 @@ logging.basicConfig(filename = 'serpentine.log', level = logging.INFO, format = 
 
 log = logging.info
 
+
+class NullableHiddenIntegerField(IntegerField):
+    """
+    An IntegerField where the field can be null if the input data is an empty
+    string.
+    """
+
+    def process_formdata(self, valuelist):
+        if valuelist:
+            if valuelist[0] == '':
+                self.data = None
+            else:
+                try:
+                    self.data = int(valuelist[0])
+                except ValueError:
+                    self.data = None
+                    raise ValueError(self.gettext('Not a valid integer value'))
+
+
+class NullableBooleanField(BooleanField):
+    """
+    A BooleanField where the value is False by default
+    """
+
+    def process_formdata(self, valuelist):
+        if valuelist:
+            if valuelist[0] == '':
+                self.data = False
+            else:
+                try:
+                    self.data = bool(valuelist[0])
+                except ValueError:
+                    self.data = False
+                    raise ValueError(self.gettext('Not a valid boolean value'))
+    
 
 
 class MissingDataSourceParameterError(Exception):

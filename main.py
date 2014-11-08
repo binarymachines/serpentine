@@ -23,7 +23,7 @@ from plugin import *
 
 
 # uncomment the following line to use plugins
-from plugin_routes import *
+#from plugin_routes import *
 
 
 #------ Main module: routing & control --------

@@ -535,6 +535,19 @@ textarea {
 .ui-timepicker-div dl dd{ margin: -25px 0 10px 65px; }
 .ui-timepicker-div td { font-size: 90%; }
 
+
+/* css for datepicker */
+.ui-datepicker-calendar {
+    display: none;
+    font-size: 14pt !important;
+ }
+
+div.ui-datepicker {
+    font-size: 62.5%;
+}
+
+
+
 p img {
 	float:left;
 	margin:0 10px 0 0;

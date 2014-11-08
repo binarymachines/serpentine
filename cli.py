@@ -36,8 +36,8 @@ class Notice:
             position = screen.getyx()
             cursorRow = position[0] + bufferLineCount - 1
             cursorColumn = len(bufferLineArray[bufferLineCount-1])
-
-            screen.addstr(buffer.getvalue())
+            
+            screen.addstr(contents)
             screen.move(cursorRow, cursorColumn)
         else:        
             buffer = StringIO()
@@ -48,7 +48,7 @@ class Notice:
             
             position = screen.getyx()
             screen.move(position[0], 0)
-            screen.addstr(buffer.getvalue())
+            screen.addstr(contents)
             position = screen.getyx()
             screen.move(position[0] + 1, 0)
 
@@ -171,7 +171,7 @@ class MultipleChoiceMenuPrompt:
             cursorRow = position[0] + bufferLineCount - 1
             cursorColumn = len(bufferLineArray[bufferLineCount-1])
 
-            screen.addstr(buffer.getvalue())
+            screen.addstr(contents)
             screen.move(cursorRow, cursorColumn)
             self.reply = screen.getstr(cursorRow, cursorColumn)
 

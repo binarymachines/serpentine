@@ -256,7 +256,6 @@ class BaseController(object):
         self.postCompletionDispatchTable['delete'] = self._defaultPostCompletionMethod
         
 
-    """"
     def lookup(self, objectID, dbSession):
         try:            
             object = dbSession.query(self.modelClass).filter(self.modelClass.id == objectID).one()           
@@ -265,13 +264,12 @@ class BaseController(object):
         except NoResultFound, err:
             raise Exception('No %s instance found in DB with primary key %s.' % (self.modelClass.__name__, str(objectID)))
             
-            //raise err
         except SQLAlchemyError, err:
             
             log('%s lookup failed with message: %s' % (self.modelClass.__name__, err.message))
             # TODO: scaffolding to track down lookup 
             raise err
-    """
+
     
     
     def _postCompletionExec(self, methodName, httpRequest, context, **kwargs):
@@ -281,7 +279,6 @@ class BaseController(object):
             return # OK to fail quietly?
         else:    
             #raise Exception('Calling _defaultPostCompletionMethod with method name %s' % methodName)
-            
             dispatchTarget(httpRequest, context, **kwargs)
     
     
