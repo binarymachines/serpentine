@@ -170,10 +170,19 @@ class MultipleChoiceMenuPrompt:
             position = screen.getyx()
             cursorRow = position[0] + bufferLineCount - 1
             cursorColumn = len(bufferLineArray[bufferLineCount-1])
-
+            
+            menupad = curses.newpad(40, 60)
+            '''
             screen.addstr(buffer.getvalue())
             screen.move(cursorRow, cursorColumn)
             self.reply = screen.getstr(cursorRow, cursorColumn)
+            '''
+            menupad.addstr(buffer.getvalue())
+            #menupad.move(cursorRow, cursorColumn)
+            menupad_pos = 0
+            menupad.refresh(menupad_pos, 0, 5, 5, 10, 60)
+            self.reply = menupad.getstr(cursorRow, cursorColumn)
+            
 
             if self.reply == '*':
                 #print 'Exiting menu.'
@@ -221,7 +230,7 @@ class MultipleChoiceMenuPrompt:
                 try:
                     selectedIndex = int(self.reply)
                     if selectedIndex < 1 : raise IndexError
-                    self.selections.append(self.menu.getOption(selectedIndex - 1))
+                    self.selections.append(str(self.menu.getOption(selectedIndex - 1)))
 
                     screen.addstr('You have selected: ' + ', '.join(self.selections) + '\nHit any key to continue.')
                     screen.getch()
@@ -331,19 +340,107 @@ class TextSelectPrompt:
           return self.selection
 
 
+
+class ScrollingMenu:
+    def __init__(self, menuItemArray, height, width):
+        self.menuItems = menuItemArray
+        self.height = height
+        self.width = width
+        self.window = None
+
+
+    def show(self, screen):
+        self.window = screen.subwin(15, 30, 5, 5)        
+        self.window.border()
+        boxLine = 2
+        #textBox.move(boxLine)
+
+        for item in menuItems:
+            textBox.move(boxLine, 2)
+            textBox.addstr(item)
+            boxLine = boxLine + 1
+
+        screen.refresh()
+    
+
+
+class MenuBar:
+    def __init__(self, optionArray):
+        pass
+
+
+#-- Define the appearance of some interface elements
+hotkey_attr = curses.A_BOLD | curses.A_UNDERLINE
+menu_attr = curses.A_NORMAL
+
+
+#-- Magic key handler both loads and processes keys strokes
+def topbar_key_handler(key_assign=None, key_dict={}):
+    if key_assign:
+        key_dict[ord(key_assign[0])] = key_assign[1]
+    else:
+        c = screen.getch()
+        if c in (curses.KEY_END, ord('!')):
+            return 0
+        elif c not in key_dict.keys():
+            curses.beep()
+            return 1
+        else:
+            return eval(key_dict[c])
+
+
 class CursesDisplay:
     def __init__(self, clientClass, **kwargs ):
         self.client = clientClass()
 
+
+
+    def topbar_menu(self, screen, menus):
+        left = 2
+        for menu in menus:
+            menu_name = menu[0]
+            menu_hotkey = menu_name[0]
+            menu_no_hot = menu_name[1:]
+            screen.addstr(1, left, menu_hotkey, hotkey_attr)
+            screen.addstr(1, left+1, menu_no_hot, menu_attr)
+            left = left + len(menu_name) + 3
+                # Add key handlers for this hotkey
+            topbar_key_handler((str.upper(menu_hotkey), menu[1]))
+            topbar_key_handler((str.lower(menu_hotkey), menu[1]))
+            # Little aesthetic thing to display application title
+        screen.addstr(1, left-1, 
+                  ">"*(52-left)+ " Serpentine Configuration Utility",
+                  curses.A_STANDOUT) 
+        screen.refresh()
+        
+
+
+    def drawTopMenu(self, screen):
+        # Define the topbar menus
+        file_menu = ("File", "file_func()")
+        proxy_menu = ("Proxy Mode", "proxy_func()")
+        doit_menu = ("Do It!", "doit_func()")
+        help_menu = ("Help", "help_func()")
+        exit_menu = ("Exit", "EXIT")
+        # Add the topbar menus to screen object
+        self.topbar_menu(screen, [file_menu, proxy_menu, doit_menu,
+              help_menu, exit_menu])
+        
+
+
     def open(self, **kwargs):
         try:
             # Initialize curses
-            screen=curses.initscr()
+            screen=curses.initscr().subwin(curses.LINES, curses.COLS, 0, 0)         
+            screen.border()
+            screen.hline(2, 1, curses.ACS_HLINE, curses.COLS - 2)
             # Turn off echoing of keys, and enter cbreak mode,
             # where no buffering is performed on keyboard input
             #curses.noecho()
             curses.cbreak()
-            #curses.curs_set(1)
+            curses.curs_set(1)
+
+            #self.drawTopMenu(screen)
 
             # In keypad mode, escape sequences for special keys
             # (like the cursor keys) will be interpreted and
