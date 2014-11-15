@@ -37,6 +37,6 @@
             {% endfor %}
         
 		
-		    <label for="submit_button">Are you sure you want to delete this {{formspec.model}}?</label><input id="submit_button" type="submit" value="Yes; Delete"/><input id="cancel_button" type="button" value="No; Cancel"/>
+		    <label for="submit_button">Are you sure you want to delete this {{formspec.model}}?</label><input id="submit_button" type="submit" value="Yes; Delete"/><input id="cancel_button" type="button" class="small button" value="No; Cancel"/>
 	     </form>
 {% raw %}{% endblock %}{% endraw %}

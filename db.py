@@ -28,27 +28,35 @@ class Database:
 
     """
 
-    def __init__(self, dbType, host, schema):
+    def __init__(self, dbType, host, schema, port):
         """Create a Database instance ready for user login.
 
         Arguments:
-        dbType -- for now, 'mysql' only
+        dbType -- for now, mysql and postgres only
         host -- host name or IP
         schema -- the database schema housing the desired tables
         """
 
         self.dbType = dbType
         self.host = host
+        self.port = port
         self.schema = schema
         self.engine = None
         self.metadata = None
         
         
+        
 
     def __createURL__(self, dbType, username, password):
-        """Implement in subclasses to provide database-type-specific URL formats."""
-
+        """Implement in subclasses to provide database-type-specific connection URLs."""
         pass
+
+
+    def jdbcURL(self):
+        """Return the connection URL without user credentials."""
+        return 'jdbc:%s://%s:%s/%s' % (self.dbType, self.host, self.port, self.schema)
+
+    
 
     def login(self, username, password):    
         """Connect as the specified user."""
@@ -91,17 +99,33 @@ class Database:
 
         return self.metadata.tables[name]
 
-
+    
 
 class MySQLDatabase(Database):
     """A Database type for connecting to MySQL instances."""
 
-    def __init__(self, host, schema):
-        Database.__init__(self, "mysql", host, schema)
+    def __init__(self, host, schema, port=3306):        
+        Database.__init__(self, "mysql", host, schema, port)
+        
         
     def __createURL__(self, dbType, username, password):
-        return "%s://%s:%s@%s/%s" % (self.dbType, username, password, self.host, self.schema)
+        return "%s://%s:%s@%s:%d/%s" % (self.dbType, username, password, self.host, self.port, self.schema)
 
+
+    
+
+class PostgreSQLDatabase(Database):
+    """A Database type for connecting to PostgreSQL instances."""
+
+    def __init__(self, host, schema, port=5432):
+        Database.__init__(self, "postgresql+psycopg2", host, schema, port)
+        
+        
+    def __createURL__(self, dbType, username, password):
+        return "%s://%s:%s@%s:%d/%s" % (self.dbType, username, password, self.host, self.port, self.schema)
+
+
+        
 
 class NoSuchPluginError(Exception):
     def __init__(self, pluginName):
@@ -122,7 +146,7 @@ class PersistenceManager:
         self._typeMap = {}
         self.modelAliasMap = {}
         self.database = database
-        self.metaData = database.getMetaData()
+        self.metaData = self.database.getMetaData()
         self.pluginTable = {}
         self.mappers = {}
 
@@ -132,6 +156,10 @@ class PersistenceManager:
 
     def getSession(self):
         return self.database.getSession()
+
+    def refreshMetaData(self):
+        self.metaData = self.database.getMetaData()
+
 
     def loadTable(self, tableName):
         """Retrieve table data using SQLAlchemy reflection"""

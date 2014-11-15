@@ -20,9 +20,11 @@ class MaxUploadSizeError(Exception):
     def __init__(self, maxSize):
         Exception.__init__(self, 'Uploaded file must be less than %d bytes.' % maxSize)
 
+
 class InvalidPageNumberError(Exception):
     def __init__(self, pageNumber):
         Exception.__init__(self, "Pagination cannot use a negative or zero page number.")
+
 
 class NoControllerMethodError(Exception):
     def __init__(self, controllerMethod, objectType):
@@ -30,10 +32,12 @@ class NoControllerMethodError(Exception):
                            either does not exist or is not callable." \
                            % (controllerMethod, objectType))
 
+
 class NoSuchControllerError(Exception):
   def __init__(self, objectType):
     Exception.__init__(self,
                        "No Controller object has been assigned to the type %s" % objectType)
+
 
 class ClassLoaderError(Exception):
     def __init__(self, fqClassName):
@@ -41,9 +45,11 @@ class ClassLoaderError(Exception):
                            "Cannot find Python class with fully-qualified name '%s'. \
                            Please check your modules and PYTHONPATH." % fqClassName)
 
+
 class ConfigError(Exception):
       def __init__(self, message):
             Exception.__init__(self, message)
+
 
 class ObjectLookupError(Exception):
     def __init__(self, objectType, objectID):
@@ -51,61 +57,74 @@ class ObjectLookupError(Exception):
                            "No object of type %s with ID %s found in database." \
                            % (objectType, str(objectID)))
 
+
 class NoTypeMappingError(Exception):
     def __init__(self, className):
         Exception.__init__(self,
                            "No database table has been mapped to class %s." \
                            % className)
 
+
 class FormHandlerError(Exception):
     def __init__(self, message):
         Exception.__init__(self, message)
 
+
 class FormValidationError(Exception):
     def __init__(self, operation, objectType, errorDict):
-        self.errors = errorDict
+        self.errors = ['%s: %s'%(key, errorDict[key]) for key in errorDict]
+        
         Exception.__init__(self,
                            'Form validation for %s %s failed with errors \
                            in the following fields: %s.' \
-                           % (objectType, operation, ','.join(errorDict.keys())))
+                           % (objectType, operation, ','.join(self.errors)))
+
 
 class FormConfigError(Exception):
     def __init__(self, message):
         Exception.__init__(self, message)
 
+
 class DatabaseError(Exception):
     def __init__(self, message):
         Exception.__init__(self, message)
+
 
 class NoSuchFrameError(Exception):
     def __init__(self, frameID):
         Exception.__init__(self,
                            "No content frame registered under alias '%s'. " % frameID)
 
+
 class NoSuchResponderError(Exception):
     def __init__(self, responderAlias):
         Exception.__init__(self,
                            "No responder registered under alias '%s'." % responderAlias)
+
 
 class NoSuchFormError(Exception):
     def __init__(self, frameID):
         Exception.__init__(self,
                            "No data input form has been registered to the content frame with ID '%s'. " % frameID)
 
+
 class NoSuchStylesheetError(Exception):
     def __init__(self, filename):
         Exception.__init__(self,
                            "XSL stylesheet file '%s' could not be found. Please check your path and permissions." % filename)
 
+
 class RenderError(Exception):
     def __init__(self, message):
         Exception.__init__(self, message)
+
 
 class NoSuchViewError(Exception):
     def __init__(self, objectType, controllerMethod):
         Exception.__init__(self,
                            "No content frame has been mapped to object type %s and controller method %s" \
                                % (objectType, controllerMethod))
+
 
 class TemplateConfigError(Exception):
     def __init__(self, message):
@@ -230,9 +249,13 @@ class BaseController(object):
         # The name we use to retrieve a specific type ID from the session
         self.typeSpecificIDSessionTag = ''.join([self.modelClass.__name__.lower(), '_id'])
         self.sessionName = 'beaker.session'
+        
+        self.postCompletionDispatchTable = {}
+        self.postCompletionDispatchTable['insert'] = self._defaultPostCompletionMethod
+        self.postCompletionDispatchTable['update'] = self._defaultPostCompletionMethod
+        self.postCompletionDispatchTable['delete'] = self._defaultPostCompletionMethod
+        
 
-
-    """"
     def lookup(self, objectID, dbSession):
         try:            
             object = dbSession.query(self.modelClass).filter(self.modelClass.id == objectID).one()           
@@ -241,13 +264,35 @@ class BaseController(object):
         except NoResultFound, err:
             raise Exception('No %s instance found in DB with primary key %s.' % (self.modelClass.__name__, str(objectID)))
             
-            //raise err
         except SQLAlchemyError, err:
             
             log('%s lookup failed with message: %s' % (self.modelClass.__name__, err.message))
             # TODO: scaffolding to track down lookup 
             raise err
-    """
+
+    
+    
+    def _postCompletionExec(self, methodName, httpRequest, context, **kwargs):
+        
+        dispatchTarget = self.postCompletionDispatchTable.get(methodName, None)
+        if not dispatchTarget:            
+            return # OK to fail quietly?
+        else:    
+            #raise Exception('Calling _defaultPostCompletionMethod with method name %s' % methodName)
+            dispatchTarget(httpRequest, context, **kwargs)
+    
+    
+    
+    def _defaultPostCompletionMethod(self, httpRequest, context, **kwargs):    
+        snapback = httpRequest.params.get('snapback')
+        if snapback:
+            redirectTarget = '/%s/%s' % (context.urlBase, snapback.strip())
+        else:
+            redirectTarget = '/%s/controller/%s/index' % (context.urlBase, self.modelClass.__name__)
+    
+        redirect(redirectTarget)
+    
+    
     
     def lookup(self, objectID, dbSession, persistenceManager):
         
@@ -269,6 +314,7 @@ class BaseController(object):
         dbSession.close()
         if result is None:
             raise ObjectLookupError(self.modelClass.__name__, objectID)
+        
         
         
     def _index(self, dbSession, persistenceManager):        
@@ -382,7 +428,9 @@ class BaseController(object):
         try:
             self._insert(object, dbSession, context.persistenceManager)
             dbSession.commit()
-        
+            
+            self._postCompletionExec('insert', httpRequest, context, **kwargs)
+            '''
             snapback = httpRequest.POST.get('snapback', '').strip()
             if len(snapback):
                 redirectTarget = '/%s/%s' % (context.urlBase, snapback)
@@ -390,6 +438,7 @@ class BaseController(object):
                 redirectTarget = '/%s/controller/%s/index' % (context.urlBase, objectType)
 
             redirect(redirectTarget)
+            '''
         except Exception, err:
             dbSession.rollback()
             raise err
@@ -421,7 +470,19 @@ class BaseController(object):
             targetObject = self.lookup(int(objectID), dbSession, pMgr)
             self._delete(targetObject, dbSession, pMgr)  
             dbSession.commit() 
-            redirect('/bifrost/controller/%s/index' % objectType)         
+                        
+            self._postCompletionExec('delete', httpRequest, context, **kwargs)
+            
+            '''
+            snapback = httpRequest.GET.get('snapback', '').strip()
+            if len(snapback):
+                redirectTarget = '/%s/%s' % (context.urlBase, snapback)
+            else:
+                redirectTarget = '/%s/controller/%s/index' % (context.urlBase, objectType)
+        
+            redirect(redirectTarget)    
+            ''' 
+                    
         except Exception, err:
             dbSession.rollback()
             raise err
@@ -477,6 +538,7 @@ class BaseController(object):
             finally:
                 dbSession.close()
                 
+                
         elif httpRequest.method == 'POST':     
             try:
                 inputForm = formClass()
@@ -489,13 +551,16 @@ class BaseController(object):
                 self._update(obj, dbSession, context.persistenceManager)
                 dbSession.commit()
                 
+                self._postCompletionExec('update', httpRequest, context, **kwargs)
+                
+                '''
                 snapback = httpRequest.POST.get('snapback', '').strip()
                 if len(snapback):
                     redirectTarget = '/%s/%s' % (context.urlBase, snapback)
                 else:
-                    redirectTarget = '/%s/controller/%s/index' % (context.urlBase, objectType)
-            
-                redirect(redirectTarget)   
+                    redirectTarget = '/%s/controller/%s/index' % (context.urlBase, objectType)            
+                redirect(redirectTarget)  
+                '''  
             except Exception, err:
                 dbSession.rollback()
                 raise err         

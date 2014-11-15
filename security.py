@@ -1,6 +1,7 @@
 
 from sutility import *
 from sqlalchemy import *
+from sqlalchemy.exc import SQLAlchemyError
 from bottle import redirect
 import time, datetime
 import random
@@ -287,7 +288,8 @@ class SQLUserAuthenticator(UserAuthenticator):
     def __init__(self, persistenceManager):
         UserAuthenticator.__init__(self)
         self.persistenceManager = persistenceManager
-        
+        self.userIdentifierColumnName = 'email'
+        self.passwordColumnName = 'password'
         
     def _authenticate(self, userName, password, sessionID, loggingAgent, **kwargs):
         userTable = self.persistenceManager.loadTable('users')
@@ -295,14 +297,16 @@ class SQLUserAuthenticator(UserAuthenticator):
         try:
             dbSession = self.persistenceManager.getSession()
             # TODO: modify query to be aware of group memberships
-            userAuthQuery = dbSession.query(userTable).filter(and_(userTable.c.username == userName, userTable.c.password == password))
+            userAuthQuery = \
+            dbSession.query(userTable).filter(and_(userTable.c[self.userIdentifierColumnName] == userName, 
+                                              userTable.c[self.passwordColumnName] == password))
             result = userAuthQuery.all()
             if result:
                 return AuthToken(sessionID, userName, [])
             else: 
                 loggingAgent.logEvent(SecurityEventType.AUTHENTICATION, 'incorrect username or password.')
                 return None
-        except SQLAlchemyException, err:
+        except SQLAlchemyError, err:
             loggingAgent.logAuthenticationEvent(SecurityEventType.AUTHENTICATION, 'database error', err)
             return None
         finally:
@@ -342,6 +346,7 @@ class AuthStatus:
         self.ok = isOK
         self.token = token
         self.message = message
+
 
 
 class AuthStatusOK(AuthStatus):

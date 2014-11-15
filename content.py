@@ -11,10 +11,9 @@ import re
 import jinja2
 
 import wtforms
-from wtforms import HiddenField, validators
+from wtforms import IntegerField, BooleanField, HiddenField, validators
 
 from sqlalchemy.sql.expression import select
-
 from lxml import etree
 from StringIO import *
 
@@ -26,6 +25,41 @@ logging.basicConfig(filename = 'serpentine.log', level = logging.INFO, format = 
 
 log = logging.info
 
+
+class NullableHiddenIntegerField(IntegerField):
+    """
+    An IntegerField where the field can be null if the input data is an empty
+    string.
+    """
+
+    def process_formdata(self, valuelist):
+        if valuelist:
+            if valuelist[0] == '':
+                self.data = None
+            else:
+                try:
+                    self.data = int(valuelist[0])
+                except ValueError:
+                    self.data = None
+                    raise ValueError(self.gettext('Not a valid integer value'))
+
+
+class NullableBooleanField(BooleanField):
+    """
+    A BooleanField where the value is False by default
+    """
+
+    def process_formdata(self, valuelist):
+        if valuelist:
+            if valuelist[0] == '':
+                self.data = False
+            else:
+                try:
+                    self.data = bool(valuelist[0])
+                except ValueError:
+                    self.data = False
+                    raise ValueError(self.gettext('Not a valid boolean value'))
+    
 
 
 class MissingDataSourceParameterError(Exception):
@@ -294,7 +328,7 @@ class SQLCondition:
                 
         matchFound = False
         for regex in self.expressionHandler:
-            if regex.match(conditionString):
+            if regex.match(conditionString):                
                 matchFound = True
                 self.expressionHandler[regex](conditionString) #function pointers, yeah
         
@@ -310,7 +344,13 @@ class SQLCondition:
         
         
     def parseVariablePredicate(self, conditionString):
-            
+        """A variable predicate takes the form of { var }
+        where var appears as a value in the query string of
+        the HTTP request used to invoke the uicontrol. 
+        This allows us to build dynamic controls which change
+        their content depending on how we call them.
+        """
+        
         bracketVar = re.compile(r'\{\s*[a-z_]*\s*\}', re.IGNORECASE)         
         s = bracketVar.search(conditionString)
         variableString = conditionString[s.start()+1: s.end()-1]
@@ -318,32 +358,28 @@ class SQLCondition:
         self.predicateType = 'variable'
         
         
-    def parseIntPredicate(self, conditionString):
-
+    def parseIntPredicate(self, conditionString):        
         intValueRegex = re.compile(r'[0-9]+') 
         s = intValueRegex.search(conditionString)        
         self.predicate = conditionString[s.start():s.end()].strip()
         self.predicateType = 'integer'
     
     
-    def parseFloatPredicate(self, conditionString):
-
+    def parseFloatPredicate(self, conditionString):        
         floatValueRegex = re.compile(r'[-+]?[0-9]*\.?[0-9]+')        
         s = floatValueRegex.search(conditionString)        
         self.predicate = conditionString[s.start():s.end()].strip()
         self.predicateType = 'float'
                     
     
-    def parseStringPredicate(self, conditionString):
-    
-       stringValueRegex = re.compile('\"[\S]+\"')
-       s = stringValueRegex.search(conditionString)
-       self.predicate = conditionString[s.start():s.end()].strip()
-       self.predicateType = 'string'
+    def parseStringPredicate(self, conditionString):        
+        stringValueRegex = re.compile('\"[\S]+\"')
+        s = stringValueRegex.search(conditionString)
+        self.predicate = conditionString[s.start():s.end()].strip()
+        self.predicateType = 'string'
        
        
-    def parseBooleanPredicate(self, conditionString):
-    
+    def parseBooleanPredicate(self, conditionString):        
         booleanValueRegex = re.compile('(True)|(False)', re.IGNORECASE)
         s = booleanValueRegex.search(conditionString)
         predicateString = conditionString[s.start():s.end()].strip()
@@ -385,16 +421,18 @@ class SQLDataSource:
     
     def filterByConditions(self, dataTable, query, **kwargs):
     
+        
         # has someone set conditions in order to filter records?
         for sqlc in self.conditions:
+              
             # Either the SQLCondition's predicate has an explicit value,
-            if not sqlc.predicateType == 'variable':
+            if not sqlc.predicateType == 'variable':                
                 query = query.where(dataTable.c[sqlc.field].op(sqlc.operator)(sqlc.predicate))
                 
             # or else it points to a variable, which we must get from the inbound request vars
             # (which have been bundled into **kwargs)
-            else:                
-                predicateValue = kwargs.get(sqlc.predicate, '')
+            else:                            
+                predicateValue = kwargs.get(sqlc.predicate)
                 if not predicateValue:
                     raise MissingConditionVariableError(sqlc)
                 query = query.where(dataTable.c[sqlc.field].op(sqlc.operator)(predicateValue))
@@ -585,7 +623,7 @@ class DataSourceFactory:
         else:
             raise UnsupportedDataSourceTypeError(dataSourceType)
 
-        # The "condition" parameter is where users can specify the data
+        # The "conditions" parameter is where users can specify the data
         # to be returned by the source. The format is <fieldname> <operator> <value>.
         # For example: id < 10  will specify that only records with id less than 10
         # should be returned. Users may also specify variables in the condition parameter
@@ -637,7 +675,7 @@ class DataSourceFactory:
 
 
     def _createTableSource(self, tableDataSourceClass, **kwargs):
-
+        
         requiredParams = tableDataSourceClass.requiredParameters
         missingParams = [param for param in requiredParams if param not in kwargs]
         if missingParams:
@@ -653,7 +691,7 @@ class DataSourceFactory:
             if headerListString:
                 headers = [item.strip() for item in headerListString.split(',')]
             
-            #conditions = kwargs.get('conditions', None)  # optional, not implemented yet 
+            conditions = kwargs.get('conditions', None)  # optional, not implemented yet 
             
             source = tableDataSourceClass(table, fields, headers)
             source.loadOptionalParams(**kwargs)
@@ -719,7 +757,8 @@ class HTMLControl:
 class SelectControl(HTMLControl):
     def __init__(self, dataSource, **kwargs):        
         kwargs['type'] = 'select'
-        HTMLControl.__init__(self, dataSource, 'select_control', **kwargs)
+        templateID = kwargs.get('template', 'select_control') # override default template if specified
+        HTMLControl.__init__(self, dataSource, templateID, **kwargs)
 
     def _getData(self, persistenceManager, **kwargs):
         self.dataSource.load(persistenceManager, **kwargs)
@@ -730,7 +769,8 @@ class SelectControl(HTMLControl):
 class RadioGroupControl(HTMLControl):
     def __init__(self, dataSource, **kwargs):  
         kwargs['type'] = 'radio_group'
-        HTMLControl.__init__(self, dataSource, 'radio_group_control', **kwargs)
+        templateID = kwargs.get('template', 'radio_group_control') # override default template if specified
+        HTMLControl.__init__(self, dataSource, templateID, **kwargs)
 
     def _getData(self, persistenceManager, **kwargs):        
         self.dataSource.load(persistenceManager, **kwargs)
@@ -741,8 +781,9 @@ class RadioGroupControl(HTMLControl):
 class TableControl(HTMLControl):
     def __init__(self, tableDataSource, **kwargs):       
         kwargs['type'] = 'table'
-        templateID = kwargs.get('template', 'table')
+        templateID = kwargs.get('template', 'table') # override default template if specified
         HTMLControl.__init__(self, tableDataSource, templateID, **kwargs)
+        
         
     def _getData(self, persistenceManager, **kwargs):
         self.dataSource.load(persistenceManager, **kwargs)
@@ -790,10 +831,8 @@ class ControlFactory:
 
         if controlType in self.controlCreators:
             return getattr(self, self.controlCreators[controlType])(dataSourceRegistry, **kwargs)
-
         elif controlType == 'custom':
             raise Exception('Custom control types are not yet supported.')
-
         else:
             raise UnsupportedControlTypeError(controlType)
 
@@ -805,7 +844,7 @@ class ControlFactory:
 
         if missingParams:
             raise MissingControlParameterError(SelectControl, requiredParams)
-                
+                         
         dataSourceName = kwargs['datasource']
         dataSource = dataSourceRegistry.getDataSource(dataSourceName)
         
