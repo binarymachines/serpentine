@@ -1,0 +1,217 @@
+{% extends "base_template.html" %}
+
+{% block title %}
+Asset Delete
+{% endblock %}
+
+
+
+{% block user_scripts %}
+<script type="text/javascript" language="javascript">
+
+    $(document).ready(function(){
+    
+    });
+    
+</script>
+{% endblock %}
+
+
+
+{% block content_header %}
+    <h5>Delete Asset</h5>
+    <p>Confirmation page for Asset deletion</p>
+{% endblock %}
+
+
+{% block content %}
+        <form class="nice" id="action_form" method="post" 
+        action="/bifrost/controller/Asset/delete/{{form.id.data}}">
+		  
+		    <label for="id">ID</label><input name="id" value="{{ form.id.data }}" class="input-text" disabled="disabled"/>
+            
+            
+             {{ form.id.label  }} 
+             {{ form.id(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.asset_code.label  }} 
+             {{ form.asset_code(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.schedule_id.label  }} 
+             {{ form.schedule_id(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.type.label  }} 
+             {{ form.type(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.title.label  }} 
+             {{ form.title(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.title_brief.label  }} 
+             {{ form.title_brief(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.title_sort_name.label  }} 
+             {{ form.title_sort_name(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.description.label  }} 
+             {{ form.description(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.media_file.label  }} 
+             {{ form.media_file(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.aspect_ratio.label  }} 
+             {{ form.aspect_ratio(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.thumbnail_file.label  }} 
+             {{ form.thumbnail_file(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.summary_short.label  }} 
+             {{ form.summary_short(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.summary_medium.label  }} 
+             {{ form.summary_medium(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.summary_long.label  }} 
+             {{ form.summary_long(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.actors_display_string.label  }} 
+             {{ form.actors_display_string(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.runtime.label  }} 
+             {{ form.runtime(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.raw_runtime.label  }} 
+             {{ form.raw_runtime(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.display_runtime.label  }} 
+             {{ form.display_runtime(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.date_created.label  }} 
+             {{ form.date_created(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.year_created.label  }} 
+             {{ form.year_created(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.genre_id.label  }} 
+             {{ form.genre_id(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.billing_id.label  }} 
+             {{ form.billing_id(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.preview_period.label  }} 
+             {{ form.preview_period(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.display_as_new.label  }} 
+             {{ form.display_as_new(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.display_as_last_chance.label  }} 
+             {{ form.display_as_last_chance(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.max_viewing_length.label  }} 
+             {{ form.max_viewing_length(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.provider_qa_contact.label  }} 
+             {{ form.provider_qa_contact(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.suggested_price.label  }} 
+             {{ form.suggested_price(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.licensing_start_date.label  }} 
+             {{ form.licensing_start_date(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.licensing_end_date.label  }} 
+             {{ form.licensing_end_date(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.language_id.label  }} 
+             {{ form.language_id(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.is_encrypted.label  }} 
+             {{ form.is_encrypted(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.is_closed_captioned.label  }} 
+             {{ form.is_closed_captioned(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.is_hd.label  }} 
+             {{ form.is_hd(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.is_valid.label  }} 
+             {{ form.is_valid(class="input-text", disabled="disabled")  }} 
+        
+            
+            
+             {{ form.deleted.label  }} 
+             {{ form.deleted(class="input-text", disabled="disabled")  }} 
+        
+            
+        
+		
+		    <label for="submit_button">Are you sure you want to delete this Asset?</label><input id="submit_button" type="submit" value="Yes; Delete"/><input id="cancel_button" type="button" value="No; Cancel"/>
+	     </form>
+{% endblock %}

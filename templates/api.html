@@ -1,0 +1,97 @@
+{% extends "base_template.html" %}
+
+{% block title %}
+    {{ app_name }} Documentation
+{% endblock %}
+
+{% block user_scripts %}
+    <script type="text/javascript">
+    
+    
+    </script>
+    <style>
+        #frame_list{
+            position: relative;
+            float:left;
+            width: 250px;
+            display: block;
+        }
+        
+        #api_div ul{
+            position: relative;
+            left: 30px;
+        }
+               
+        #model_list{
+            position: relative;
+            float: left;
+            width: 250px;
+            display: block;            
+            top: 0px;
+        }
+        
+        #controller_list{
+            position: relative;
+            float: left;
+        }
+    </style>
+{% endblock %}
+
+{% block content_header %}
+    <h5>API Docs</h5>
+    <p>externally addressable objects in {{ app_name }}</p>
+{% endblock %}
+
+{% block content %}
+    <div id="api_div">
+    <div id="model_list">
+            <h3><b>Models:</b></h3>
+                <ul>
+                    {% for model in model_list %}
+                        <li>{{ model }}</li>
+                    {% endfor %}
+                </ul>
+                
+        <div id="helper_list">    
+            <h3><b>Helper Functions:</b></h3>
+            <ul>
+                {% for helper in helper_list %}
+                    <li>{{ helper.__name__ }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>  
+    <div id="frame_list">
+        <h3><b>Content Frames:</b></h3>
+        <ul>
+            {% for frame in frame_map %}
+                <li><a href="/{{ app_name.lower() }}/frame/{{ frame }}">{{ frame }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div id="controller_list">
+        <h3><b>Controllers:</b></h3>
+        <ul>
+            {% for controller in controller_map %}
+                <li><a href="/{{ app_name.lower() }}/api/controller/{{ controller }}">{{ controller }}</a></li>
+            {% endfor %}
+        </ul>
+        
+        <div id="responder_list">
+            <h3><b>Responders:</b></h3>
+            <ul>
+                {% for responder in responder_map %}
+                <li><a href="/{{ app_name.lower() }}/api/responder/{{ responder }}">{{ responder }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    
+    
+</div>
+    
+    
+    
+{% endblock %}
+

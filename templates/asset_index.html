@@ -1,0 +1,81 @@
+{% extends "base_template.html" %}
+
+{% block title %}
+Asset Index
+{% endblock %}
+
+
+{% block user_scripts %}
+<script type="text/javascript" language="javascript">
+
+    $(document).ready(function(){
+        
+        //stripe("index_table");
+        
+        /* 
+        The 'action-registration' pattern makes the logic of selects and prompts easier, 
+        more direct, and less error-prone.  For every registered action in
+        the hashtable 'actions', there are the following values: 
+        
+        'name': the string ID of the chosen select option -- this is the index into the hashtable
+        'url': the (usually relative) url that should be triggered on clicking the Go button
+        'params': a hashtable mapping variable names embedded in the url to values (or functions to retrieve them)
+        'must_select': a boolean value specifying whether a record must be selected before clicking Go
+        */
+        
+        actions = {};
+        registerAction(actions, "add", "/bifrost/controller/Asset/insert", {}, false);                                
+        registerAction(actions, "update", "/bifrost/controller/Asset/update/{id}", 
+                        { "id":  getObjectID }, 
+                        true);
+                        
+        registerAction(actions, "delete", "/bifrost/controller/Asset/delete/{id}", 
+                        { "id": getObjectID },
+                        true); 
+                        
+        initTableSelectLogic(actions);
+
+    });
+    
+</script>
+{% endblock %} 
+
+{% block content_header %}
+    <h5>Asset Index Page</h5>
+    <p>List of all Asset objects in the system</p>
+{% endblock %}
+
+{% block content %}
+<form action="#" method="GET" id="action_form">
+    <div class="one column">
+        <select name="action" id="action_selector">  			  
+          			<option id="add" value="#">Add</option>
+          			<option id="update" value="#">Update</option>  
+          			<option id="delete" value="#">Delete</option>  	      		    
+        </select>
+    </div>
+    <div class="eleven columns">
+        <button id="go_button" type="submit" style="width: 4em; height: 2em">Go</button>
+    </div>
+    <div class="twelve columns">
+        <table id="index_table">
+            <thead>            
+                <th>Select</th>
+                <th>Id</th><th>Asset Code</th><th>Schedule Id</th><th>Type</th><th>Title</th><th>Title Brief</th><th>Title Sort Name</th><th>Description</th><th>Media File</th><th>Aspect Ratio</th><th>Thumbnail File</th><th>Summary Short</th><th>Summary Medium</th><th>Summary Long</th><th>Actors Display String</th><th>Runtime</th><th>Raw Runtime</th><th>Display Runtime</th><th>Date Created</th><th>Year Created</th><th>Genre Id</th><th>Billing Id</th><th>Preview Period</th><th>Display As New</th><th>Display As Last Chance</th><th>Max Viewing Length</th><th>Provider Qa Contact</th><th>Suggested Price</th><th>Licensing Start Date</th><th>Licensing End Date</th><th>Language Id</th><th>Is Encrypted</th><th>Is Closed Captioned</th><th>Is Hd</th><th>Is Valid</th><th>Deleted</th>               
+            </thead>
+            <tbody>    
+            {% for record in resultset %}
+                <tr>
+                  <td>
+                    <input type="radio" class="object_id_button" name="object_id" value="{{ record.id }}"/>
+                  </td>
+                    <td> {{ record.id  }} </td><td> {{ record.asset_code  }} </td><td> {{ record.schedule_id  }} </td><td> {{ record.type  }} </td><td> {{ record.title  }} </td><td> {{ record.title_brief  }} </td><td> {{ record.title_sort_name  }} </td><td> {{ record.description  }} </td><td> {{ record.media_file  }} </td><td> {{ record.aspect_ratio  }} </td><td> {{ record.thumbnail_file  }} </td><td> {{ record.summary_short  }} </td><td> {{ record.summary_medium  }} </td><td> {{ record.summary_long  }} </td><td> {{ record.actors_display_string  }} </td><td> {{ record.runtime  }} </td><td> {{ record.raw_runtime  }} </td><td> {{ record.display_runtime  }} </td><td> {{ record.date_created  }} </td><td> {{ record.year_created  }} </td><td> {{ record.genre_id  }} </td><td> {{ record.billing_id  }} </td><td> {{ record.preview_period  }} </td><td> {{ record.display_as_new  }} </td><td> {{ record.display_as_last_chance  }} </td><td> {{ record.max_viewing_length  }} </td><td> {{ record.provider_qa_contact  }} </td><td> {{ record.suggested_price  }} </td><td> {{ record.licensing_start_date  }} </td><td> {{ record.licensing_end_date  }} </td><td> {{ record.language_id  }} </td><td> {{ record.is_encrypted  }} </td><td> {{ record.is_closed_captioned  }} </td><td> {{ record.is_hd  }} </td><td> {{ record.is_valid  }} </td><td> {{ record.deleted  }} </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+         </table>
+     </div>
+</form>
+{% endblock %}
+
+
