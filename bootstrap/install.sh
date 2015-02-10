@@ -4,8 +4,6 @@
 # installs the generated code and content into the Serpentine app directories
 
 cp *.html ../templates/
-cp -R styles ../templates/
-cp -R scripts ../templates/
 cp -R js ../templates/
 cp -R css ../templates/
 cp -R fonts ../templates/

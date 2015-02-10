@@ -46,18 +46,18 @@
 {% raw %}{% endblock %}{% endraw %}
 
 {% raw %}{% block content %}{% endraw %}
-<form action="#" method="GET" id="action_form">
-    <div class="one column">
+<form action="#" method="GET" role="form" id="action_form">
+    <div class="col-md-1">
         <select name="action" id="action_selector">  			  
           			<option id="add" value="#">Add</option>
           			<option id="update" value="#">Update</option>  
           			<option id="delete" value="#">Delete</option>  	      		    
         </select>
     </div>
-    <div class="eleven columns">
+    <div class="col-md-11">
         <button id="go_button" type="submit" style="width: 4em; height: 2em">Go</button>
     </div>
-    <div class="twelve columns">
+    <div class="col-md-12">
         <table id="index_table">
             <thead>            
                 <th>Select</th>
