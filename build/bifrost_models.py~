@@ -1,0 +1,24 @@
+
+class AssetId(object): pass
+
+
+class Distributor(object): pass
+
+
+class MetadataProfile(object): pass
+
+
+class Edl(object): pass
+
+
+class AssetId(object): pass
+
+
+class Distributor(object): pass
+
+
+class MetadataProfile(object): pass
+
+
+class Edl(object): pass
+

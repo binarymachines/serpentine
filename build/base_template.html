@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+
+<!-- paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/ -->
+<!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7" lang="en"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js lt-ie9 lt-ie8" lang="en"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js lt-ie9" lang="en"> <![endif]-->
+<!--[if gt IE 8]><!--> 
+<html class="no-js" lang="en"> 
+<!--<![endif]-->
+<head>
+	<meta charset="utf-8" />
+
+	<!-- Set the viewport width to device width for mobile -->
+	<meta name="viewport" content="width=device-width" />
+
+	<title>
+    
+        {% block title %}
+            Page Title 
+        {% endblock %}
+    
+    </title>
+  
+	<!-- Included CSS Files -->
+	
+	
+	<link rel="stylesheet" href="/bifrost/static/styles/foundation.css"/>
+	<link rel="stylesheet" href="/bifrost/static/styles/app.css"/>
+	
+    <link type="text/css" href="/bifrost/static/styles/jquery-ui-custom.css" rel="stylesheet" />
+    <link type="text/css" href="/bifrost/static/styles/jquery-ui-mods.css" rel="stylesheet"/>
+
+    <script type="text/javascript" src="/bifrost/static/scripts/jquery.min.js"></script>
+    <script type="text/javascript" src="/bifrost/static/scripts/jquery-ui.js"></script>   
+    
+    <script type="text/javascript" src="/bifrost/static/scripts/foundation.js"></script>
+    <script type="text/javascript" src="/bifrost/static/scripts/app.js"></script>
+
+    <script type="text/javascript" src="/bifrost/static/scripts/jquery-ui-timepicker-addon.js"></script>
+    <script type="text/javascript" src="/bifrost/static/scripts/serpentine.js"></script>
+    
+
+	<!--[if lt IE 9]>
+		<link rel="stylesheet" href="stylesheets/ie.css">
+	<![endif]-->
+	
+	<script src="/bifrost/static/scripts/modernizr.foundation.js"></script>
+
+	<!-- IE Fix for HTML5 Tags -->
+	<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+
+
+    
+    {% block user_scripts %}
+        <!-- placeholder for user-defined javscript code blocks -->
+    {% endblock %}
+    
+</head>
+<body>
+
+	<!-- container -->
+	<div class="container">
+
+        <div class="row">
+        &nbsp;
+        </div>
+		<div class="row">
+		     <div class="twelve columns">
+    			<div class="two columns">
+    				<h2>Bifrost</h2>	
+                </div
+                <div class="ten columns">
+                    <br/>
+                    <h5>version 1.0</h5>		
+                </div>	
+            </div>
+        </div>
+        <div class="row" id="header">
+            <div class="twelve columns">
+                
+                {% block nav %}
+				<ul class="nav-bar">
+                	<li class="has-flyout">
+                		<a href="#" class="main">Home</a>
+                		<a href="#" class="flyout-toggle"><span></span></a>
+                		<div class="flyout">
+                			<ul>
+                                <li><a href="#">Login</a></li>                                                                                        
+                                <li><a href="#">Logout</a></li>
+                                <li><a href="#">Dashboard</a></li>
+                                <li><a href="#"><hr/></a></li>
+                                <li><a href="#">Preferences</a></li>
+                			</ul>
+                		</div>
+                    </li>                	
+                	<li class="has-flyout">
+                		<a href="#" class="main">Navitem 2</a>                		
+                	</li>
+                	<li class="has-flyout">
+                		<a href="#" class="main">Navitem 3</a>                		
+                	</li>
+                	<li class="has-flyout">
+                		<a href="#" class="main">Navitem 4</a>                		
+                	</li>                	
+                	<li><input type="search" /></li>
+                </ul>
+                {% endblock %}
+                
+			</div> 
+         </div> <!-- end header div -->
+		
+		
+		
+
+		<div class="row">
+			<div class="twelve columns">
+                <div class="panel">
+                
+                {% block content_header %}
+                    <h5>Page Title</h>
+                    <p>page subtitle</p>
+                {% endblock %}
+                
+                </div>
+								
+				{% block content %}
+				
+				
+				{% endblock %}
+				
+                
+				
+			</div>
+        </div>
+			
+	</div>
+	<!-- container -->
+
+
+
+</body>
+</html>
