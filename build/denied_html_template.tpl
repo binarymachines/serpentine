@@ -10,9 +10,7 @@
 <head>
 	<meta charset="utf-8" />
 
-	<!-- Set the viewport width to device width for mobile -->
-	<meta name="viewport" content="width=device-width" />
-
+	
 	<title>
     
         {% block title %}
@@ -21,52 +19,24 @@
     
     </title>
   
-	<!-- Included CSS Files -->
-	
-	
-	<link rel="stylesheet" href="/{{ config.url_base }}/static/styles/foundation.css"/>
-	<link rel="stylesheet" href="/{{ config.url_base }}/static/styles/app.css"/>
-	<!-- <link rel="stylesheet" href="/{{ config.url_base }}/static/styles/general_foundicons.css"/> -->
-	
-	
-	<link href="/{{ config.url_base }}/static/styles/general_foundicons.css" media="screen" rel="stylesheet" type="text/css" />
-    
-    
-    <!--[if lt IE 8]>
-    <link href="/{{ config.url_base }}/static/styles/general_foundicons_ie7.css?1350599811" media="screen" rel="stylesheet" type="text/css" />
-    <link href="/{{ config.url_base }}/static/styles/general_enclosed_foundicons_ie7.css?1350599811" media="screen" rel="stylesheet" type="text/css" />
-    <link href="/{{ config.url_base }}/static/styles/social_foundicons_ie7.css?1350599811" media="screen" rel="stylesheet" type="text/css" />
-    <link href="/{{ config.url_base }}/static/styles/accessibility_foundicons_ie7.css?1350599811" media="screen" rel="stylesheet" type="text/css" />
+    <!-- Included CSS Files -->
+    <!-- Bootstrap -->
+    <link href="/{{ config.url_base }}/static/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements
+    and media queries (TODO: add to Serpentine dist)-->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
 
-	
-	
-	
-    <link type="text/css" href="/{{ config.url_base }}/static/styles/jquery-ui-custom.css" rel="stylesheet" />
-    <link type="text/css" href="/{{ config.url_base }}/static/styles/jquery-ui-mods.css" rel="stylesheet"/>
-
-    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery.min.js"></script>
-    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery-ui.js"></script>   
+    <script type="text/javascript" src="/{{ config.url_base }}/static/js/jquery.min.js"></script>
+    <script type="text/javascript" src="/{{ config.url_base }}/static/js/serpentine.js"></script>
     
-    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/foundation.js"></script>
-    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/app.js"></script>
-
-    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/jquery-ui-timepicker-addon.js"></script>
-    <script type="text/javascript" src="/{{ config.url_base }}/static/scripts/serpentine.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/{{ config.url_base }}/static/js/bootstrap.min.js"></script>    
     
-
-	<!--[if lt IE 9]>
-		<link rel="stylesheet" href="stylesheets/ie.css">
-	<![endif]-->
-	
-	<script src="/{{ config.url_base }}/static/scripts/modernizr.foundation.js"></script>
-
-	<!-- IE Fix for HTML5 Tags -->
-	<!--[if lt IE 9]>
-		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-	<![endif]-->
-
-
     
     {% block user_scripts %}
         <!-- placeholder for user-defined javscript code blocks -->
@@ -77,7 +47,7 @@
 <!-- Header and Nav -->
   
   <div class="row">
-    <div class="twelve columns">
+    <div class="col-md-12">
       <div class="panel">
         <h3>Access Denied.</h3>
         <p>{{ config.app_name }} error handler page</p>
@@ -90,14 +60,13 @@
   
   <div class="row" style="margin-top: 100px; margin-bottom: 100px">    
     
-    <!-- Main Feed -->
-    <!-- This has been source ordered to come first in the markup (and on small devices) but to be to the right of the nav on larger screens -->
-    <div class="eight columns">
+
+    <div class="col-md-8">
       
       <!-- Feed Entry -->
       <div class="row">
-        <div class="one column"><i class="foundicon-error" style="font-size:28pt; color:black"></i></div>
-        <div class="eleven columns">
+        <div class="col-md-1"><span class="glyphicon glyphicon-ban-circle" aria-hidden="true"></span></div>
+        <div class="col-md-11">
           <h6><strong>{{ config.app_name }} security message: Access Denied.</strong></h6>
           <p>You do not have the security privileges to access the page you requested.</p>
 
@@ -112,17 +81,14 @@
   <!-- Footer -->
   
   <footer class="row">
-    <div class="twelve columns">
+    <div class="col-md-12">
       <hr />
       <div class="row">
-        <div class="six columns">
+        <div class="col-md-6">
           <p>The Serpentine open-source Python stack. New from Binary Machines. HTTP request handling by bottle. Forms by WTForms. Templates by Jinja2. ORM by SQLAlchemy. HTML/CSS by Foundation. Javascript by JQuery. Password hashing by PassLib.</p>
         </div>
-        <div class="six columns">
-          <ul class="link-list right">
-            <li><a href="#">Section 1</a></li>
-            
-          </ul>
+        <div class="col-md-6">
+          ...
         </div>
       </div>
     </div> 
