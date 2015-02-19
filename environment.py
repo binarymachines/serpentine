@@ -8,7 +8,7 @@ import logging
 import yaml
 
 
-from plugin import PluginManager
+#from plugin import PluginManager
 from jinja2 import StrictUndefined
 from content import *
 from db import *

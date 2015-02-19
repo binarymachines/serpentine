@@ -3,33 +3,27 @@
 
 import npyscreen as ns
 import curses
+import os
 
 import db
+import content
 from metaobjects import *
 import environment as env
+import sconfig
 
 
-
-'''
-class PopupMenu(BoxBasic):
-    _contained_widget = ns.TitleSelectOne
-
-    def
-    def create(self):
-        self._contained_widget.value
-'''
-
-class GlobalSettingsForm(ns.Form):
+class GlobalSettingsForm(ns.ActionForm):
     def create(self):
         self.value = None
         self.projectName  = self.add(ns.TitleText, name = "Project name:")
         self.versionNumber = self.add(ns.TitleText, name = "Version number:")
-
+        self.appRootSelector = self.add(ns.TitleFilenameCombo, name="Application root directory:")
         
     def on_ok(self):
         self.editing=False
         globalSettings = {}
         globalSettings['app_name'] = self.projectName.value
+        globalSettings['app_root'] = self.appRootSelector.value
         globalSettings['web_app_name'] = self.projectName.value.lower()
         globalSettings['url_base'] = self.projectName.value.lower()
         globalSettings['app_version'] = self.versionNumber.value
@@ -69,39 +63,61 @@ class GlobalSettingsForm(ns.Form):
                     
             if not os.path.exists(xslStylesheetPath):
                 os.system('mkdir %s' % xslStylesheetPath)
-            
-        except IOError, err:
-            raise err
 
-        self.parentApp.globalSettings = globalSettings
-        self.parentApp.switchForm('MAIN')
+            self.parentApp.configManager.initialize(globalSettings)
+            ns.notify_confirm(str(globalSettings),
+                              title="Global settings initialized",
+                              form_color='STANDOUT',
+                wrap=True, wide=False, editw=1)
+        except IOError, err:
+            ns.notify_confirm(err.message,
+                              title="Error",
+                              form_color='STANDOUT',
+                wrap=True, wide=False, editw=1)
+
+        finally:
+            self.parentApp.switchForm('MAIN')
+
 
 
 class ModelConfigForm(ns.ActionForm):
     def create(self):
+        self.canSelectTables = False
         self.value = None
         self.name = 'Model Configuration'
         self.tableSelector = self.add(ns.TitleMultiSelect, max_height =-2, value = [1,], name="Select One Or More Tables",
-                values = ["Option1","Option2","Option3"], scroll_exit=False)
+                values = [], scroll_exit=False)
 
 
-        
-    def beforeEditing(self):
-        # There must be a live database connection
-        dbcfg = self.parentApp.activeDatabaseConfig
-        if not dbcfg:
-            ns.notify_confirm('In order to configure models, first connect to the database.', title="Message", form_color='STANDOUT', wrap=True, wide=False, editw=1)
-            self.parentApp.switchForm('MAIN')
+    def beforeEditing(self):        
+        dbConfigAlias = self.parentApp.activeDatabaseConfigAlias
+        if not dbConfigAlias:
+            ns.notify_confirm('In order to configure models, first create a valid database configuration.',
+                              title="Message", form_color='STANDOUT', wrap=True, wide=False, editw=1)            
         else:
-            # connect
-            #self.parentApp.environment.importDatabaseSettings({dbConfigName: newConfig})
-            #configPackage.addDatabaseConfig(newConfig, dbConfigName)
-            dbInstance = db.MySQLDatabase(dbcfg.host, dbcfg.schema)
-            dbInstance.login(dbConfig.username, dbConfig.password)
-            return dbInstance
-            
+            try:
+                # There must be a live database connection
+                dbInstance = self.parentApp.getDBInstance(dbConfigAlias)                
+                ns.notify_confirm('Connected to database using config %s.' % dbConfigAlias,
+                                  title='Success', form_color='STANDOUT', wrap=True, wide=False, editw=1)
+                self.tableSelector.values = dbInstance.listTables()
+                self.canSelectTables = True
+            except Exception, err:
+                ns.notify_confirm(err.message, title='Error', form_color='STANDOUT', wrap=True, wide=False, editw=1)
+                
+
+    def display(self, **kwargs):
+        if self.canSelectTables:
+            ns.ActionForm.display(self, kwargs)
+        else:
+            self.editing = False
+            self.parentApp.switchForm('MAIN')
+
 
     def on_ok(self):
+        dbInstance = self.parentApp.getDBInstance(self.parentApp.activeDatabaseConfigAlias)
+        for tblName in self.tableSelector.get_selected_objects():
+            self.parentApp.modelManager.addTable(dbInstance.getTable(tblName))
         self.parentApp.switchForm('MAIN')
 
     def on_cancel(self):
@@ -184,15 +200,15 @@ class MainForm(ns.ActionFormWithMenus):
     def create(self):
         self.value = None
         self.name =  "::: sconfig: Serpentine Configuration Tool :::"
-
-        self.appNameField = self.add(ns.TitleText, name = "Application name:",)
-        self.versionField = self.add(ns.TitleText, name = "Version number:",)
+        
+        self.appNameField = self.add(ns.TitleFixedText, name = "Application name:")
+        self.versionField = self.add(ns.TitleFixedText, name = "Version number:")
         
         self.configFileSelect = self.add(ns.TitleFilenameCombo, name="Load existing configuraton file:")
         self.configFileSelect.add_handlers({curses.ascii.ESC:  self.configFileSelect.h_exit_escape})
         
         self.sectionMenu = self.new_menu('Config Section')
-        #self.sectionMenu.addItem(text='Global Settings', onSelect=None, shortcut=None, arguments=None, keywords=None)
+        self.sectionMenu.addItem(text='Global Settings', onSelect=self.configureGlobals, shortcut=None, arguments=None, keywords=None)
         
         self.sectionMenu.addItem(text='Add Database Config', onSelect=self.configureNewDatabase, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='Edit Database Config', onSelect=self.editDatabase, shortcut=None, arguments=None, keywords=None)
@@ -203,6 +219,9 @@ class MainForm(ns.ActionFormWithMenus):
         self.sectionMenu.addItem(text='Plugins', onSelect=None, shortcut=None, arguments=None, keywords=None)
         #self.editing = True
 
+
+    def configureGlobals(self):
+        self.parentApp.switchForm('GLOBAL_CONFIG')
         
     def configureNewDatabase(self):
         self.parentApp.switchForm("DB_CONFIG")
@@ -215,19 +234,114 @@ class MainForm(ns.ActionFormWithMenus):
 
     def configureModels(self):
         self.parentApp.switchForm('MODEL_CONFIG')
-    '''
-    def afterEditing(self):
-        self.parentApp.setNextForm(None)    
+    
+    def beforeEditing(self):
+        self.appNameField.value = self.parentApp.configManager.getAppName()
+        self.versionField.value = self.parentApp.configManager.getAppVersion()
         
-    '''
+    
     def on_ok(self):
         self.parentApp.setNextForm(None)   
-    
 
+
+class ContentManager(object):
+    def __init__(self, templatePath):
+        self.j2Environment = jinja2.Environment(loader = jinja2.FileSystemLoader(templatePath), 
+                                                    undefined = StrictUndefined, cache_size=0)
+        self.templateManager = content.JinjaTemplateManager(j2Environment)
+
+        
+
+
+class ModelManager(object):
+    def __init__(self):
+        self.tableSet = set()
+        
+    def addTable(self, table):
+        self.tableSet.add(table)
+        
+        
+    def createModelTableMap(self):
+        modelTableMap = {}
+        for table in self.tableSet:
+            modelName = self.convertTableNameToModelName(table.name)
+            modelTableMap[modelName] = meta.ModelConfig(modelName, table, None)
+
+        return modelTableMap
+
+
+    def generateModelClasses(self, configPackage):
+        """Generate all boilerplate Model classes, in a single module
+
+        Arguments: 
+        modelNames -- an array of model names
+        """     
+        modelPkg = os.path.join("build", "%s.py" % configPackage.default_model_package) 
+        with open(modelPkg, "a") as f:        
+            for modelName in configPackage.models:
+                f.write("\nclass %s(object): pass" % modelName)
+                f.write("\n\n")
+
+
+    def createFormConfigs(self, modelTableMap, environment):
+          """For each model name in the dictionary, generate form specification (FormConfig) object.
+
+          Arguments:
+          modelTableMap -- a dictionary of table objects in our schema, indexed by model classnames. 
+                           The expression modelTableMap['Widget'] would yield the SQLAlchemy Table object 
+                           corresponding to "widgets" in the database.
+          
+          Returns:
+          an array of FormConfig instances
+          """
+
+          formConfigs = []
+
+          try:        
+              factory = FieldConfigFactory()
+              for modelName in modelTableMap:                  
+                  # formspecs need the URL base to properly generate action URLs in the HTML templates
+                  newFormConfig = FormConfig(modelName, environment.getURLBase()) 
+                  modelConfig = modelTableMap[modelName]
+
+                  table = modelConfig.table
+                  
+                  for column in table.columns:
+                      newFormConfig.addField(factory.create(column))
+
+                  formConfigs.append(newFormConfig)
+                  
+              return formConfigs
+          finally:
+              pass
+
+
+class ConfigManager(object):
+    def __init__(self):
+        self.configPackage = None
+        self.environment = None
+        
+    def initialize(self, settings):
+        self.environment = env.Environment()
+        self.environment.importGlobalSettings(settings)          
+        configPackage = sconfig.ConfigurationPackage(self.environment)
+        
+    def getAppName(self):
+        if self.environment:
+            return self.environment.getAppName()
+        return ''
+
+    def getAppVersion(self):
+        if self.environment:
+            return self.environment.getAppVersion()
+        return ''
+    
 
 class SConfigApp(ns.NPSAppManaged):
     def addDatabaseConfig(self, config, alias):
         self.databaseConfigTable[alias] = config
+        self.activeDatabaseConfigAlias = alias
+        
         
     def listDatabaseConfigs(self):
         return self.databaseConfigTable.keys()
@@ -241,13 +355,30 @@ class SConfigApp(ns.NPSAppManaged):
         if not self.activeDatabaseConfigAlias:
             return None
         return self.databaseConfigTable.get(self.activeDatabaseConfigAlias)
+
         
+    def getDBInstance(self, dbConfigAlias):
+        if not self.liveDBInstance:                    
+            dbConfig = self.databaseConfigTable.get(dbConfigAlias)
+            if not dbConfig:
+                raise Exception('No configuration alias "%s" has been registered.' % dbConfigAlias)
+        
+            dbInstance = db.MySQLDatabase(dbConfig.host, dbConfig.schema)            
+            dbInstance.login(dbConfig.username, dbConfig.password)
+            self.liveDBInstance = dbInstance
+            
+        return self.liveDBInstance
+
     
     def onStart(self):
+        self.modelManager = ModelManager()
+        self.configManager = ConfigManager()
+        
         self.databaseConfigTable = {}
         self.activeDatabaseConfigAlias = ''
-        self.environment = env.Environment()
-        self.configPackage = None
+        self.liveDBInstance = None
+        
+        
         
         self.addForm('MAIN', MainForm)
         self.addForm('DB_CONFIG', DatabaseConfigForm)

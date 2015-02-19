@@ -96,7 +96,7 @@ class ConfigurationPackage(object):
       
 
     #def getStylesheetPath(self):
-    #    raise Exception('accessing stylesheet_path value. Environment reads: %s' % self.environment.getStylesheetPath())
+    #raise Exception('accessing stylesheet_path value. Environment reads: %s' % self.environment.getStylesheetPath())
 
 
     app_name = property(lambda self: self.environment.getAppName())
@@ -119,17 +119,17 @@ class ConfigurationPackage(object):
     default_controller_package = property(lambda self: self.environment.config['global']['default_controller_package'])
     default_helper_package = property(lambda self: self.environment.config['global']['default_helper_package'])
     default_reporting_package = property(lambda self: self.environment.config['global']['default_report_package'])
-    #default_plugin_package = property(lambda self: self.environment.config['global']['default_plugin_package'])
+    
     default_responder_package = property(lambda self: self.environment.config['global']['default_responder_package'])
     default_datasource_package = property(lambda self: self.environment.config['global']['default_datasource_package'])
-            
+    
+    #default_plugin_package = property(lambda self: self.environment.config['global']['default_plugin_package'])        
       
 
 
 class SConfigurator(object):
 
     def __init__(self, **kwargs):
-          
           self.config_filename = None
           self.environment = None
           self.mode = None
@@ -1300,7 +1300,7 @@ class SConfigurator(object):
             
             prompt = MultipleChoiceMenuPrompt(m, 'Select one or more database tables', environment.tables, header)
             selectedTableNames = prompt.show(screen)
-
+            
             selectedTables = []
             for name in selectedTableNames:                                        
                 selectedTables.append(dbInstance.getTable(name))
