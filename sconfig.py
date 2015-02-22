@@ -226,8 +226,6 @@ class SConfigurator(object):
               screen.getch()
               
               globalSettings = self.setupGlobalData(screen)
-              
-               
           
           # user's changes to settings override old values
           self.environment.importGlobalSettings(globalSettings)
@@ -315,20 +313,17 @@ class SConfigurator(object):
             if mainMenuPrompt.escaped:
                 break
             
-            if mainMenuPrompt.selectedIndex == 1: # Global Settings  
-                
+            if mainMenuPrompt.selectedIndex == 1: # Global Settings                  
                 updatedSettings = self.setupGlobalData(screen, environment)
                 environment.importGlobalSettings(updatedSettings)
-                
-                
+                                
             if mainMenuPrompt.selectedIndex == 2: # Databases
                 connected = not(databaseInstance is None)
                 newDatabaseInstance = self.databaseSetup(configPackage, environment, screen, connected)
                 if newDatabaseInstance:
                     databaseInstance = newDatabaseInstance
             
-            if mainMenuPrompt.selectedIndex == 3:  # Models
-            
+            if mainMenuPrompt.selectedIndex == 3:  # Models            
                 if not databaseInstance:
                     Notice('Models: You must connect to a database in order to auto-generate model classes.').show(screen)
                     Notice('Select the "Databases" option and either set up a new DB or connect to an existing one.').show(screen)

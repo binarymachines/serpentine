@@ -212,6 +212,9 @@ class FormConfig:
         self.formClassName = "%sForm" % self.model
         self.fields = []
 
+    def __repr__(self):
+        return self.formClassName
+
     def addField(self, fieldConfig):
         """Add the passed FieldConfig instance to this FormConfig."""
 

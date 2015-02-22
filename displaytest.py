@@ -5,6 +5,7 @@ import npyscreen as ns
 import curses
 import os
 
+
 import db
 import content
 from metaobjects import *
@@ -49,33 +50,123 @@ class GlobalSettingsForm(ns.ActionForm):
         xslStylesheetPath = os.path.join(globalSettings['app_root'], 'deploy', globalSettings['xsl_stylesheet_directory'])
             
         try:
+            ns.notify_confirm(staticFilePath,
+                              title="Static Files", form_color='STANDOUT', wrap=True, wide=False, editw=1)
             if not os.path.exists(staticFilePath):
-                os.system('mkdir %s' % staticFilePath) 
+                os.system('mkdir -p %s' % staticFilePath) 
 
             if not os.path.exists(scriptPath):
-                os.system('mkdir %s' % scriptPath)
+                os.system('mkdir -p %s' % scriptPath)
 
             if not os.path.exists(stylesPath):
-                os.system('mkdir %s' % stylesPath)
+                os.system('mkdir -p %s' % stylesPath)
 
             if not os.path.exists(xmlPath):
-                os.system('mkdir %s' % xmlPath)
+                os.system('mkdir -p %s' % xmlPath)
                     
             if not os.path.exists(xslStylesheetPath):
-                os.system('mkdir %s' % xslStylesheetPath)
+                os.system('mkdir -p %s' % xslStylesheetPath)
 
             self.parentApp.configManager.initialize(globalSettings)
-            ns.notify_confirm(str(globalSettings),
-                              title="Global settings initialized",
-                              form_color='STANDOUT',
-                wrap=True, wide=False, editw=1)
-        except IOError, err:
+        except Exception, err:
             ns.notify_confirm(err.message,
                               title="Error",
                               form_color='STANDOUT',
                 wrap=True, wide=False, editw=1)
 
         finally:
+            self.parentApp.switchForm('MAIN')
+
+
+class NameValueFieldSelectForm(ns.ActionForm):
+    def create(self):
+        pass
+
+
+
+class TableSelectButton(ns.ButtonPress):
+    def whenPressed(self):
+        
+
+
+        
+
+class DataSourceConfigForm(ns.ActionForm):
+    def create(self):
+        self.sourceNameField = self.add(ns.TitleText, name = 'Enter a name for the datasource')
+        self.sourceTypeSelector = self.add(ns.TitleSelectOne,
+                                           max_height=2,
+                                           value=[1,],
+                                           name='Select a datasource type.', values=['menu', 'table'], scroll_exit=True)
+        self.tableSelectButton = self.add(TableSelectButton, name='Select the target table for the datasource.')
+        
+                  if sourceType == 'menu':
+                      # prompt for the name and value fields (usually the 'name' and 'id' columns)
+                      Notice('Table "%s" selected. Select source fields next.' % table.name)
+                      columnNames = [column.name for column in table.columns]                      
+                      columnMenu = Menu(columnNames)
+                      valueFieldPrompt = MenuPrompt(columnMenu, 'Select the value field (usually the primary key field).')
+                      valueField = valueFieldPrompt.show(screen)
+                      nameFieldPrompt = MenuPrompt(columnMenu, 'Select the name field (usually the value displayed in menus or other controls).')
+                      nameField = nameFieldPrompt.show(screen)
+                      
+                      sourceParams.append(DataSourceParameter('name_field', nameField))
+                      sourceParams.append(DataSourceParameter('value_field', valueField))
+
+                  if sourceType == 'table':
+                      fieldListPrompt = MultipleChoiceMenuPrompt(columnNames, 'Select one or more columns from the source table.')
+                      selectedFields = fieldListPrompt.show(screen)
+                      sourceParams.append(DataSourceParameter('fields', ','.join(selectedFields)))
+
+
+class VirtualEnvMenuForm(ns.ActionForm):
+    def create(self):
+        self.virtualEnvHome = ''
+        self.virtualEnvSelector = self.add(ns.TitleSelectOne,
+                                           max_height=12,
+                                           value = [1,],
+                                           name="Select a virtual environment for your Serpentine app:",
+                                           values = [], scroll_exit=False)
+
+    def beforeEditing(self):
+        self.virtualEnvHome = os.environ.get('WORKON_HOME')
+        self.environments = []
+        fileList = os.listdir(self.virtualEnvHome)
+        for f in fileList:
+            if os.path.isdir(os.path.join(self.virtualEnvHome, f)):
+                self.environments.append(f)
+
+        self.virtualEnvSelector.values = self.environments
+        self.virtualEnvSelector.set_value(0)
+
+    def on_ok(self):
+        selectedEnv = self.environments[self.virtualEnvSelector.value[0]]
+        pyVersions = os.listdir(os.path.sep.join([self.virtualEnvHome, selectedEnv, 'lib']))
+        
+        self.parentApp.pythonVersions = pyVersions
+        self.parentApp.switchForm('MAIN')
+        #siteDirLocation = os.path.sep.join([virtualEnvHome, selectedEnv, 'lib', pythonVersion, 'site-packages'])
+      
+
+        
+
+class SiteDirConfigForm(ns.ActionForm):
+    
+    def create(self):
+        self.checkboxAnswers = ['Yes', 'No']
+        
+        self.usingVirtualEnvWrapperCheckbox = self.add(ns.TitleSelectOne, max_height=4, value = [1,], name="Are you using virtualenvwrapper?",
+                values = self.checkboxAnswers, scroll_exit=True)
+        self.add(ns.FixedText, value='( If you are NOT using virtualenvwrapper, please select your Python site directory below. )')
+        self.siteDirSelector = self.add(ns.TitleFilenameCombo, name='Python site directory:')
+
+    def on_ok(self):
+        isUsingVirtualEnvWrapper = self.checkboxAnswers[self.usingVirtualEnvWrapperCheckbox.value[0]]
+        if isUsingVirtualEnvWrapper == 'Yes':
+            self.parentApp.switchForm('VIRTUAL_ENV_SELECT')            
+        else:
+            siteDirLocation = self.siteDirSelector.value
+            self.parentApp.pythonSiteDir = siteDirLocation
             self.parentApp.switchForm('MAIN')
 
 
@@ -203,16 +294,16 @@ class MainForm(ns.ActionFormWithMenus):
         
         self.appNameField = self.add(ns.TitleFixedText, name = "Application name:")
         self.versionField = self.add(ns.TitleFixedText, name = "Version number:")
+        self.pythonVersionSelector = self.add(ns.TitleSelectOne, max_height=4, value = [0,], name='Python environment:', values = [], scroll_exit= True)
         
         self.configFileSelect = self.add(ns.TitleFilenameCombo, name="Load existing configuraton file:")
         self.configFileSelect.add_handlers({curses.ascii.ESC:  self.configFileSelect.h_exit_escape})
         
         self.sectionMenu = self.new_menu('Config Section')
-        self.sectionMenu.addItem(text='Global Settings', onSelect=self.configureGlobals, shortcut=None, arguments=None, keywords=None)
-        
+        self.sectionMenu.addItem(text='Python site directory', onSelect=self.configurePythonSiteDir, shortcut=None, arguments=None, keywords=None)
+        self.sectionMenu.addItem(text='Global Settings', onSelect=self.configureGlobals, shortcut=None, arguments=None, keywords=None)        
         self.sectionMenu.addItem(text='Add Database Config', onSelect=self.configureNewDatabase, shortcut=None, arguments=None, keywords=None)
-        self.sectionMenu.addItem(text='Edit Database Config', onSelect=self.editDatabase, shortcut=None, arguments=None, keywords=None)
-        
+        self.sectionMenu.addItem(text='Edit Database Config', onSelect=self.editDatabase, shortcut=None, arguments=None, keywords=None)    
         self.sectionMenu.addItem(text='Models', onSelect=self.configureModels, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='Views', onSelect=None, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='UI Controls', onSelect=None, shortcut=None, arguments=None, keywords=None)
@@ -222,7 +313,10 @@ class MainForm(ns.ActionFormWithMenus):
 
     def configureGlobals(self):
         self.parentApp.switchForm('GLOBAL_CONFIG')
-        
+
+    def configurePythonSiteDir(self):
+        self.parentApp.switchForm('SITE_DIR_CONFIG')
+
     def configureNewDatabase(self):
         self.parentApp.switchForm("DB_CONFIG")
 
@@ -234,12 +328,17 @@ class MainForm(ns.ActionFormWithMenus):
 
     def configureModels(self):
         self.parentApp.switchForm('MODEL_CONFIG')
+
+    def generateUIControls(self):
+        self.parentApp.switchForm('UICONTROL_CONFIG')
     
     def beforeEditing(self):
         self.appNameField.value = self.parentApp.configManager.getAppName()
         self.versionField.value = self.parentApp.configManager.getAppVersion()
-        
-    
+        self.pythonVersionSelector.values = self.parentApp.pythonVersions
+        if len(self.pythonVersionSelector.values) and not self.pythonVersionSelector.get_selected_objects():
+            self.pythonVersionSelector.set_value(0)
+            
     def on_ok(self):
         self.parentApp.setNextForm(None)   
 
@@ -337,12 +436,62 @@ class ConfigManager(object):
         return ''
     
 
+
+class FormSpecManager(object):
+    def __init__(self):
+        self.formSpecs = []
+
+    def listFormSpecNames(self):
+        return [str(spec) for spec in self.formSpecs]
+
+    def getFormSpecs(self):
+        return self.formSpecs
+
+    def clearFormSpecs(self):
+        self.formSpecs = []
+    
+    def createFormSpecsFromModelTableMap(self, modelTableMap):        
+        
+        factory = meta.FieldConfigFactory()
+        for modelName in modelTableMap.keys():                  
+            # formspecs need the URL base to properly generate action URLs in the HTML templates
+            newFormConfig = meta.FormConfig(modelName, environment.getURLBase()) 
+            modelConfig = modelTableMap[modelName]
+
+            table = modelConfig.table
+                  
+            for column in table.columns:
+                newFormConfig.addField(factory.create(column))
+
+            self.formSpecs.append(newFormConfig)
+                  
+    
+        
+
+class DirectoryManager(object):
+    def __init__(self):
+        self.directoriesToCreate = []
+
+    def addTargetPath(self, directoryPath):
+        self.directoriesToCreate.append(directoryPath)
+
+    def reset(self):
+        self.directoriesToCreate = []
+
+    def listTargetPaths(self):
+        return self.directoriesToCreate
+
+    def createTargets(self):
+        for path in self.directoriesToCreate:
+            os.system('mkdir -p %s' % path)
+    
+
 class SConfigApp(ns.NPSAppManaged):
     def addDatabaseConfig(self, config, alias):
         self.databaseConfigTable[alias] = config
         self.activeDatabaseConfigAlias = alias
-        
-        
+
+                
     def listDatabaseConfigs(self):
         return self.databaseConfigTable.keys()
 
@@ -373,19 +522,21 @@ class SConfigApp(ns.NPSAppManaged):
     def onStart(self):
         self.modelManager = ModelManager()
         self.configManager = ConfigManager()
+        self.filesystemManager = FilesystemManager()
         
         self.databaseConfigTable = {}
         self.activeDatabaseConfigAlias = ''
         self.liveDBInstance = None
-        
+        self.pythonVersions = []
         
         
         self.addForm('MAIN', MainForm)
         self.addForm('DB_CONFIG', DatabaseConfigForm)
         self.addForm('DB_CONFIG_MENU', DatabaseConfigMenuForm)
         self.addForm('GLOBAL_CONFIG', GlobalSettingsForm)
+        self.addForm('SITE_DIR_CONFIG', SiteDirConfigForm)
         self.addForm('MODEL_CONFIG', ModelConfigForm)
-
+        self.addForm('VIRTUAL_ENV_SELECT', VirtualEnvMenuForm)
         
         
         
