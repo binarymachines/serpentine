@@ -86,7 +86,7 @@ class NameValueFieldSelectForm(ns.ActionForm):
 
 class TableSelectButton(ns.ButtonPress):
     def whenPressed(self):
-        
+       self.parentApp.switchForm('TABLE_SELECT')
 
 
         
