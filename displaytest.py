@@ -13,6 +13,18 @@ import environment as env
 import sconfig
 
 
+
+UICONTROL_MENU_OPTIONS = ['Create a custom data-bound HTML control', 'Browse existing HTML controls', 'Auto-create HTML select controls']
+UICONTROL_TYPE_OPTIONS = ['select', 'radiogroup', 'table']
+DATASOURCE_TYPE_OPTIONS = ['Menu', 'Table']
+
+
+class NoSuchDataSourceException(Exception):
+    def __init__(self, dataSourceAlias):
+        Exception.__init__('No DataSource has been registered under the alias %s.' % dataSourceAlias)
+
+
+
 class GlobalSettingsForm(ns.ActionForm):
     def create(self):
         self.value = None
@@ -83,23 +95,40 @@ class NameValueFieldSelectForm(ns.ActionForm):
         pass
 
 
+class TableSelectForm(ns.ActionForm):
+    def create(self):
+        tableNames = self.parentApp.modelManager.listTables()
+        self.tableSelector = self.add(ns.TitleSelectOne, max_height=20, value=[1,], name='Select a source table:', values=tableNames, scroll_exit=True)
 
-class TableSelectButton(ns.ButtonPress):
-    def whenPressed(self):
-       self.parentApp.switchForm('TABLE_SELECT')
+
+'''
+class DialogBox(ns.BoxBasic):
+    def create(self):
+        self._addControls()
+        self.okButton = self.add(ns.ButtonPress, name='OK')
+        self.cancelButton = self.add(ns.ButtonPress, name='Cancel')
+'''
 
 
-        
 
 class DataSourceConfigForm(ns.ActionForm):
     def create(self):
         self.sourceNameField = self.add(ns.TitleText, name = 'Enter a name for the datasource')
         self.sourceTypeSelector = self.add(ns.TitleSelectOne,
-                                           max_height=2,
+                                           max_height=4,
                                            value=[1,],
                                            name='Select a datasource type.', values=['menu', 'table'], scroll_exit=True)
-        self.tableSelectButton = self.add(TableSelectButton, name='Select the target table for the datasource.')
-        
+        self.tableSelector = self.add(ns.TitleSelectOne, max_height=12, value = [1,], name="Select a database table:",
+                values = [], scroll_exit=True)
+
+
+    def beforeEditing(self):
+        self.tableSelector = self.parentApp.liveDBInstance.listTables()
+
+
+
+
+        '''
                   if sourceType == 'menu':
                       # prompt for the name and value fields (usually the 'name' and 'id' columns)
                       Notice('Table "%s" selected. Select source fields next.' % table.name)
@@ -117,6 +146,102 @@ class DataSourceConfigForm(ns.ActionForm):
                       fieldListPrompt = MultipleChoiceMenuPrompt(columnNames, 'Select one or more columns from the source table.')
                       selectedFields = fieldListPrompt.show(screen)
                       sourceParams.append(DataSourceParameter('fields', ','.join(selectedFields)))
+         '''
+
+
+class TableSelectDialog(ns.Popup):
+    def __init__(self, *args, **keywords):
+        ns.Popup.__init__(self, *args, **keywords)
+        self.tables = keywords.get('table_list')
+
+    def create(self):
+        self.selectedTable = None
+    
+        self.tableSelector = self.add(ns.TitleSelectOne, max_height=len(tables), value = [1,], name='Select a database table:',
+                values = tables, scroll_exit=True)
+
+    def exit_editing(self):
+        if not len(self.tables):
+            return 
+        self.selectedTable = self.tables[self.tableSelector.get_value()[0]]
+
+
+
+class DataSourceCreateForm(ns.ActionForm):
+    def create(self):
+        self.
+
+
+class UIControlCreateForm(ns.ActionForm):
+    def create(self):
+        self.controlNameField = self.add(ns.TitleText, name='Control name:')
+        self.controlTypeSelector = self.add(ns.TitleSelectOne, name='Control type:', max_height=4, value = [1,],
+                values = UICONTROL_TYPE_OPTIONS, scroll_exit=True)
+
+        self.dataSourceLabel = self.add(ns.TitleFixedText, name='Datasource name:', value='')
+
+        #dataSources = self.parentApp.dataSourceManager.listDataSources()        
+        #self.dataSourceSelector = self.add(ns.TitleSelectOne, name='Datasource:', max_height=len(dataSources) + 3, value=[1,], values=dataSources, scroll_exit=True)
+
+        self.selectDataSourceButton = self.add(ns.ButtonPress, name='Select a Datasource')
+        self.selectDataSourceButton.whenPressed = self.selectDataSource
+
+
+    def selectDataSource(self):   
+        dataSources = self.parentApp.dataSourceManager.listDataSources()  
+        if not len(dataSources):
+            dlg = DataSourceCreateDialog()
+            dlg.edit()
+        else:
+            dlg = DataSourceSelectDialog()
+            dlg.edit()
+            self.dataSource = dlg.selectedDataSource
+
+        #self.editing = False
+        #F = TableSelectDialog(table_list=self.parentApp.getDBInstance().getTables())
+        #F.edit()
+        #self.parentApp.dataSourceNames.append('source4')
+
+        
+
+        self.display()
+        #ns.notify_confirm('First popup dialog.', title='Message', form_color='STANDOUT', wrap=True, wide=False, editw=1)
+        #self.parentApp.switchForm('DATASOURCE_CONFIG')
+    
+
+    def beforeEditing(self):
+        pass
+        '''
+        if not len(self.parentApp.dataSourceManager.listDataSources()):
+            self.selectDataSourceButton.name = 'Create new DataSource...'
+        else:            
+            self.dataSourceSelector.values = self.parentApp.dataSourceManager.listDataSources()
+        ''' 
+            
+
+
+class UIControlConfigForm(ns.ActionForm):
+    def create(self):       
+        self.createControlButton = self.add(ns.ButtonPress, name='Create a custom data-bound HTML control')
+        self.browseControlsButton = self.add(ns.ButtonPress, name='Browse existing HTML controls')
+        self.autoCreateButton = self.add(ns.ButtonPress, name='Auto-create HTML select controls from lookup tables')
+
+        self.createControlButton.whenPressed = self.createControl
+        self.browseControlsButton.whenPressed = self.browseControls
+        self.autoCreateButton.whenPressed = self.autoCreateControls
+
+
+    def createControl(self):
+        self.parentApp.switchForm('UICONTROL_CREATE')
+
+
+    def browseControls(self):
+        ns.notify_confirm('Browse UIcontrols.', title='Message', form_color='STANDOUT', wrap=True, wide=False, editw=1)
+
+
+    def autoCreateControls(self):
+        ns.notify_confirm('Auto-create UIcontrols.', title='Message', form_color='STANDOUT', wrap=True, wide=False, editw=1)
+
 
 
 class VirtualEnvMenuForm(ns.ActionForm):
@@ -306,7 +431,7 @@ class MainForm(ns.ActionFormWithMenus):
         self.sectionMenu.addItem(text='Edit Database Config', onSelect=self.editDatabase, shortcut=None, arguments=None, keywords=None)    
         self.sectionMenu.addItem(text='Models', onSelect=self.configureModels, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='Views', onSelect=None, shortcut=None, arguments=None, keywords=None)
-        self.sectionMenu.addItem(text='UI Controls', onSelect=None, shortcut=None, arguments=None, keywords=None)
+        self.sectionMenu.addItem(text='UI Controls', onSelect=self.manageUIControls, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='Plugins', onSelect=None, shortcut=None, arguments=None, keywords=None)
         #self.editing = True
 
@@ -321,15 +446,12 @@ class MainForm(ns.ActionFormWithMenus):
         self.parentApp.switchForm("DB_CONFIG")
 
     def editDatabase(self):
-        self.parentApp.switchForm('DB_CONFIG_MENU')
-
-    def configureGlobals(self):
-        self.parentApp.switchForm('GLOBAL_CONFIG')
+        self.parentApp.switchForm('DB_CONFIG_MENU')   
 
     def configureModels(self):
         self.parentApp.switchForm('MODEL_CONFIG')
 
-    def generateUIControls(self):
+    def manageUIControls(self):        
         self.parentApp.switchForm('UICONTROL_CONFIG')
     
     def beforeEditing(self):
@@ -356,6 +478,9 @@ class ModelManager(object):
     def __init__(self):
         self.tableSet = set()
         
+    def listTables(self):
+        return [table.name for table in self.tableSet]
+
     def addTable(self, table):
         self.tableSet.add(table)
         
@@ -413,6 +538,36 @@ class ModelManager(object):
               return formConfigs
           finally:
               pass
+
+
+class DataSourceManager(object):
+    def __init__(self):
+        self.datasources = {}
+
+
+    def addDataSource(self, dataSource, alias):
+        self.datasources[alias] = dataSource
+
+    def listDataSources(self):
+        return self.datasources.keys()
+
+
+    def getDataSource(self, alias):
+        source =  self.datasources.get(alias)
+        if not source:
+            raise NoSuchDataSourceException(alias)
+        return source
+
+
+    def getDatasourceAliasesForControlType(self, controlTypeName):
+        result = []
+        for key in self.datasources:
+            dataSourceConfig = self.datasources[key]
+            if dataSourceConfig.type == controlTypeName:
+                result.append(key)
+
+        return result
+
 
 
 class ConfigManager(object):
@@ -522,13 +677,14 @@ class SConfigApp(ns.NPSAppManaged):
     def onStart(self):
         self.modelManager = ModelManager()
         self.configManager = ConfigManager()
-        self.filesystemManager = FilesystemManager()
+        self.directoryManager = DirectoryManager()
+        self.dataSourceManager = DataSourceManager()
         
         self.databaseConfigTable = {}
         self.activeDatabaseConfigAlias = ''
         self.liveDBInstance = None
         self.pythonVersions = []
-        
+        self.dataSourceNames = ['source1', 'source2', 'source3']
         
         self.addForm('MAIN', MainForm)
         self.addForm('DB_CONFIG', DatabaseConfigForm)
@@ -537,7 +693,10 @@ class SConfigApp(ns.NPSAppManaged):
         self.addForm('SITE_DIR_CONFIG', SiteDirConfigForm)
         self.addForm('MODEL_CONFIG', ModelConfigForm)
         self.addForm('VIRTUAL_ENV_SELECT', VirtualEnvMenuForm)
-        
+        self.addForm('TABLE_SELECT', TableSelectForm)
+        self.addForm('UICONTROL_CREATE', UIControlCreateForm)
+        self.addForm('UICONTROL_CONFIG', UIControlConfigForm)
+        self.addForm('DATASOURCE_CONFIG', DataSourceConfigForm)
         
         
 
