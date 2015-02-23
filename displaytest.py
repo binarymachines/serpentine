@@ -8,7 +8,7 @@ import os
 
 import db
 import content
-from metaobjects import *
+import metaobjects as meta
 import environment as env
 import sconfig
 
@@ -16,13 +16,17 @@ import sconfig
 
 UICONTROL_MENU_OPTIONS = ['Create a custom data-bound HTML control', 'Browse existing HTML controls', 'Auto-create HTML select controls']
 UICONTROL_TYPE_OPTIONS = ['select', 'radiogroup', 'table']
-DATASOURCE_TYPE_OPTIONS = ['Menu', 'Table']
+DATASOURCE_TYPE_OPTIONS = ['menu', 'table']
 
 
 class NoSuchDataSourceException(Exception):
     def __init__(self, dataSourceAlias):
         Exception.__init__('No DataSource has been registered under the alias %s.' % dataSourceAlias)
 
+        
+class NoSuchControlConfigException(Exception):
+    def __init__(self, configAlias):
+        Exception.__init__('No UIControl configuration has been registered under the alias %s.' % configAlias)
 
 
 class GlobalSettingsForm(ns.ActionForm):
@@ -89,28 +93,7 @@ class GlobalSettingsForm(ns.ActionForm):
         finally:
             self.parentApp.switchForm('MAIN')
 
-
-class NameValueFieldSelectForm(ns.ActionForm):
-    def create(self):
-        pass
-
-
-class TableSelectForm(ns.ActionForm):
-    def create(self):
-        tableNames = self.parentApp.modelManager.listTables()
-        self.tableSelector = self.add(ns.TitleSelectOne, max_height=20, value=[1,], name='Select a source table:', values=tableNames, scroll_exit=True)
-
-
 '''
-class DialogBox(ns.BoxBasic):
-    def create(self):
-        self._addControls()
-        self.okButton = self.add(ns.ButtonPress, name='OK')
-        self.cancelButton = self.add(ns.ButtonPress, name='Cancel')
-'''
-
-
-
 class DataSourceConfigForm(ns.ActionForm):
     def create(self):
         self.sourceNameField = self.add(ns.TitleText, name = 'Enter a name for the datasource')
@@ -121,55 +104,130 @@ class DataSourceConfigForm(ns.ActionForm):
         self.tableSelector = self.add(ns.TitleSelectOne, max_height=12, value = [1,], name="Select a database table:",
                 values = [], scroll_exit=True)
 
-
     def beforeEditing(self):
-        self.tableSelector = self.parentApp.liveDBInstance.listTables()
-
-
-
-
-        '''
-                  if sourceType == 'menu':
-                      # prompt for the name and value fields (usually the 'name' and 'id' columns)
-                      Notice('Table "%s" selected. Select source fields next.' % table.name)
-                      columnNames = [column.name for column in table.columns]                      
-                      columnMenu = Menu(columnNames)
-                      valueFieldPrompt = MenuPrompt(columnMenu, 'Select the value field (usually the primary key field).')
-                      valueField = valueFieldPrompt.show(screen)
-                      nameFieldPrompt = MenuPrompt(columnMenu, 'Select the name field (usually the value displayed in menus or other controls).')
-                      nameField = nameFieldPrompt.show(screen)
-                      
-                      sourceParams.append(DataSourceParameter('name_field', nameField))
-                      sourceParams.append(DataSourceParameter('value_field', valueField))
-
-                  if sourceType == 'table':
-                      fieldListPrompt = MultipleChoiceMenuPrompt(columnNames, 'Select one or more columns from the source table.')
-                      selectedFields = fieldListPrompt.show(screen)
-                      sourceParams.append(DataSourceParameter('fields', ','.join(selectedFields)))
-         '''
-
+        self.tableSelector = self.parentApp.activeDatabaseConfig.listTables()
+'''
 
 class TableSelectDialog(ns.Popup):
     def __init__(self, *args, **keywords):
         ns.Popup.__init__(self, *args, **keywords)
         self.tables = keywords.get('table_list')
+        self.selectedTable = None
 
     def create(self):
-        self.selectedTable = None
-    
-        self.tableSelector = self.add(ns.TitleSelectOne, max_height=len(tables), value = [1,], name='Select a database table:',
-                values = tables, scroll_exit=True)
+        self.tableSelector = self.add(ns.TitleSelectOne, max_height=-2, value = [1,], name='Select a database table:',
+                values = self.tables, scroll_exit=True)
 
     def exit_editing(self):
         if not len(self.tables):
             return 
         self.selectedTable = self.tables[self.tableSelector.get_value()[0]]
 
+'''
+class MenuTypeDataSourceDialog(ns.Popup):
+    def __init__(self, *args, **keywords):
+        ns.Popup.__init__(self, *args, **keywords)
+        self.dataTable = keywords['table']
+        self.selectedNameField = ''
+        self.selectedValueField = ''
 
+
+    def create(self):
+        columnNames = [column.name for column in self.dataTable.columns] 
+        self.nameFieldSelector = self.add(ns.TitleSelectOne, max_height=len(columnNames), value = [1,], name='Name field:',
+                values = columnNames, scroll_exit=True)
+        
+        self.valueFieldSelector = self.add(ns.TitleSelectOne, max_height=len(columnNames), value = [1,], name='Value field:',
+                values = columnNames, scroll_exit=True)
+'''
+
+'''
+class TableTypeDataSourceDialog(ns.Popup):
+    def __init__(self, *args, **keywords):
+        ns.Popup.__init__(self, *args, **keywords)
+        self.dataTable = keywords['table']
+        self.selectedFields = []
+
+    def create(self):
+        columnNames = [column.name for column in self.dataTable.columns]
+        self.fieldSelector = self.add(ns.TitleMultiSelect, max_height =-2, value = [1,], name='Select one or more columns from the source table:',
+                values = columnNames, scroll_exit=True)
+'''
 
 class DataSourceCreateForm(ns.ActionForm):
     def create(self):
-        self.
+        self.sourceTableName = None
+        self.dataSourceParameters = []
+        self.nameField = self.add(ns.TitleText, name='Data Source name:')
+        self.typeSelector = self.add(ns.TitleSelectOne,
+                                  name='Data Source type:',
+                                  max_height=len(DATASOURCE_TYPE_OPTIONS)*2,
+                                  value=[1,], scroll_exit=True, values=DATASOURCE_TYPE_OPTIONS)
+        
+        self.tableSelectButton = self.add(ns.ButtonPress, name='Select source table')
+        self.tableSelectButton.whenPressed = self.selectTable
+        self.configureButton = self.add(ns.ButtonPress, name='Configure this DataSource')
+        self.configureButton.whenPressed = self.configure
+        
+    def selectTable(self):
+        availableTables = self.parentApp.liveDBInstance.listTables()
+        dlg = ns.Popup(name='Database tables')
+        tableSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [1,], name="Select a source table for the DataSource:",
+                values = availableTables, scroll_exit=True)
+        dlg.edit()
+        self.sourceTableName = availableTables[tableSelector.get_value()[0]]
+        
+
+    def configure(self):
+        dataSourceType = DATASOURCE_TYPE_OPTIONS[self.typeSelector.value[0]]
+        if dataSourceType == 'menu':
+            self.configureMenuTypeSource()
+        if dataSourceType == 'table':
+            self.configureTableTypeSource()
+            
+
+    def configureMenuTypeSource(self):
+        if self.sourceTableName:
+            sourceTable = self.parentApp.liveDBInstance.getTable(self.sourceTableName)
+            tableColumns = sourceTable.columns.keys()
+            #ns.notify_confirm(dir(tableColumns), title='Message', form_color='STANDOUT', wrap=True, wide=False, editw=1)
+            dlg = ns.Popup(name='Configure Menu-type DataSource')
+            nameFieldSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [1,], name="Name field:",
+                values = tableColumns, scroll_exit=True)
+            valueFieldSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [1,], name="Value field:",
+                values = tableColumns, scroll_exit=True)
+                           
+            dlg.edit()
+            self.parameters = []
+            self.parameters.append(meta.DataSourceParameter('name_field', tableColumns[nameFieldSelector.get_value()[0]]))
+            self.parameters.append(meta.DataSourceParameter('value_field', tableColumns[valueFieldSelector.get_value()[0]]))
+
+
+    def configureTableTypeSource(self):
+        if self.sourceTableName:
+            sourceTable = self.parentApp.liveDBInstance.getTable(self.sourceTableName)
+            
+            availableFields = sourceTable.columns
+            dlg = ns.Popup(name='Configure Table-type DataSource')
+            fieldSelector = dlg.add_widget(ns.TitleMultiSelect, max_height =-2, value = [1,], name="Select source fields for this DataSource",
+                values = availableFields, scroll_exit=True)
+            
+            dlg.edit()
+            self.parameters = []
+            fields = []
+            selectedItems = fieldSelector.get_selected_values()
+            for item in selectedItems:
+                fields.append(availableFields[item])
+            self.parameters.append(meta.DataSourceParameter('fields',  ','.join(fields)))
+            self.parameters.append(meta.DataSourceParameter('table', self.sourceTable.name))
+            
+            
+    def on_ok(self):
+        dataSourceType = DATASOURCE_TYPE_OPTIONS[self.typeSelector.get_value()[0]]
+        self.dataSourceConfig = meta.DataSourceConfig(dataSourceType, self.parameters)
+        alias = self.nameField.value
+        self.parentApp.dataSourceManager.addDataSource(self.dataSourceConfig, alias)
+        self.parentApp.switchFormPrevious()
 
 
 class UIControlCreateForm(ns.ActionForm):
@@ -178,11 +236,8 @@ class UIControlCreateForm(ns.ActionForm):
         self.controlTypeSelector = self.add(ns.TitleSelectOne, name='Control type:', max_height=4, value = [1,],
                 values = UICONTROL_TYPE_OPTIONS, scroll_exit=True)
 
+        self.dataSourceAlias = ''
         self.dataSourceLabel = self.add(ns.TitleFixedText, name='Datasource name:', value='')
-
-        #dataSources = self.parentApp.dataSourceManager.listDataSources()        
-        #self.dataSourceSelector = self.add(ns.TitleSelectOne, name='Datasource:', max_height=len(dataSources) + 3, value=[1,], values=dataSources, scroll_exit=True)
-
         self.selectDataSourceButton = self.add(ns.ButtonPress, name='Select a Datasource')
         self.selectDataSourceButton.whenPressed = self.selectDataSource
 
@@ -190,24 +245,24 @@ class UIControlCreateForm(ns.ActionForm):
     def selectDataSource(self):   
         dataSources = self.parentApp.dataSourceManager.listDataSources()  
         if not len(dataSources):
-            dlg = DataSourceCreateDialog()
-            dlg.edit()
+            self.parentApp.switchForm('DATASOURCE_CREATE')
         else:
-            dlg = DataSourceSelectDialog()
+            dlg = ns.Popup(name='Data Sources')
+            sourceSelector = dlg.add_widget(ns.TitleSelectOne, name='Select a datasource:', max_height=len(dataSources)+2, value = [1,],
+                values = dataSources, scroll_exit=True)
             dlg.edit()
-            self.dataSource = dlg.selectedDataSource
-
-        #self.editing = False
-        #F = TableSelectDialog(table_list=self.parentApp.getDBInstance().getTables())
-        #F.edit()
-        #self.parentApp.dataSourceNames.append('source4')
-
-        
-
+            self.dataSourceAlias = dataSources[sourceSelector.value[0]]
+            self.dataSourceLabel.value = self.dataSourceAlias
         self.display()
-        #ns.notify_confirm('First popup dialog.', title='Message', form_color='STANDOUT', wrap=True, wide=False, editw=1)
-        #self.parentApp.switchForm('DATASOURCE_CONFIG')
-    
+
+    def on_ok(self):
+        controlName = self.controlNameField.value
+        dataSourceName = self.dataSourceAlias
+        controlType = UICONTROL_TYPE_OPTIONS[self.controlTypeSelector.value[0]]
+        newControlCfg = meta.ControlConfig(controlType, controlName, self.dataSourceAlias)
+        
+        self.parentApp.switchForm('MAIN')
+        
 
     def beforeEditing(self):
         pass
@@ -412,6 +467,16 @@ class DatabaseConfigMenuForm(ns.ActionForm):
         self.parentApp.switchForm('MAIN')
 
 
+class DBConfigSelectDialog(ns.Popup):
+    def __init__(self, *args, **keywords):
+        ns.Popup.__init__(self, *args, **keywords)
+        self.configList = None
+
+    def create(self):
+        self.configSelector = self.add(ns.TitleSelectOne, max_height=-2, value=[1,], name='Select a database config:', values=self.configList, scroll_exit=True)
+        
+
+
 class MainForm(ns.ActionFormWithMenus):
     def create(self):
         self.value = None
@@ -423,6 +488,9 @@ class MainForm(ns.ActionFormWithMenus):
         
         self.configFileSelect = self.add(ns.TitleFilenameCombo, name="Load existing configuraton file:")
         self.configFileSelect.add_handlers({curses.ascii.ESC:  self.configFileSelect.h_exit_escape})
+
+        self.dbConnectButton = self.add(ns.ButtonPress, name='Connect to database...')
+        self.dbConnectButton.whenPressed = self.connectToDB
         
         self.sectionMenu = self.new_menu('Config Section')
         self.sectionMenu.addItem(text='Python site directory', onSelect=self.configurePythonSiteDir, shortcut=None, arguments=None, keywords=None)
@@ -435,6 +503,19 @@ class MainForm(ns.ActionFormWithMenus):
         self.sectionMenu.addItem(text='Plugins', onSelect=None, shortcut=None, arguments=None, keywords=None)
         #self.editing = True
 
+
+    def connectToDB(self):
+        availableDBConfigs = self.parentApp.listDatabaseConfigs()
+        if not len(availableDBConfigs):
+            self.parentApp.switchForm('DB_CONFIG')
+        else:
+            dlg = ns.Popup(name='Select a database config alias')
+            configSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [1,], name="Available configs:",
+                values = availableDBConfigs, scroll_exit=True)
+            dlg.edit()
+            selectedConfigAlias = availableDBConfigs[configSelector.get_value()[0]]
+            self.parentApp.connectToDB(selectedConfigAlias)
+            
 
     def configureGlobals(self):
         self.parentApp.switchForm('GLOBAL_CONFIG')
@@ -522,10 +603,10 @@ class ModelManager(object):
           formConfigs = []
 
           try:        
-              factory = FieldConfigFactory()
+              factory = meta.FieldConfigFactory()
               for modelName in modelTableMap:                  
                   # formspecs need the URL base to properly generate action URLs in the HTML templates
-                  newFormConfig = FormConfig(modelName, environment.getURLBase()) 
+                  newFormConfig = meta.FormConfig(modelName, environment.getURLBase()) 
                   modelConfig = modelTableMap[modelName]
 
                   table = modelConfig.table
@@ -620,8 +701,25 @@ class FormSpecManager(object):
 
             self.formSpecs.append(newFormConfig)
                   
-    
+class UIControlManager(object):
+    def __init__(self):
+        self.uiControlConfigs = {}
+
+    def addUIControl(self, uiControlConfig):
+        self.uiControlConfigs[uiControlConfig.name] = uiControlConfig
         
+    def listUIControls(self):
+        return self.uiControlConfigs.keys()
+
+    def clearUIControls(self):
+        self.uiControlConfigs = {}
+
+
+    def getUIControlConfiguration(self, alias):
+        cfg = self.uiControlConfigs.get(alias)
+        if not cfg:
+            raise NoSuchControlConfigException(alias)
+        return cfg
 
 class DirectoryManager(object):
     def __init__(self):
@@ -660,16 +758,21 @@ class SConfigApp(ns.NPSAppManaged):
             return None
         return self.databaseConfigTable.get(self.activeDatabaseConfigAlias)
 
+    def connectToDB(self, dbConfigAlias):
+        dbConfig = self.databaseConfigTable.get(dbConfigAlias)
+        if not dbConfig:
+            raise Exception('No configuration alias "%s" has been registered.' % dbConfigAlias)
         
+        dbInstance = db.MySQLDatabase(dbConfig.host, dbConfig.schema)            
+        dbInstance.login(dbConfig.username, dbConfig.password)
+        self.activeDatabaseConfigAlias = dbConfigAlias
+        self.liveDBInstance = dbInstance
+
     def getDBInstance(self, dbConfigAlias):
         if not self.liveDBInstance:                    
-            dbConfig = self.databaseConfigTable.get(dbConfigAlias)
-            if not dbConfig:
-                raise Exception('No configuration alias "%s" has been registered.' % dbConfigAlias)
-        
-            dbInstance = db.MySQLDatabase(dbConfig.host, dbConfig.schema)            
-            dbInstance.login(dbConfig.username, dbConfig.password)
-            self.liveDBInstance = dbInstance
+            self.connectToDB(dbConfigAlias)
+        elif dbConfigAlias != self.activeDatabaseConfigAlias:
+            self.connectToDB(dbConfigAlias)
             
         return self.liveDBInstance
 
@@ -679,6 +782,7 @@ class SConfigApp(ns.NPSAppManaged):
         self.configManager = ConfigManager()
         self.directoryManager = DirectoryManager()
         self.dataSourceManager = DataSourceManager()
+        self.uiControlManager = UIControlManager()
         
         self.databaseConfigTable = {}
         self.activeDatabaseConfigAlias = ''
@@ -688,16 +792,19 @@ class SConfigApp(ns.NPSAppManaged):
         
         self.addForm('MAIN', MainForm)
         self.addForm('DB_CONFIG', DatabaseConfigForm)
-        self.addForm('DB_CONFIG_MENU', DatabaseConfigMenuForm)
+        self.addForm('DB_CONFIG_MENU', DatabaseConfigMenuForm)        
         self.addForm('GLOBAL_CONFIG', GlobalSettingsForm)
         self.addForm('SITE_DIR_CONFIG', SiteDirConfigForm)
         self.addForm('MODEL_CONFIG', ModelConfigForm)
         self.addForm('VIRTUAL_ENV_SELECT', VirtualEnvMenuForm)
-        self.addForm('TABLE_SELECT', TableSelectForm)
         self.addForm('UICONTROL_CREATE', UIControlCreateForm)
         self.addForm('UICONTROL_CONFIG', UIControlConfigForm)
         self.addForm('DATASOURCE_CONFIG', DataSourceConfigForm)
-        
+        self.addForm('DATASOURCE_CREATE', DataSourceCreateForm)
+
+        # For testing only
+        newConfig = meta.DatabaseConfig('localhost', 'blocpower', 'dtaylor', 'notobvious')
+        self.addDatabaseConfig(newConfig, 'db01')
         
 
 class TestApp(ns.NPSApp):
@@ -728,4 +835,5 @@ class TestApp(ns.NPSApp):
 if __name__ == "__main__":
     #App = TestApp()
     App = SConfigApp()
+    
     App.run()

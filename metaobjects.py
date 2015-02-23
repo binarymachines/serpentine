@@ -141,8 +141,8 @@ class DataSourceParameter:
 
 
 class DataSourceConfig:
-    def __init__(self, type, parameterArray):
-        self.type = type
+    def __init__(self, dataSourceType, parameterArray):
+        self.type = dataSourceType
         self.params = parameterArray
 
     def __repr__(self):

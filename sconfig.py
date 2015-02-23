@@ -1129,7 +1129,6 @@ class SConfigurator(object):
                   sourceType = sourceTypePrompt.show(screen)
                   
                   sourceParams = []
-
                   
                   table = self.selectSingleTable(screen, database, environment, 'Select the target table for the datasource.')
                   screen.clear()
