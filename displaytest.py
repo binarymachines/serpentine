@@ -59,29 +59,30 @@ class GlobalSettingsForm(ns.ActionForm):
         globalSettings['default_report_package'] = '%s_reports' % globalSettings['web_app_name'].lower()
         globalSettings['default_datasource_package'] = '%s_datasources' % globalSettings['web_app_name'].lower()
             
-        staticFilePath = os.path.join(globalSettings['app_root'], 'deploy', globalSettings['static_file_directory'])
-        scriptPath = os.path.join(globalSettings['app_root'], 'deploy', globalSettings['static_file_directory'], 'js')
-        stylesPath = os.path.join(globalSettings['app_root'], 'deploy', globalSettings['static_file_directory'], 'css')
-        xmlPath = os.path.join(globalSettings['app_root'], 'deploy', globalSettings['static_file_directory'], 'xml')
-        xslStylesheetPath = os.path.join(globalSettings['app_root'], 'deploy', globalSettings['xsl_stylesheet_directory'])
+        staticFilePath = os.path.join(globalSettings['app_root'], globalSettings['static_file_directory'])
+        scriptPath = os.path.join(globalSettings['app_root'], globalSettings['static_file_directory'], 'js')
+        stylesPath = os.path.join(globalSettings['app_root'], globalSettings['static_file_directory'], 'css')
+        xmlPath = os.path.join(globalSettings['app_root'], globalSettings['static_file_directory'], 'xml')
+        xslStylesheetPath = os.path.join(globalSettings['app_root'], globalSettings['xsl_stylesheet_directory'])
             
         try:
             ns.notify_confirm(staticFilePath,
                               title="Static Files", form_color='STANDOUT', wrap=True, wide=False, editw=1)
             if not os.path.exists(staticFilePath):
-                os.system('mkdir -p %s' % staticFilePath) 
+                self.parentApp.directoryManager.addTargetPath(staticFilePath)
+                #os.system('mkdir -p %s' % staticFilePath) 
 
             if not os.path.exists(scriptPath):
-                os.system('mkdir -p %s' % scriptPath)
+                self.parentApp.directoryManager.addTargetPath(scriptPath)
 
             if not os.path.exists(stylesPath):
-                os.system('mkdir -p %s' % stylesPath)
+                self.parentApp.directoryManager.addTargetPath(stylesPath)
 
             if not os.path.exists(xmlPath):
-                os.system('mkdir -p %s' % xmlPath)
+                self.parentApp.directoryManager.addTargetPath(xmlPath)
                     
             if not os.path.exists(xslStylesheetPath):
-                os.system('mkdir -p %s' % xslStylesheetPath)
+                self.parentApp.directoryManager.addTargetPath(xslStylesheetPath)
 
             self.parentApp.configManager.initialize(globalSettings)
         except Exception, err:
@@ -156,6 +157,7 @@ class TableTypeDataSourceDialog(ns.Popup):
 
 class DataSourceCreateForm(ns.ActionForm):
     def create(self):
+        self.name = 'Create DataSource for UIControls'
         self.sourceTableName = None
         self.dataSourceParameters = []
         self.nameField = self.add(ns.TitleText, name='Data Source name:')
@@ -298,7 +300,7 @@ class UIControlConfigForm(ns.ActionForm):
         ns.notify_confirm('Auto-create UIcontrols.', title='Message', form_color='STANDOUT', wrap=True, wide=False, editw=1)
 
 
-
+'''
 class VirtualEnvMenuForm(ns.ActionForm):
     def create(self):
         self.virtualEnvHome = ''
@@ -326,7 +328,7 @@ class VirtualEnvMenuForm(ns.ActionForm):
         self.parentApp.pythonVersions = pyVersions
         self.parentApp.switchForm('MAIN')
         #siteDirLocation = os.path.sep.join([virtualEnvHome, selectedEnv, 'lib', pythonVersion, 'site-packages'])
-      
+'''     
 
         
 
@@ -340,14 +342,56 @@ class SiteDirConfigForm(ns.ActionForm):
         self.add(ns.FixedText, value='( If you are NOT using virtualenvwrapper, please select your Python site directory below. )')
         self.siteDirSelector = self.add(ns.TitleFilenameCombo, name='Python site directory:')
 
+    def on_cancel(self):
+        self.editing = False
+        self.parentApp.switchForm('MAIN')
+
     def on_ok(self):
         isUsingVirtualEnvWrapper = self.checkboxAnswers[self.usingVirtualEnvWrapperCheckbox.value[0]]
         if isUsingVirtualEnvWrapper == 'Yes':
-            self.parentApp.switchForm('VIRTUAL_ENV_SELECT')            
+            virtualEnvHome = os.environ.get('WORKON_HOME')
+            environments = []
+            fileList = os.listdir(virtualEnvHome)
+            for f in fileList:
+                if os.path.isdir(os.path.join(self.virtualEnvHome, f)):
+                    environments.append(f)
+            dlg = ns.Popup(name='Select Python Virtual Environment')
+            virtualEnvSelector = ns.add_widget(ns.TitleSelectOne,
+                                           max_height=12,
+                                           value = [1,],
+                                           name="Select the virtualenv you will use for this app:",
+                                           values = environments, scroll_exit=False)
+            virtualEnvSelector.set_value(0)
+            dlg.edit()
+            selectedEnv = environments[virtualEnvSelector.value[0]]
+            pyVersions = os.listdir(os.path.sep.join([virtualEnvHome, selectedEnv, 'lib']))
+            
+            self.parentApp.pythonVersions = {selectedEnv: pyVersions}
+            
         else:
             siteDirLocation = self.siteDirSelector.value
             self.parentApp.pythonSiteDir = siteDirLocation
             self.parentApp.switchForm('MAIN')
+
+'''
+        self.virtualEnvHome = os.environ.get('WORKON_HOME')
+        self.environments = []
+        fileList = os.listdir(self.virtualEnvHome)
+        for f in fileList:
+            if os.path.isdir(os.path.join(self.virtualEnvHome, f)):
+                self.environments.append(f)
+
+        self.virtualEnvSelector.values = self.environments
+        self.virtualEnvSelector.set_value(0)
+
+    def on_ok(self):
+        selectedEnv = self.environments[self.virtualEnvSelector.value[0]]
+        pyVersions = os.listdir(os.path.sep.join([self.virtualEnvHome, selectedEnv, 'lib']))
+        
+        self.parentApp.pythonVersions = pyVersions
+        self.parentApp.switchForm('MAIN')
+        #siteDirLocation = os.path.sep.join([virtualEnvHome, selectedEnv, 'lib', pythonVersion, 'site-packages'])
+'''    
 
 
 
@@ -418,7 +462,7 @@ class DatabaseConfigForm(ns.ActionForm):
         schema = self.schemaField.value
         username = self.usernameField.value
         password = self.passwordField.value
-        return DatabaseConfig(host, schema, username, password)
+        return meta.DatabaseConfig(host, schema, username, password)
 
     def clearAllFields(self):
         self.hostnameField.value = ''
@@ -485,11 +529,13 @@ class MainForm(ns.ActionFormWithMenus):
         self.appNameField = self.add(ns.TitleFixedText, name = "Application name:")
         self.versionField = self.add(ns.TitleFixedText, name = "Version number:")
         self.pythonVersionSelector = self.add(ns.TitleSelectOne, max_height=4, value = [0,], name='Python environment:', values = [], scroll_exit= True)
-        
-        self.configFileSelect = self.add(ns.TitleFilenameCombo, name="Load existing configuraton file:")
-        self.configFileSelect.add_handlers({curses.ascii.ESC:  self.configFileSelect.h_exit_escape})
+        self.appRootField = self.add(ns.TitleFixedText, name= 'Application root directory:')
+       
 
-        self.dbConnectButton = self.add(ns.ButtonPress, name='Connect to database...')
+        self.loadConfigFileButton = self.add(ns.ButtonPress, name='Load existing configuration file...')
+        self.loadConfigFileButton.whenPressed = self.loadConfigFile
+        
+        self.dbConnectButton = self.add(ns.ButtonPress, name='Connect to database...')        
         self.dbConnectButton.whenPressed = self.connectToDB
         
         self.sectionMenu = self.new_menu('Config Section')
@@ -517,6 +563,13 @@ class MainForm(ns.ActionFormWithMenus):
             self.parentApp.connectToDB(selectedConfigAlias)
             
 
+    def loadConfigFile(self):
+        dlg = ns.Popup(name='Load a Serpentine configuration file')
+        configFileSelect = dlg.add_widget(ns.TitleFilenameCombo, name="Load file")
+        dlg.edit()
+        # TODO: actually load selected config file
+        
+
     def configureGlobals(self):
         self.parentApp.switchForm('GLOBAL_CONFIG')
 
@@ -538,10 +591,11 @@ class MainForm(ns.ActionFormWithMenus):
     def beforeEditing(self):
         self.appNameField.value = self.parentApp.configManager.getAppName()
         self.versionField.value = self.parentApp.configManager.getAppVersion()
-        self.pythonVersionSelector.values = self.parentApp.pythonVersions
+        self.appRootField.value = self.parentApp.configManager.getAppRoot()
+        self.pythonVersionSelector.values = self.parentApp.pythonVersions.keys()
         if len(self.pythonVersionSelector.values) and not self.pythonVersionSelector.get_selected_objects():
             self.pythonVersionSelector.set_value(0)
-            
+        
     def on_ok(self):
         self.parentApp.setNextForm(None)   
 
@@ -670,7 +724,11 @@ class ConfigManager(object):
         if self.environment:
             return self.environment.getAppVersion()
         return ''
-    
+
+    def getAppRoot(self):
+        if self.environment:
+            return self.environment.getAppRoot()
+        return ''
 
 
 class FormSpecManager(object):
@@ -700,6 +758,7 @@ class FormSpecManager(object):
                 newFormConfig.addField(factory.create(column))
 
             self.formSpecs.append(newFormConfig)
+
                   
 class UIControlManager(object):
     def __init__(self):
@@ -796,10 +855,9 @@ class SConfigApp(ns.NPSAppManaged):
         self.addForm('GLOBAL_CONFIG', GlobalSettingsForm)
         self.addForm('SITE_DIR_CONFIG', SiteDirConfigForm)
         self.addForm('MODEL_CONFIG', ModelConfigForm)
-        self.addForm('VIRTUAL_ENV_SELECT', VirtualEnvMenuForm)
+        #self.addForm('VIRTUAL_ENV_SELECT', VirtualEnvMenuForm)
         self.addForm('UICONTROL_CREATE', UIControlCreateForm)
-        self.addForm('UICONTROL_CONFIG', UIControlConfigForm)
-        self.addForm('DATASOURCE_CONFIG', DataSourceConfigForm)
+        self.addForm('UICONTROL_CONFIG', UIControlConfigForm)        
         self.addForm('DATASOURCE_CREATE', DataSourceCreateForm)
 
         # For testing only
