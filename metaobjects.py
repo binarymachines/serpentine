@@ -40,6 +40,8 @@ class DatabaseConfig:
         self.username = username
         self.password = password
 
+    def __repr__(self):
+        return 'connected to %s DB instance on host "%s" as user %s, schema: %s' % (self.type, self.host, self.username, self.schema)
 
 
 class PluginSlotConfig:

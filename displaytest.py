@@ -66,8 +66,6 @@ class GlobalSettingsForm(ns.ActionForm):
         xslStylesheetPath = os.path.join(globalSettings['app_root'], globalSettings['xsl_stylesheet_directory'])
             
         try:
-            ns.notify_confirm(staticFilePath,
-                              title="Static Files", form_color='STANDOUT', wrap=True, wide=False, editw=1)
             if not os.path.exists(staticFilePath):
                 self.parentApp.directoryManager.addTargetPath(staticFilePath)
                 #os.system('mkdir -p %s' % staticFilePath) 
@@ -124,36 +122,7 @@ class TableSelectDialog(ns.Popup):
             return 
         self.selectedTable = self.tables[self.tableSelector.get_value()[0]]
 
-'''
-class MenuTypeDataSourceDialog(ns.Popup):
-    def __init__(self, *args, **keywords):
-        ns.Popup.__init__(self, *args, **keywords)
-        self.dataTable = keywords['table']
-        self.selectedNameField = ''
-        self.selectedValueField = ''
 
-
-    def create(self):
-        columnNames = [column.name for column in self.dataTable.columns] 
-        self.nameFieldSelector = self.add(ns.TitleSelectOne, max_height=len(columnNames), value = [1,], name='Name field:',
-                values = columnNames, scroll_exit=True)
-        
-        self.valueFieldSelector = self.add(ns.TitleSelectOne, max_height=len(columnNames), value = [1,], name='Value field:',
-                values = columnNames, scroll_exit=True)
-'''
-
-'''
-class TableTypeDataSourceDialog(ns.Popup):
-    def __init__(self, *args, **keywords):
-        ns.Popup.__init__(self, *args, **keywords)
-        self.dataTable = keywords['table']
-        self.selectedFields = []
-
-    def create(self):
-        columnNames = [column.name for column in self.dataTable.columns]
-        self.fieldSelector = self.add(ns.TitleMultiSelect, max_height =-2, value = [1,], name='Select one or more columns from the source table:',
-                values = columnNames, scroll_exit=True)
-'''
 
 class DataSourceCreateForm(ns.ActionForm):
     def create(self):
@@ -166,9 +135,9 @@ class DataSourceCreateForm(ns.ActionForm):
                                   max_height=len(DATASOURCE_TYPE_OPTIONS)*2,
                                   value=[1,], scroll_exit=True, values=DATASOURCE_TYPE_OPTIONS)
         
-        self.tableSelectButton = self.add(ns.ButtonPress, name='Select source table')
+        self.tableSelectButton = self.add(ns.ButtonPress, name='>> Select source table')
         self.tableSelectButton.whenPressed = self.selectTable
-        self.configureButton = self.add(ns.ButtonPress, name='Configure this DataSource')
+        self.configureButton = self.add(ns.ButtonPress, name='>> Configure this DataSource')
         self.configureButton.whenPressed = self.configure
         
     def selectTable(self):
@@ -240,7 +209,7 @@ class UIControlCreateForm(ns.ActionForm):
 
         self.dataSourceAlias = ''
         self.dataSourceLabel = self.add(ns.TitleFixedText, name='Datasource name:', value='')
-        self.selectDataSourceButton = self.add(ns.ButtonPress, name='Select a Datasource')
+        self.selectDataSourceButton = self.add(ns.ButtonPress, name='>> Select a Datasource')
         self.selectDataSourceButton.whenPressed = self.selectDataSource
 
 
@@ -279,9 +248,9 @@ class UIControlCreateForm(ns.ActionForm):
 
 class UIControlConfigForm(ns.ActionForm):
     def create(self):       
-        self.createControlButton = self.add(ns.ButtonPress, name='Create a custom data-bound HTML control')
-        self.browseControlsButton = self.add(ns.ButtonPress, name='Browse existing HTML controls')
-        self.autoCreateButton = self.add(ns.ButtonPress, name='Auto-create HTML select controls from lookup tables')
+        self.createControlButton = self.add(ns.ButtonPress, name='>> Create a custom data-bound HTML control')
+        self.browseControlsButton = self.add(ns.ButtonPress, name='>> Browse existing HTML controls')
+        self.autoCreateButton = self.add(ns.ButtonPress, name='>> Auto-create HTML select controls from lookup tables')
 
         self.createControlButton.whenPressed = self.createControl
         self.browseControlsButton.whenPressed = self.browseControls
@@ -353,11 +322,11 @@ class SiteDirConfigForm(ns.ActionForm):
             environments = []
             fileList = os.listdir(virtualEnvHome)
             for f in fileList:
-                if os.path.isdir(os.path.join(self.virtualEnvHome, f)):
+                if os.path.isdir(os.path.join(virtualEnvHome, f)):
                     environments.append(f)
             dlg = ns.Popup(name='Select Python Virtual Environment')
-            virtualEnvSelector = ns.add_widget(ns.TitleSelectOne,
-                                           max_height=12,
+            virtualEnvSelector = dlg.add_widget(ns.TitleSelectOne,
+                                           max_height=-2,
                                            value = [1,],
                                            name="Select the virtualenv you will use for this app:",
                                            values = environments, scroll_exit=False)
@@ -366,32 +335,26 @@ class SiteDirConfigForm(ns.ActionForm):
             selectedEnv = environments[virtualEnvSelector.value[0]]
             pyVersions = os.listdir(os.path.sep.join([virtualEnvHome, selectedEnv, 'lib']))
             
-            self.parentApp.pythonVersions = {selectedEnv: pyVersions}
+            versionDlg = ns.Popup(name='Select Python version')
+            versionSelector = versionDlg.add_widget(ns.TitleSelectOne,
+                                            max_height=-2,
+                                            value=[1,],
+                                            name='Version:',
+                                            values=pyVersions)
+            versionDlg.edit()
+            selectedVersion = pyVersions[versionSelector.value[0]]
+
+            self.parentApp.pythonEnvironment.setVersion(selectedVersion)
+            self.parentApp.pythonEnvironment.setSiteDirectory(os.path.sep.join([virtualEnvHome, selectedEnv, 'lib', selectedVersion, 'site-packages']))
+            self.parentApp.pythonEnvironment.setVirtualEnv(selectedEnv)
             
         else:
-            siteDirLocation = self.siteDirSelector.value
-            self.parentApp.pythonSiteDir = siteDirLocation
-            self.parentApp.switchForm('MAIN')
-
-'''
-        self.virtualEnvHome = os.environ.get('WORKON_HOME')
-        self.environments = []
-        fileList = os.listdir(self.virtualEnvHome)
-        for f in fileList:
-            if os.path.isdir(os.path.join(self.virtualEnvHome, f)):
-                self.environments.append(f)
-
-        self.virtualEnvSelector.values = self.environments
-        self.virtualEnvSelector.set_value(0)
-
-    def on_ok(self):
-        selectedEnv = self.environments[self.virtualEnvSelector.value[0]]
-        pyVersions = os.listdir(os.path.sep.join([self.virtualEnvHome, selectedEnv, 'lib']))
+            self.parentApp.pythonEnvironment.setSiteDirectory(self.siteDirSelector.value)           
         
-        self.parentApp.pythonVersions = pyVersions
+
         self.parentApp.switchForm('MAIN')
-        #siteDirLocation = os.path.sep.join([virtualEnvHome, selectedEnv, 'lib', pythonVersion, 'site-packages'])
-'''    
+
+
 
 
 
@@ -520,22 +483,49 @@ class DBConfigSelectDialog(ns.Popup):
         self.configSelector = self.add(ns.TitleSelectOne, max_height=-2, value=[1,], name='Select a database config:', values=self.configList, scroll_exit=True)
         
 
+class PythonEnvironment(object):
+    def __init__(self):
+        self.isUsingVirtualEnv = False
+        self.virtualEnvName = 'None'
+        self.version = ''
+        self.siteDirectory = ''
+
+    def setVirtualEnv(self, envName):
+        self.isUsingVirtualEnv = True
+        self.virtualEnvName = envName
+
+    def setVersion(self, versionString):
+        self.version = versionString
+
+    def setSiteDirectory(self, directory):
+        self.siteDirectory = directory
+
+    def __repr__(self):
+        lines = []
+        lines.append('Using Virtualenv? %s' % 'Yes' if self.isUsingVirtualEnv else 'No')
+        lines.append('Virtualenv: %s' % self.virtualEnvName)
+        lines.append('Python site directory: %s' % self.siteDirectory)
+        lines.append('Version: %s' % self.version)
+        return '\n'.join(lines)
+
 
 class MainForm(ns.ActionFormWithMenus):
     def create(self):
         self.value = None
         self.name =  "::: sconfig: Serpentine Configuration Tool :::"
         
+        
         self.appNameField = self.add(ns.TitleFixedText, name = "Application name:")
         self.versionField = self.add(ns.TitleFixedText, name = "Version number:")
-        self.pythonVersionSelector = self.add(ns.TitleSelectOne, max_height=4, value = [0,], name='Python environment:', values = [], scroll_exit= True)
+        self.pythonDirField = self.add(ns.TitleFixedText, name ='Python site dir:', value='')
         self.appRootField = self.add(ns.TitleFixedText, name= 'Application root directory:')
-       
+        self.dbConnectionField = self.add(ns.TitleFixedText, name='Database status:')
+        self.spacerField = self.add(ns.TitleFixedText, name= ' ')
 
-        self.loadConfigFileButton = self.add(ns.ButtonPress, name='Load existing configuration file...')
+        self.loadConfigFileButton = self.add(ns.ButtonPress, name='>> Load existing configuration file...')
         self.loadConfigFileButton.whenPressed = self.loadConfigFile
         
-        self.dbConnectButton = self.add(ns.ButtonPress, name='Connect to database...')        
+        self.dbConnectButton = self.add(ns.ButtonPress, name='>> Connect to database...')        
         self.dbConnectButton.whenPressed = self.connectToDB
         
         self.sectionMenu = self.new_menu('Config Section')
@@ -592,10 +582,8 @@ class MainForm(ns.ActionFormWithMenus):
         self.appNameField.value = self.parentApp.configManager.getAppName()
         self.versionField.value = self.parentApp.configManager.getAppVersion()
         self.appRootField.value = self.parentApp.configManager.getAppRoot()
-        self.pythonVersionSelector.values = self.parentApp.pythonVersions.keys()
-        if len(self.pythonVersionSelector.values) and not self.pythonVersionSelector.get_selected_objects():
-            self.pythonVersionSelector.set_value(0)
-        
+        self.pythonDirField.value = self.parentApp.pythonEnvironment.siteDirectory
+        self.dbConnectionField.value = str(self.parentApp.activeDatabaseConfig)
     def on_ok(self):
         self.parentApp.setNextForm(None)   
 
@@ -842,6 +830,8 @@ class SConfigApp(ns.NPSAppManaged):
         self.directoryManager = DirectoryManager()
         self.dataSourceManager = DataSourceManager()
         self.uiControlManager = UIControlManager()
+
+        self.pythonEnvironment = PythonEnvironment()
         
         self.databaseConfigTable = {}
         self.activeDatabaseConfigAlias = ''
