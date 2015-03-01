@@ -113,6 +113,124 @@ class FrameConfig:
         self.helper = helperName
 
 
+
+class ModelFieldSpec():
+    def __init__(self, fieldName, fieldType, isNullable=True, **kwargs):
+        self.name = fieldName
+        self.fieldType = fieldType
+        self.isNullable = isNullable 
+        self.isPrimaryKey = kwargs.get('is_primary', False)
+        self.sequenceName = kwargs.get('sequence_id')
+
+    def __repr__(self):
+        modifiers = []
+        if self.isPrimaryKey:
+            modifiers.append('primary_key=True')
+        
+        modifiers.append('nullable=%s' % self.isNullable)
+        if self.sequence:
+            modifiers.append("Sequence('%s')" % self.sequenceName)
+        fields = [self.fieldType]
+        fields.extend(modifiers)
+        return '%s = Column(%s)' % ', '.join(fields)
+
+
+
+
+class ParentLinkSpec():
+    def __init__(self, fieldName, fieldType, parentTableName, parentFieldName):        
+        self.linkFieldName = fieldName
+        self.linkFieldType = fieldType
+        self.linkParentTable = parentTableName
+        self.linkParentFieldName = parentFieldName
+
+    def __repr__(self):
+        return "%s = Column(%s, ForeignKey('%s.%s'))" % (self.linkFieldName, self.linkFieldType, self.linkParentTable, self.linkParentField)
+
+
+
+class ChildLinkSpec():
+    def __init__(self, fieldName, childModelName, isBidirectional=False, parentModelName=None):
+        if isBidirectional and not parentModelName:
+            raise Exception('A bidirectional child link must specify the parent model name.')
+      
+        self.linkFieldName = fieldName
+        self.childModelName = childModelName
+        self.parentModelName = parentModelName
+        self.isBidirectional = isBidirectional
+
+        
+    def __repr__(self):
+        if self.isBidirectional:
+            return "%s = relationship('%s', backref='%s')" % (self.linkFieldName, self.childModelName, self.parentModelName)
+        return "%s = relationship('')" % (self.linkFieldName, self.childModelName)
+    
+
+
+class ModelSpec():
+    def __init__(self, tableName):
+        self.primaryKeyFields = []                  
+        self.fields = []
+        self.parentLinks = []
+        self.childLinks = []
+        self.tableName = tableName
+
+
+    def addField(self, name, fieldType, isNullable, isPrimaryKey):
+        fSpec = ModelFieldSpec(name, fieldType, isNullable, is_primary=isPrimaryKey)
+        if isPrimaryKey:
+            self.primaryKeyFields.append[fSpec]
+        else:
+            self.fields.append(fSpec)      
+
+
+    def linkUp(self, parentLinkSpec):
+        self.parentLinks.append(parentLinkSpec)
+
+
+    def linkDown(self, childLinkSpec):
+        self.childLinks.append(childLinkSpec)
+
+
+    def getLinks(self):
+        result = []
+        result.extend(self.parentLinks)
+        result.extend(self.childLinks)
+        return result
+
+
+    def clearFields(self):
+        self.fields = []
+
+
+    def clearParentLinks(self):
+        self.parentLinks = []       
+
+
+    def clearChildLinks(self):
+        self.childLinks = []
+
+
+    def __repr__(self):
+          lines = []
+          lines.append('class %s(Base):' % self.name)
+          lines.append("\t__tablename__ = '%s'" % self.tableName)
+          for pkField in self.primaryKeyFields:
+              lines.append('\t%s' % pkField)
+
+          for pLink in self.parentLinks:
+              lines.append('\t%s' % pLink)
+
+          for cLink in self.childLinks:
+              lines.append('\t%s' % cLink)
+
+          for field in self.fields:
+              lines.append('\t%s' % field)
+
+          return '\n'.join(lines)
+
+
+
 class ModelConfig(object):
     def __init__(self, name, table, children = None):
         self.name = name

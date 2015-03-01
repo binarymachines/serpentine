@@ -522,15 +522,20 @@ class MainForm(ns.ActionFormWithMenus):
         self.dbConnectionField = self.add(ns.TitleFixedText, name='Database status:')
         self.spacerField = self.add(ns.TitleFixedText, name= ' ')
 
+        self.dbConnectButton = self.add(ns.ButtonPress, name='>> Connect to database...')        
+        self.dbConnectButton.whenPressed = self.connectToDB
+
+
+        self.modelListButton = self.add(ns.ButtonPress, name='>> Show')
+
         self.loadConfigFileButton = self.add(ns.ButtonPress, name='>> Load existing configuration file...')
         self.loadConfigFileButton.whenPressed = self.loadConfigFile
         
-        self.dbConnectButton = self.add(ns.ButtonPress, name='>> Connect to database...')        
-        self.dbConnectButton.whenPressed = self.connectToDB
+        
         
         self.sectionMenu = self.new_menu('Config Section')
-        self.sectionMenu.addItem(text='Python site directory', onSelect=self.configurePythonSiteDir, shortcut=None, arguments=None, keywords=None)
-        self.sectionMenu.addItem(text='Global Settings', onSelect=self.configureGlobals, shortcut=None, arguments=None, keywords=None)        
+        self.sectionMenu.addItem(text='Global Settings', onSelect=self.configureGlobals, shortcut=None, arguments=None, keywords=None) 
+        self.sectionMenu.addItem(text='Python site directory', onSelect=self.configurePythonSiteDir, shortcut=None, arguments=None, keywords=None)               
         self.sectionMenu.addItem(text='Add Database Config', onSelect=self.configureNewDatabase, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='Edit Database Config', onSelect=self.editDatabase, shortcut=None, arguments=None, keywords=None)    
         self.sectionMenu.addItem(text='Models', onSelect=self.configureModels, shortcut=None, arguments=None, keywords=None)
