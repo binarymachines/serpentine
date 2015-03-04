@@ -107,6 +107,7 @@ class DataSourceConfigForm(ns.ActionForm):
         self.tableSelector = self.parentApp.activeDatabaseConfig.listTables()
 '''
 
+'''
 class TableSelectDialog(ns.Popup):
     def __init__(self, *args, **keywords):
         ns.Popup.__init__(self, *args, **keywords)
@@ -121,6 +122,69 @@ class TableSelectDialog(ns.Popup):
         if not len(self.tables):
             return 
         self.selectedTable = self.tables[self.tableSelector.get_value()[0]]
+'''
+
+
+
+class ModelListForm(ns.ActionForm):
+    def create(self):
+        self.name = 'Selected Models'
+        
+
+    def beforeEditing(self):
+        pass
+
+    def on_ok(self):
+        self.parentApp.switchForm('MAIN')
+
+
+
+
+
+
+
+class TableBasedModelGenerator():
+    def __init__(self, dbInstance):
+        self.dbInstance = dbInstance
+        self.modelSpecs = {}
+
+
+    def addModel(self, tableName):
+        table = self.dbInstance.getTable(tableName)
+        modelName = self.convertTableNameToModelName(tableName)
+        modelSpec = meta.ModelSpec(modelName, tableName)
+        for column in table.columns:
+            fieldTypeName = self.convertColumnType(column.type)
+            modelSpec.addField(column.name, fieldTypeName, column.nullable, column.primary_key)
+        
+        self.modelSpecs[modelName] = modelSpec
+            
+
+    def convertColumnType(self, colType):
+        typeName = str(colType).split('(')[0]
+        result = db.MySQLColumnTypeMap.get(typeName)
+        if not result:
+            raise Exception('No conversion available for column type name %s' % typeName)
+        return result
+    
+
+    def convertTableNameToModelName(self, tableName):
+        """Convert an underscore-style db table name to a camel-cased class name."""
+
+        # plural to singular
+        tempName = tableName
+        if tableName[len(tableName)-1] == 's':
+            tempName = tableName[0: len(tableName)-1]
+
+        # remove the underscore separator and camel-case any compound names
+        underscoreIndex = tempName.find('_')
+        if underscoreIndex != -1:
+            pieces = [tempName[0: underscoreIndex].capitalize(), tempName[underscoreIndex+1:].capitalize()]
+            modelName = ''.join(pieces)
+        else:       
+            modelName = tempName.capitalize()
+
+        return modelName
 
 
 
@@ -225,6 +289,7 @@ class UIControlCreateForm(ns.ActionForm):
             self.dataSourceAlias = dataSources[sourceSelector.value[0]]
             self.dataSourceLabel.value = self.dataSourceAlias
         self.display()
+
 
     def on_ok(self):
         controlName = self.controlNameField.value
@@ -375,9 +440,7 @@ class ModelConfigForm(ns.ActionForm):
         else:
             try:
                 # There must be a live database connection
-                dbInstance = self.parentApp.getDBInstance(dbConfigAlias)                
-                ns.notify_confirm('Connected to database using config %s.' % dbConfigAlias,
-                                  title='Success', form_color='STANDOUT', wrap=True, wide=False, editw=1)
+                dbInstance = self.parentApp.getDBInstance(dbConfigAlias)                                
                 self.tableSelector.values = dbInstance.listTables()
                 self.canSelectTables = True
             except Exception, err:
@@ -526,7 +589,8 @@ class MainForm(ns.ActionFormWithMenus):
         self.dbConnectButton.whenPressed = self.connectToDB
 
 
-        self.modelListButton = self.add(ns.ButtonPress, name='>> Show')
+        self.modelListButton = self.add(ns.ButtonPress, name='>> Show target models...')
+        self.modelListButton.whenPressed = self.showModels
 
         self.loadConfigFileButton = self.add(ns.ButtonPress, name='>> Load existing configuration file...')
         self.loadConfigFileButton.whenPressed = self.loadConfigFile
@@ -542,7 +606,7 @@ class MainForm(ns.ActionFormWithMenus):
         self.sectionMenu.addItem(text='Views', onSelect=None, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='UI Controls', onSelect=self.manageUIControls, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='Plugins', onSelect=None, shortcut=None, arguments=None, keywords=None)
-        #self.editing = True
+        
 
 
     def connectToDB(self):
@@ -556,7 +620,11 @@ class MainForm(ns.ActionFormWithMenus):
             dlg.edit()
             selectedConfigAlias = availableDBConfigs[configSelector.get_value()[0]]
             self.parentApp.connectToDB(selectedConfigAlias)
-            
+    
+
+    def showModels(self):
+        self.parentApp.switchForm('MODEL_LIST')
+      
 
     def loadConfigFile(self):
         dlg = ns.Popup(name='Load a Serpentine configuration file')
@@ -850,6 +918,7 @@ class SConfigApp(ns.NPSAppManaged):
         self.addForm('GLOBAL_CONFIG', GlobalSettingsForm)
         self.addForm('SITE_DIR_CONFIG', SiteDirConfigForm)
         self.addForm('MODEL_CONFIG', ModelConfigForm)
+        self.addForm('MODEL_LIST', ModelListForm)
         #self.addForm('VIRTUAL_ENV_SELECT', VirtualEnvMenuForm)
         self.addForm('UICONTROL_CREATE', UIControlCreateForm)
         self.addForm('UICONTROL_CONFIG', UIControlConfigForm)        

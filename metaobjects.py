@@ -128,11 +128,11 @@ class ModelFieldSpec():
             modifiers.append('primary_key=True')
         
         modifiers.append('nullable=%s' % self.isNullable)
-        if self.sequence:
+        if self.sequenceName:
             modifiers.append("Sequence('%s')" % self.sequenceName)
         fields = [self.fieldType]
         fields.extend(modifiers)
-        return '%s = Column(%s)' % ', '.join(fields)
+        return '%s = Column(%s)' % (self.name, ', '.join(fields))
 
 
 
@@ -168,18 +168,19 @@ class ChildLinkSpec():
 
 
 class ModelSpec():
-    def __init__(self, tableName):
+    def __init__(self, modelName, tableName):
         self.primaryKeyFields = []                  
         self.fields = []
         self.parentLinks = []
         self.childLinks = []
+        self.name = modelName
         self.tableName = tableName
 
 
     def addField(self, name, fieldType, isNullable, isPrimaryKey):
         fSpec = ModelFieldSpec(name, fieldType, isNullable, is_primary=isPrimaryKey)
         if isPrimaryKey:
-            self.primaryKeyFields.append[fSpec]
+            self.primaryKeyFields.append(fSpec)
         else:
             self.fields.append(fSpec)      
 

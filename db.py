@@ -16,6 +16,15 @@ import sys
 from core import *
 
 
+MySQLColumnTypeMap = { 'INTEGER': 'sqlalchemy.types.Integer', 
+                       'VARCHAR': 'sqlalchemy.types.String', 
+                       'BOOLEAN': 'sqlalchemy.types.Boolean', 
+                       'FLOAT': 'sqlalchemy.types.Float',
+                       'DATETIME': 'sqlalchemy.types.DateTime',
+                       'TEXT': 'sqlalchemy.types.Text' }
+
+
+
 class NoSuchTableError(Exception):
     def __init__(self, tableName, schemaName):
         Exception.__init__(self, "No table named '%s' exists in database schema '%s'." % (tableName, schemaName))
@@ -45,8 +54,6 @@ class Database:
         self.metadata = None
         
         
-        
-
     def __createURL__(self, dbType, username, password):
         """Implement in subclasses to provide database-type-specific connection URLs."""
         pass
