@@ -139,14 +139,13 @@ class ModelListForm(ns.ActionForm):
 
 
 
-
-
-
-
 class TableBasedModelGenerator():
     def __init__(self, dbInstance):
         self.dbInstance = dbInstance
         self.modelSpecs = {}
+
+    def listModels(self):
+        return self.modelSpecs.keys()
 
 
     def addModel(self, tableName):
@@ -159,6 +158,16 @@ class TableBasedModelGenerator():
         
         self.modelSpecs[modelName] = modelSpec
             
+    
+    def getModel(self, modelName):
+        return self.modelSpecs.get(modelName) or raise Exception('No ModelSpec registered under the name %s.' % modelName)
+
+
+
+    def getModelByTableName(self, tableName):
+        modelName = self.convertTableNameToModelName(tableName)
+        return self.getModel(modelName)
+
 
     def convertColumnType(self, colType):
         typeName = str(colType).split('(')[0]
@@ -186,6 +195,21 @@ class TableBasedModelGenerator():
 
         return modelName
 
+
+class RelationshipManager():
+    def __init__(self, modelGenerator):
+        self.modelGenerator = modelGenerator
+
+
+    def designateChildModel(self, parentName, childModelName, linkFieldName, isTwoWayLink):
+        parentModelSpec = self.modelGenerator.getModel(parentModelName)
+        childLink = meta.ChildLinkSpec(linkFieldName, childModelName, isBidirectional=isTwoWayLink, parentModelName=parentName)
+        parentModelSpec.linkDown(childLink)
+
+
+    def designateParentModel(self, childName, parentModelName, linkFieldName, isTwoWayLink):
+        childModelSpec = self.modelGenerator.getModel(childModelName)
+        parentLink = meta.ParentLinkSpec(fieldName, fieldType, parentTableName, parentFieldName)
 
 
 class DataSourceCreateForm(ns.ActionForm):
@@ -672,15 +696,43 @@ class ContentManager(object):
 
 class ModelManager(object):
     def __init__(self):
+        modelGenerator = None
         self.tableSet = set()
+
         
     def listTables(self):
         return [table.name for table in self.tableSet]
 
+
+    def listModels(self):
+        if self.modelGenerator:
+            return self.modelGenerator.listModels()
+        return []
+
+
     def addTable(self, table):
         self.tableSet.add(table)
         
-        
+
+    def updateModelSpecs(self, dbInstance):
+        self.modelGenerator = TableBasedModelGenerator(dbInstance)
+        tableList = self.listTables()
+        for tblName in tableList:
+            self.modelGenerator.addModel(tblName)
+
+
+    def designateChildModel(self, parentName, childModelName, linkFieldName, isTwoWayLink):
+        parentModelSpec = self.modelGenerator.getModel(parentModelName)
+        childLink = meta.ChildLinkSpec(linkFieldName, childModelName, isBidirectional=isTwoWayLink, parentModelName=parentName)
+        parentModelSpec.linkDown(childLink)
+
+
+    def designateParentModel(self, childName, parentModelName, linkFieldName, isTwoWayLink):
+        childModelSpec = self.modelGenerator.getModel(childModelName)
+        parentLink = meta.ParentLinkSpec(fieldName, fieldType, parentTableName, parentFieldName)
+
+
+      
     def createModelTableMap(self):
         modelTableMap = {}
         for table in self.tableSet:
@@ -689,19 +741,14 @@ class ModelManager(object):
 
         return modelTableMap
 
-
+    '''
     def generateModelClasses(self, configPackage):
-        """Generate all boilerplate Model classes, in a single module
-
-        Arguments: 
-        modelNames -- an array of model names
-        """     
-        modelPkg = os.path.join("build", "%s.py" % configPackage.default_model_package) 
+            modelPkg = os.path.join("build", "%s.py" % configPackage.default_model_package) 
         with open(modelPkg, "a") as f:        
             for modelName in configPackage.models:
                 f.write("\nclass %s(object): pass" % modelName)
                 f.write("\n\n")
-
+    '''
 
     def createFormConfigs(self, modelTableMap, environment):
           """For each model name in the dictionary, generate form specification (FormConfig) object.
