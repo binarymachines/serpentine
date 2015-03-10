@@ -160,8 +160,10 @@ class TableBasedModelGenerator():
             
     
     def getModel(self, modelName):
-        return self.modelSpecs.get(modelName) or raise Exception('No ModelSpec registered under the name %s.' % modelName)
-
+        modelSpec = self.modelSpecs.get(modelName)
+        if not modelSpec:
+            raise Exception('No ModelSpec registered under the name %s.' % modelName)
+        return modelSpec
 
 
     def getModelByTableName(self, tableName):
@@ -447,7 +449,7 @@ class SiteDirConfigForm(ns.ActionForm):
 
 
 
-class ModelConfigForm(ns.ActionForm):
+class ModelSelectForm(ns.ActionForm):
     def create(self):
         self.canSelectTables = False
         self.value = None
@@ -613,8 +615,8 @@ class MainForm(ns.ActionFormWithMenus):
         self.dbConnectButton.whenPressed = self.connectToDB
 
 
-        self.modelListButton = self.add(ns.ButtonPress, name='>> Show target models...')
-        self.modelListButton.whenPressed = self.showModels
+        self.modelManagerButton = self.add(ns.ButtonPress, name='>> Manage models...')
+        self.modelManagerButton.whenPressed = self.manageModels
 
         self.loadConfigFileButton = self.add(ns.ButtonPress, name='>> Load existing configuration file...')
         self.loadConfigFileButton.whenPressed = self.loadConfigFile
@@ -626,7 +628,7 @@ class MainForm(ns.ActionFormWithMenus):
         self.sectionMenu.addItem(text='Python site directory', onSelect=self.configurePythonSiteDir, shortcut=None, arguments=None, keywords=None)               
         self.sectionMenu.addItem(text='Add Database Config', onSelect=self.configureNewDatabase, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='Edit Database Config', onSelect=self.editDatabase, shortcut=None, arguments=None, keywords=None)    
-        self.sectionMenu.addItem(text='Models', onSelect=self.configureModels, shortcut=None, arguments=None, keywords=None)
+        self.sectionMenu.addItem(text='Models', onSelect=self.selectModels, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='Views', onSelect=None, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='UI Controls', onSelect=self.manageUIControls, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='Plugins', onSelect=None, shortcut=None, arguments=None, keywords=None)
@@ -646,7 +648,7 @@ class MainForm(ns.ActionFormWithMenus):
             self.parentApp.connectToDB(selectedConfigAlias)
     
 
-    def showModels(self):
+    def manageModels(self):
         self.parentApp.switchForm('MODEL_LIST')
       
 
@@ -669,8 +671,11 @@ class MainForm(ns.ActionFormWithMenus):
     def editDatabase(self):
         self.parentApp.switchForm('DB_CONFIG_MENU')   
 
-    def configureModels(self):
-        self.parentApp.switchForm('MODEL_CONFIG')
+    def selectModels(self):
+        self.parentApp.switchForm('MODEL_SELECT')
+
+    def reviewModels(self):
+        self.parentApp.switchForm('MODEL_REVIEW')
 
     def manageUIControls(self):        
         self.parentApp.switchForm('UICONTROL_CONFIG')
@@ -732,7 +737,6 @@ class ModelManager(object):
         parentLink = meta.ParentLinkSpec(fieldName, fieldType, parentTableName, parentFieldName)
 
 
-      
     def createModelTableMap(self):
         modelTableMap = {}
         for table in self.tableSet:
@@ -781,6 +785,7 @@ class ModelManager(object):
               return formConfigs
           finally:
               pass
+
 
 
 class DataSourceManager(object):
@@ -964,8 +969,8 @@ class SConfigApp(ns.NPSAppManaged):
         self.addForm('DB_CONFIG_MENU', DatabaseConfigMenuForm)        
         self.addForm('GLOBAL_CONFIG', GlobalSettingsForm)
         self.addForm('SITE_DIR_CONFIG', SiteDirConfigForm)
-        self.addForm('MODEL_CONFIG', ModelConfigForm)
-        self.addForm('MODEL_LIST', ModelListForm)
+        self.addForm('MODEL_SELECT', ModelSelectForm)
+        self.addForm('MODEL_REVIEW', ModelListForm)
         #self.addForm('VIRTUAL_ENV_SELECT', VirtualEnvMenuForm)
         self.addForm('UICONTROL_CREATE', UIControlCreateForm)
         self.addForm('UICONTROL_CONFIG', UIControlConfigForm)        
