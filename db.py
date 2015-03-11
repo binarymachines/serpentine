@@ -21,6 +21,7 @@ MySQLColumnTypeMap = { 'INTEGER': 'sqlalchemy.types.Integer',
                        'BOOLEAN': 'sqlalchemy.types.Boolean', 
                        'FLOAT': 'sqlalchemy.types.Float',
                        'DATETIME': 'sqlalchemy.types.DateTime',
+                       'DATE': 'sqlalchemy.types.Date',
                        'TINYINT': 'sqlalchemy.types.Boolean',
                        'TEXT': 'sqlalchemy.types.Text' }
 

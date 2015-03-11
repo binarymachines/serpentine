@@ -291,6 +291,35 @@ class DataSourceCreateForm(ns.ActionForm):
         self.parentApp.switchFormPrevious()
 
 
+class ModelGroupConfigForm(ns.ActionForm):
+    def create(self):
+        
+        self.activeModelSelector = self.add(ns.TitleSelectOne, max_height=-2, value = [1,], name="Target Model",
+                values = [], scroll_exit=True)
+        self.modifyButton = self.add(ns.ButtonPress, name='>> Create Relationship')
+        self.modifyButton.whenPressed = self.createModelRelationship
+        
+
+    def createModelRelationship(self):
+        if not self.activeModelSelector.get_value():
+            ns.notify_confirm('Please select a target model first.', title="Message", form_color='STANDOUT', wrap=True, wide=False, editw=0)
+            return
+
+        activeModelIndex = self.activeModelSelector.get_value()[0]
+        activeModel = self.activeModelSelector.values[activeModelIndex]
+        dlg = ns.Popup(name='Link another model to [%s]' % activeModel)
+        typeSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value=[1,], name='Type of relationship:', values=['Parent', 'Child'], scroll_exit=True)
+        dlg.edit()
+        relationshipType = typeSelector.get_value()[0]
+        
+        ns.notify_confirm(activeModel, title="Message", form_color='STANDOUT', wrap=True, wide=False, editw=0)
+        
+
+    def beforeEditing(self):        
+        self.activeModelSelector.values = self.parentApp.modelManager.listModels()
+        
+
+
 class UIControlCreateForm(ns.ActionForm):
     def create(self):
         self.controlNameField = self.add(ns.TitleText, name='Control name:')
@@ -485,6 +514,8 @@ class ModelSelectForm(ns.ActionForm):
         dbInstance = self.parentApp.getDBInstance(self.parentApp.activeDatabaseConfigAlias)
         for tblName in self.tableSelector.get_selected_objects():
             self.parentApp.modelManager.addTable(dbInstance.getTable(tblName))
+
+        self.parentApp.modelManager.updateModelSpecs(dbInstance)
         self.parentApp.switchForm('MAIN')
 
     def on_cancel(self):
@@ -628,7 +659,8 @@ class MainForm(ns.ActionFormWithMenus):
         self.sectionMenu.addItem(text='Python site directory', onSelect=self.configurePythonSiteDir, shortcut=None, arguments=None, keywords=None)               
         self.sectionMenu.addItem(text='Add Database Config', onSelect=self.configureNewDatabase, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='Edit Database Config', onSelect=self.editDatabase, shortcut=None, arguments=None, keywords=None)    
-        self.sectionMenu.addItem(text='Models', onSelect=self.selectModels, shortcut=None, arguments=None, keywords=None)
+        self.sectionMenu.addItem(text='Select Models', onSelect=self.selectModels, shortcut=None, arguments=None, keywords=None)
+        self.sectionMenu.addItem(text='Configure Models', onSelect=self.configureModels, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='Views', onSelect=None, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='UI Controls', onSelect=self.manageUIControls, shortcut=None, arguments=None, keywords=None)
         self.sectionMenu.addItem(text='Plugins', onSelect=None, shortcut=None, arguments=None, keywords=None)
@@ -674,6 +706,9 @@ class MainForm(ns.ActionFormWithMenus):
     def selectModels(self):
         self.parentApp.switchForm('MODEL_SELECT')
 
+    def configureModels(self):
+        self.parentApp.switchForm('MODEL_GROUP_CONFIG')
+
     def reviewModels(self):
         self.parentApp.switchForm('MODEL_REVIEW')
 
@@ -701,7 +736,7 @@ class ContentManager(object):
 
 class ModelManager(object):
     def __init__(self):
-        modelGenerator = None
+        self.modelGenerator = None
         self.tableSet = set()
 
         
@@ -911,6 +946,16 @@ class DirectoryManager(object):
             os.system('mkdir -p %s' % path)
     
 
+class ConfigReviewForm(ns.ActionForm):
+    def create(self):
+        pass
+
+    def on_ok(self):
+        self.editing = False
+        self.parentApp.switchForm('MAIN')
+
+
+
 class SConfigApp(ns.NPSAppManaged):
     def addDatabaseConfig(self, config, alias):
         self.databaseConfigTable[alias] = config
@@ -970,7 +1015,8 @@ class SConfigApp(ns.NPSAppManaged):
         self.addForm('GLOBAL_CONFIG', GlobalSettingsForm)
         self.addForm('SITE_DIR_CONFIG', SiteDirConfigForm)
         self.addForm('MODEL_SELECT', ModelSelectForm)
-        self.addForm('MODEL_REVIEW', ModelListForm)
+        self.addForm('MODEL_GROUP_CONFIG', ModelGroupConfigForm)
+        self.addForm('CONFIG_REVIEW', ConfigReviewForm)
         #self.addForm('VIRTUAL_ENV_SELECT', VirtualEnvMenuForm)
         self.addForm('UICONTROL_CREATE', UIControlCreateForm)
         self.addForm('UICONTROL_CONFIG', UIControlConfigForm)        
