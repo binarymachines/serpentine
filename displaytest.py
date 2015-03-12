@@ -264,11 +264,15 @@ class DataSourceCreateForm(ns.ActionForm):
         self.parentApp.dataSourceManager.addDataSource(self.dataSourceConfig, alias)
         self.parentApp.switchFormPrevious()
 
-
 class ModelGroupConfigForm(ns.ActionForm):
     def create(self):
+<<<<<<< HEAD
         numModels = len(self.parentApp.modelManager.listModels())
         self.activeModelSelector = self.add(ns.TitleSelectOne, max_height=12, name="Model:",
+=======
+        
+        self.activeModelSelector = self.add(ns.TitleSelectOne, max_height=-2, name="Target Model",
+>>>>>>> 2ff04895edfc6fbd3180cb9eb4b6eab3b57f13be
                 values = [], scroll_exit=True)
 
         self.relationshipSelector = self.add(ns.TitleSelectOne, max_height=4, name='Is A:', values=['Parent', 'Child'], scroll_exit=True)
@@ -283,6 +287,7 @@ class ModelGroupConfigForm(ns.ActionForm):
         self.activeModelSelector.values = self.parentApp.modelManager.listModels()
         self.linkedModelSelector.values = self.parentApp.modelManager.listModels()
 
+<<<<<<< HEAD
     def on_cancel(self):
         self.parentApp.switchForm('MAIN')
 
@@ -343,6 +348,47 @@ class ModelGroupConfigForm(ns.ActionForm):
         else:
             self.parentApp.switchForm('MAIN')
         
+=======
+    def createModelRelationship(self):
+
+        activeModelIndex = self.activeModelSelector.get_value()[0]
+        
+        if not len(self.activeModelSelector.values):
+            ns.notify_confirm('Please select a target model first.', title="Message", form_color='STANDOUT', wrap=True, wide=False, editw=0)
+            return
+        activeModel = self.activeModelSelector.values[activeModelIndex]
+        dlg = ns.ActionPopup(name='Link another model to [%s]' % activeModel)
+        typeSelector = dlg.add_widget(ns.TitleSelectOne,
+                                      max_height=4,                                      
+                                      name='Type of relationship:',
+                                      values=['Parent ', 'Child'],
+                                      scroll_exit=True)
+        
+        connectedModels = self.activeModelSelector.values
+        connectedModels.remove(activeModel)
+        connectedModelSelector = dlg.add_widget(ns.TitleMultiSelect, max_height=len(connectedModels)+2, name="Model to connect:",
+                values=connectedModels, scroll_exit=True)
+        
+        dlg.edit() 
+        relationshipType = typeSelector.get_value()[0]
+
+
+        modelsToConnect = connectedModelSelector.get_selected_objects()
+        ns.notify_confirm(str(modelsToConnect), title="Message", form_color='STANDOUT', wrap=True, wide=False, editw=0)
+        '''
+        if relationshipType == 'Parent':
+            for value in connected
+        #ns.notify_confirm(activeModel, title="Message", form_color='STANDOUT', wrap=True, wide=False, editw=0)
+        '''
+
+    def beforeEditing(self):                
+        self.activeModelSelector.max_height = len(self.parentApp.modelManager.listModels())
+        self.activeModelSelector.values = self.parentApp.modelManager.listModels()
+        self.activeModelSelector.update()
+
+    def on_cancel(self):
+        self.parentApp.switchForm('MAIN')
+>>>>>>> 2ff04895edfc6fbd3180cb9eb4b6eab3b57f13be
 
 
 class UIControlCreateForm(ns.ActionForm):
