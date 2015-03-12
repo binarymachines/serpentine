@@ -19,6 +19,11 @@ UICONTROL_TYPE_OPTIONS = ['select', 'radiogroup', 'table']
 DATASOURCE_TYPE_OPTIONS = ['menu', 'table']
 
 
+class NoActiveDBConfigException(Exception):
+    def __init__(self):
+        Exception.__init__('No database config has been registered or activated.')
+
+
 class NoSuchDataSourceException(Exception):
     def __init__(self, dataSourceAlias):
         Exception.__init__('No DataSource has been registered under the alias %s.' % dataSourceAlias)
@@ -91,38 +96,6 @@ class GlobalSettingsForm(ns.ActionForm):
 
         finally:
             self.parentApp.switchForm('MAIN')
-
-'''
-class DataSourceConfigForm(ns.ActionForm):
-    def create(self):
-        self.sourceNameField = self.add(ns.TitleText, name = 'Enter a name for the datasource')
-        self.sourceTypeSelector = self.add(ns.TitleSelectOne,
-                                           max_height=4,
-                                           value=[1,],
-                                           name='Select a datasource type.', values=['menu', 'table'], scroll_exit=True)
-        self.tableSelector = self.add(ns.TitleSelectOne, max_height=12, value = [1,], name="Select a database table:",
-                values = [], scroll_exit=True)
-
-    def beforeEditing(self):
-        self.tableSelector = self.parentApp.activeDatabaseConfig.listTables()
-'''
-
-'''
-class TableSelectDialog(ns.Popup):
-    def __init__(self, *args, **keywords):
-        ns.Popup.__init__(self, *args, **keywords)
-        self.tables = keywords.get('table_list')
-        self.selectedTable = None
-
-    def create(self):
-        self.tableSelector = self.add(ns.TitleSelectOne, max_height=-2, value = [1,], name='Select a database table:',
-                values = self.tables, scroll_exit=True)
-
-    def exit_editing(self):
-        if not len(self.tables):
-            return 
-        self.selectedTable = self.tables[self.tableSelector.get_value()[0]]
-'''
 
 
 
@@ -229,6 +202,7 @@ class DataSourceCreateForm(ns.ActionForm):
         self.tableSelectButton.whenPressed = self.selectTable
         self.configureButton = self.add(ns.ButtonPress, name='>> Configure this DataSource')
         self.configureButton.whenPressed = self.configure
+
         
     def selectTable(self):
         availableTables = self.parentApp.liveDBInstance.listTables()
@@ -293,30 +267,81 @@ class DataSourceCreateForm(ns.ActionForm):
 
 class ModelGroupConfigForm(ns.ActionForm):
     def create(self):
-        
-        self.activeModelSelector = self.add(ns.TitleSelectOne, max_height=-2, value = [1,], name="Target Model",
+        numModels = len(self.parentApp.modelManager.listModels())
+        self.activeModelSelector = self.add(ns.TitleSelectOne, max_height=12, name="Model:",
                 values = [], scroll_exit=True)
-        self.modifyButton = self.add(ns.ButtonPress, name='>> Create Relationship')
-        self.modifyButton.whenPressed = self.createModelRelationship
-        
 
-    def createModelRelationship(self):
-        if not self.activeModelSelector.get_value():
-            ns.notify_confirm('Please select a target model first.', title="Message", form_color='STANDOUT', wrap=True, wide=False, editw=0)
-            return
+        self.relationshipSelector = self.add(ns.TitleSelectOne, max_height=4, name='Is A:', values=['Parent', 'Child'], scroll_exit=True)
 
-        activeModelIndex = self.activeModelSelector.get_value()[0]
-        activeModel = self.activeModelSelector.values[activeModelIndex]
-        dlg = ns.Popup(name='Link another model to [%s]' % activeModel)
-        typeSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value=[1,], name='Type of relationship:', values=['Parent', 'Child'], scroll_exit=True)
-        dlg.edit()
-        relationshipType = typeSelector.get_value()[0]
-        
-        ns.notify_confirm(activeModel, title="Message", form_color='STANDOUT', wrap=True, wide=False, editw=0)
-        
+        self.linkedModelSelector = self.add(ns.TitleMultiSelect, max_height = 12, name="Of Model(s):",
+                values = [], scroll_exit=True)
 
+        self.bidirectionalCheckBox = self.add(ns.RoundCheckBox, name='Bidirectional?')
+
+        
     def beforeEditing(self):        
         self.activeModelSelector.values = self.parentApp.modelManager.listModels()
+        self.linkedModelSelector.values = self.parentApp.modelManager.listModels()
+
+    def on_cancel(self):
+        self.parentApp.switchForm('MAIN')
+
+
+    def clearData(self):
+        self.activeModelSelector.clear()
+        self.relationshipSelector.clear()
+        self.linkedModelSelector.clear()
+        self.bidirectionalCheckBox.clear()
+        
+
+    def on_ok(self):
+        relationshipType = self.relationshipSelector.get_selected_objects()[0]
+        isTwoWay = self.bidirectionalCheckBox.value
+
+        index = 1
+        numRelationships = len(self.linkedModelSelector.get_selected_objects())
+        
+        for modelName in self.linkedModelSelector.get_selected_objects():
+            
+            if relationshipType == 'Parent':            
+                parentName = self.activeModelSelector.get_selected_objects()[0]
+
+                dlgTitle = '%s => %s' % (parentName, modelName)
+                dlg = ns.Popup(name=dlgTitle)
+
+                childModelFields = self.parentApp.modelManager.listFieldsForModel(modelName)
+                fieldNames = [f.name for f in childModelFields]
+                linkFieldSelector = dlg.add_widget(ns.TitleSelectOne, max_height=6, name='Linked as parent => child via field:', values = fieldNames)
+                
+                dlg.add_widget(ns.TitleFixedText, name = 'Page #%d of %d' % (index, numRelationships))
+                dlg.edit()
+
+                linkFieldName = linkFieldSelector.get_selected_objects()[0]
+                
+                self.parentApp.modelManager.designateChildModel(parentName, modelName, linkFieldName, isTwoWay)
+                
+            elif relationshipType == 'Child':            
+                childName = self.activeModelSelector.get_selected_objects()[0]
+
+                dlgTitle = '%s => %s' % (childName, modelName)
+                dlg = ns.Popup(name=dlgTitle)
+
+                childModelFields = self.parentApp.modelManager.listFieldsForModel(childName)
+                fieldNames = [f.name for f in childModelFields]
+                linkFieldSelector = dlg.add_widget(ns.TitleSelectOne, max_height=6, name='Linked as child => parent via field:', values = fieldNames)
+                dlg.add_widget(ns.TitleFixedText, name = 'Page #%d of %d' % (index, numRelationships))
+                dlg.edit()
+
+                linkFieldName = linkFieldSelector.get_selected_objects()[0]
+                self.parentApp.modelManager.designateParentModel(childName, modelName, linkFieldName, isTwoWay)
+            index += 1
+            
+
+        shouldContinue = ns.notify_yes_no('Continue adding model relationships?', title='Message', form_color='STANDOUT', wrap=True, editw = 0)
+        if shouldContinue:
+            self.clearData()
+        else:
+            self.parentApp.switchForm('MAIN')
         
 
 
@@ -629,100 +654,7 @@ class PythonEnvironment(object):
         return '\n'.join(lines)
 
 
-class MainForm(ns.ActionFormWithMenus):
-    def create(self):
-        self.value = None
-        self.name =  "::: sconfig: Serpentine Configuration Tool :::"
-        
-        
-        self.appNameField = self.add(ns.TitleFixedText, name = "Application name:")
-        self.versionField = self.add(ns.TitleFixedText, name = "Version number:")
-        self.pythonDirField = self.add(ns.TitleFixedText, name ='Python site dir:', value='')
-        self.appRootField = self.add(ns.TitleFixedText, name= 'Application root directory:')
-        self.dbConnectionField = self.add(ns.TitleFixedText, name='Database status:')
-        self.spacerField = self.add(ns.TitleFixedText, name= ' ')
 
-        self.dbConnectButton = self.add(ns.ButtonPress, name='>> Connect to database...')        
-        self.dbConnectButton.whenPressed = self.connectToDB
-
-
-        self.modelManagerButton = self.add(ns.ButtonPress, name='>> Manage models...')
-        self.modelManagerButton.whenPressed = self.manageModels
-
-        self.loadConfigFileButton = self.add(ns.ButtonPress, name='>> Load existing configuration file...')
-        self.loadConfigFileButton.whenPressed = self.loadConfigFile
-        
-        
-        
-        self.sectionMenu = self.new_menu('Config Section')
-        self.sectionMenu.addItem(text='Global Settings', onSelect=self.configureGlobals, shortcut=None, arguments=None, keywords=None) 
-        self.sectionMenu.addItem(text='Python site directory', onSelect=self.configurePythonSiteDir, shortcut=None, arguments=None, keywords=None)               
-        self.sectionMenu.addItem(text='Add Database Config', onSelect=self.configureNewDatabase, shortcut=None, arguments=None, keywords=None)
-        self.sectionMenu.addItem(text='Edit Database Config', onSelect=self.editDatabase, shortcut=None, arguments=None, keywords=None)    
-        self.sectionMenu.addItem(text='Select Models', onSelect=self.selectModels, shortcut=None, arguments=None, keywords=None)
-        self.sectionMenu.addItem(text='Configure Models', onSelect=self.configureModels, shortcut=None, arguments=None, keywords=None)
-        self.sectionMenu.addItem(text='Views', onSelect=None, shortcut=None, arguments=None, keywords=None)
-        self.sectionMenu.addItem(text='UI Controls', onSelect=self.manageUIControls, shortcut=None, arguments=None, keywords=None)
-        self.sectionMenu.addItem(text='Plugins', onSelect=None, shortcut=None, arguments=None, keywords=None)
-        
-
-
-    def connectToDB(self):
-        availableDBConfigs = self.parentApp.listDatabaseConfigs()
-        if not len(availableDBConfigs):
-            self.parentApp.switchForm('DB_CONFIG')
-        else:
-            dlg = ns.Popup(name='Select a database config alias')
-            configSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [1,], name="Available configs:",
-                values = availableDBConfigs, scroll_exit=True)
-            dlg.edit()
-            selectedConfigAlias = availableDBConfigs[configSelector.get_value()[0]]
-            self.parentApp.connectToDB(selectedConfigAlias)
-    
-
-    def manageModels(self):
-        self.parentApp.switchForm('MODEL_LIST')
-      
-
-    def loadConfigFile(self):
-        dlg = ns.Popup(name='Load a Serpentine configuration file')
-        configFileSelect = dlg.add_widget(ns.TitleFilenameCombo, name="Load file")
-        dlg.edit()
-        # TODO: actually load selected config file
-        
-
-    def configureGlobals(self):
-        self.parentApp.switchForm('GLOBAL_CONFIG')
-
-    def configurePythonSiteDir(self):
-        self.parentApp.switchForm('SITE_DIR_CONFIG')
-
-    def configureNewDatabase(self):
-        self.parentApp.switchForm("DB_CONFIG")
-
-    def editDatabase(self):
-        self.parentApp.switchForm('DB_CONFIG_MENU')   
-
-    def selectModels(self):
-        self.parentApp.switchForm('MODEL_SELECT')
-
-    def configureModels(self):
-        self.parentApp.switchForm('MODEL_GROUP_CONFIG')
-
-    def reviewModels(self):
-        self.parentApp.switchForm('MODEL_REVIEW')
-
-    def manageUIControls(self):        
-        self.parentApp.switchForm('UICONTROL_CONFIG')
-    
-    def beforeEditing(self):
-        self.appNameField.value = self.parentApp.configManager.getAppName()
-        self.versionField.value = self.parentApp.configManager.getAppVersion()
-        self.appRootField.value = self.parentApp.configManager.getAppRoot()
-        self.pythonDirField.value = self.parentApp.pythonEnvironment.siteDirectory
-        self.dbConnectionField.value = str(self.parentApp.activeDatabaseConfig)
-    def on_ok(self):
-        self.parentApp.setNextForm(None)   
 
 
 class ContentManager(object):
@@ -750,6 +682,12 @@ class ModelManager(object):
         return []
 
 
+    def listFieldsForModel(self, modelName):
+        if self.modelGenerator:
+            return self.modelGenerator.getModel(modelName).fields
+        raise Exception('Model generator is not initialized.')
+
+
     def addTable(self, table):
         self.tableSet.add(table)
         
@@ -762,14 +700,18 @@ class ModelManager(object):
 
 
     def designateChildModel(self, parentName, childModelName, linkFieldName, isTwoWayLink):
-        parentModelSpec = self.modelGenerator.getModel(parentModelName)
+        parentModelSpec = self.modelGenerator.getModel(parentName)
         childLink = meta.ChildLinkSpec(linkFieldName, childModelName, isBidirectional=isTwoWayLink, parentModelName=parentName)
         parentModelSpec.linkDown(childLink)
 
 
-    def designateParentModel(self, childName, parentModelName, linkFieldName, isTwoWayLink):
+    def designateParentModel(self, childModelName, parentModelName, linkFieldName, isTwoWayLink, linkFieldType='Integer'):
         childModelSpec = self.modelGenerator.getModel(childModelName)
-        parentLink = meta.ParentLinkSpec(fieldName, fieldType, parentTableName, parentFieldName)
+        parentModelSpec = self.modelGenerator.getModel(parentModelName)
+        parentTableName = parentModelSpec.tableName
+       
+        parentLink = meta.ParentLinkSpec(linkFieldName, linkFieldType, parentTableName, parentFieldName)
+        childModelSpec.linkUp(parentLink)
 
 
     def createModelTableMap(self):
@@ -956,6 +898,113 @@ class ConfigReviewForm(ns.ActionForm):
 
 
 
+
+class MainForm(ns.ActionFormWithMenus):
+    def create(self):
+        self.value = None
+        self.name =  "::: sconfig: Serpentine Configuration Tool :::"
+        
+        
+        self.appNameField = self.add(ns.TitleFixedText, name = "Application name:")
+        self.versionField = self.add(ns.TitleFixedText, name = "Version number:")
+        self.pythonDirField = self.add(ns.TitleFixedText, name ='Python site dir:', value='')
+        self.appRootField = self.add(ns.TitleFixedText, name= 'Application root directory:')
+        self.dbConnectionField = self.add(ns.TitleFixedText, name='Database status:')
+        self.spacerField = self.add(ns.TitleFixedText, name= ' ')
+
+        self.dbConnectButton = self.add(ns.ButtonPress, name='>> Connect to database...')        
+        self.dbConnectButton.whenPressed = self.connectToDB
+
+        self.loadConfigFileButton = self.add(ns.ButtonPress, name='>> Load existing configuration file...')
+        self.loadConfigFileButton.whenPressed = self.loadConfigFile
+        
+        self.modelManagerButton = self.add(ns.ButtonPress, name='>> Preview output...')
+        self.modelManagerButton.whenPressed = self.previewOutput
+        
+        
+        self.sectionMenu = self.new_menu('Config Section (<tab> to exit)')
+        self.sectionMenu.addItem(text='Global Settings', onSelect=self.configureGlobals, shortcut=None, arguments=None, keywords=None) 
+        self.sectionMenu.addItem(text='Python site directory', onSelect=self.configurePythonSiteDir, shortcut=None, arguments=None, keywords=None)               
+        self.sectionMenu.addItem(text='Add Database Config', onSelect=self.configureNewDatabase, shortcut=None, arguments=None, keywords=None)
+        self.sectionMenu.addItem(text='Edit Database Config', onSelect=self.editDatabase, shortcut=None, arguments=None, keywords=None)    
+        self.sectionMenu.addItem(text='Select Models', onSelect=self.selectModels, shortcut=None, arguments=None, keywords=None)
+        self.sectionMenu.addItem(text='Configure Models', onSelect=self.configureModels, shortcut=None, arguments=None, keywords=None)
+        self.sectionMenu.addItem(text='Views', onSelect=None, shortcut=None, arguments=None, keywords=None)
+        self.sectionMenu.addItem(text='UI Controls', onSelect=self.manageUIControls, shortcut=None, arguments=None, keywords=None)
+        self.sectionMenu.addItem(text='Plugins', onSelect=None, shortcut=None, arguments=None, keywords=None)
+        
+
+
+    def connectToDB(self):
+        availableDBConfigs = self.parentApp.listDatabaseConfigs()
+        if not len(availableDBConfigs):
+            self.parentApp.switchForm('DB_CONFIG')
+        else:
+            dlg = ns.Popup(name='Select a database config alias')
+            configSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [1,], name="Available configs:",
+                values = availableDBConfigs, scroll_exit=True)
+            dlg.edit()
+            selectedConfigAlias = availableDBConfigs[configSelector.get_value()[0]]
+            self.parentApp.connectToDB(selectedConfigAlias)
+    
+
+    def previewOutput(self):
+        self.parentApp.switchForm('PREVIEW')
+      
+
+    def loadConfigFile(self):
+        dlg = ns.Popup(name='Load a Serpentine configuration file')
+        configFileSelect = dlg.add_widget(ns.TitleFilenameCombo, name="Load file")
+        dlg.edit()
+        # TODO: actually load selected config file
+        
+
+    def configureGlobals(self):
+        self.parentApp.switchForm('GLOBAL_CONFIG')
+
+    def configurePythonSiteDir(self):
+        self.parentApp.switchForm('SITE_DIR_CONFIG')
+
+    def configureNewDatabase(self):
+        self.parentApp.switchForm("DB_CONFIG")
+
+    def editDatabase(self):
+        self.parentApp.switchForm('DB_CONFIG_MENU')   
+
+    def selectModels(self):
+        self.parentApp.switchForm('MODEL_SELECT')
+
+    def configureModels(self):
+        self.parentApp.switchForm('MODEL_GROUP_CONFIG')
+
+    def reviewModels(self):
+        self.parentApp.switchForm('MODEL_REVIEW')
+
+    def manageUIControls(self):
+        try:
+            self.parentApp.openDefaultDBConnection()
+            self.parentApp.switchForm('UICONTROL_CONFIG')
+        except NoActiveDBConfigException:
+            shouldAddConfig = ns.notify_yes_no('No active DB connection. Create one?', title='Alert', form_color='STANDOUT', wrap=True, editw = 0)
+            if shouldAddConfig:
+                self.configureNewDatabase()
+            
+    
+    def beforeEditing(self):
+        self.appNameField.value = self.parentApp.configManager.getAppName()
+        self.versionField.value = self.parentApp.configManager.getAppVersion()
+        self.appRootField.value = self.parentApp.configManager.getAppRoot()
+        self.pythonDirField.value = self.parentApp.pythonEnvironment.siteDirectory
+        self.dbConnectionField.value = str(self.parentApp.activeDatabaseConfig)
+
+        
+    def on_ok(self):
+        self.parentApp.setNextForm(None)   
+
+    
+
+
+
 class SConfigApp(ns.NPSAppManaged):
     def addDatabaseConfig(self, config, alias):
         self.databaseConfigTable[alias] = config
@@ -985,6 +1034,7 @@ class SConfigApp(ns.NPSAppManaged):
         self.activeDatabaseConfigAlias = dbConfigAlias
         self.liveDBInstance = dbInstance
 
+
     def getDBInstance(self, dbConfigAlias):
         if not self.liveDBInstance:                    
             self.connectToDB(dbConfigAlias)
@@ -993,6 +1043,14 @@ class SConfigApp(ns.NPSAppManaged):
             
         return self.liveDBInstance
 
+
+    def openDefaultDBConnection(self):        
+        if not self.activeDatabaseConfigAlias:
+            raise NoActiveDBConfigException()        
+        else:        
+            self.connectToDB(self.activeDatabaseConfigAlias)
+            return self.liveDBInstance
+        
     
     def onStart(self):
         self.modelManager = ModelManager()
@@ -1026,31 +1084,6 @@ class SConfigApp(ns.NPSAppManaged):
         newConfig = meta.DatabaseConfig('localhost', 'blocpower', 'dtaylor', 'notobvious')
         self.addDatabaseConfig(newConfig, 'db01')
         
-
-class TestApp(ns.NPSApp):
-    def main(self):
-        # These lines create the form and populate it with widgets.
-        # A fairly complex screen in only 8 or so lines of code - a line for each control.
-        mainForm  = ns.Form(name = "Welcome to SConfig",)
-        title  = mainForm.add(ns.TitleText, name = "::: Serpentine Config Tool :::",)
-        fn = mainForm.add(ns.TitleFilename, name = "Filename:")
-        fn2 = mainForm.add(ns.TitleFilenameCombo, name="Filename2:")
-        dt = mainForm.add(ns.TitleDateCombo, name = "Date:")
-        s  = mainForm.add(ns.TitleSlider, out_of=12, name = "Slider")
-        ml = mainForm.add(ns.MultiLineEdit,
-               value = """try typing here!\nMutiline text, press ^R to reformat.\n""",
-               max_height=5, rely=9)
-        ms = mainForm.add(ns.TitleSelectOne, max_height=4, value = [1,], name="Pick One",
-                values = ["Option1","Option2","Option3"], scroll_exit=True)
-        ms2= mainForm.add(ns.TitleMultiSelect, max_height =-2, value = [1,], name="Pick Several",
-                values = ["Option1","Option2","Option3"], scroll_exit=True)
-
-        # This lets the user interact with the Form.
-        mainForm.edit()
-
-        print(ms.get_selected_objects())
-        print(ml.value)
-
 
 if __name__ == "__main__":
     #App = TestApp()
