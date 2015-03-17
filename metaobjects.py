@@ -260,6 +260,9 @@ class DataSourceParameter:
         self.name = name
         self.value = value
 
+    def __repr__(self):
+        return '%s = %s' % (self.name, self.value)
+
 
 class DataSourceConfig:
     def __init__(self, dataSourceType, parameterArray):
@@ -327,9 +330,8 @@ class FormConfig:
       in Serpentine.
       """
 
-    def __init__(self, model, urlBase):
-        self.model = model
-        self.urlBase = urlBase
+    def __init__(self, model):
+        self.model = model       
         self.formClassName = "%sForm" % self.model
         self.fields = []
 

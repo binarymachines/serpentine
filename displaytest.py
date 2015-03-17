@@ -189,7 +189,7 @@ class RelationshipManager():
 
 class DataSourceCreateForm(ns.ActionForm):
     def create(self):
-        self.name = 'Create DataSource for UIControls'
+        self.name = '::: Create DataSource for UIControls :::'
         self.sourceTableName = None
         self.dataSourceParameters = []
         self.nameField = self.add(ns.TitleText, name='Data Source name:')
@@ -197,20 +197,28 @@ class DataSourceCreateForm(ns.ActionForm):
                                   name='Data Source type:',
                                   max_height=len(DATASOURCE_TYPE_OPTIONS)*2,
                                   value=[1,], scroll_exit=True, values=DATASOURCE_TYPE_OPTIONS)
+
         
-        self.tableSelectButton = self.add(ns.ButtonPress, name='>> Select source table')
+        self.tableSelectButton = self.add(ns.ButtonPress, name='>> Select source table...')
         self.tableSelectButton.whenPressed = self.selectTable
-        self.configureButton = self.add(ns.ButtonPress, name='>> Configure this DataSource')
+        self.configureButton = self.add(ns.ButtonPress, name='>> Configure parameters...')
         self.configureButton.whenPressed = self.configure
+
+        self.add(ns.TitleText, name=' ')
+        self.tableNameDisplay = self.add(ns.TitleText, name='Table:')
+        self.parametersDisplay = self.add(ns.TitlePager, name='Parameters:', values=[], max_height=6)
+
 
         
     def selectTable(self):
         availableTables = self.parentApp.liveDBInstance.listTables()
         dlg = ns.Popup(name='Database tables')
-        tableSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [1,], name="Select a source table for the DataSource:",
+        tableSelector = dlg.add_widget(ns.TitleSelectOne, max_height=6, value = [1,], name="Select a source table for the DataSource:",
                 values = availableTables, scroll_exit=True)
         dlg.edit()
         self.sourceTableName = availableTables[tableSelector.get_value()[0]]
+        self.tableNameDisplay.value = self.sourceTableName
+        self.display()
         
 
     def configure(self):
@@ -220,6 +228,10 @@ class DataSourceCreateForm(ns.ActionForm):
         if dataSourceType == 'table':
             self.configureTableTypeSource()
             
+            #ns.notify_confirm(str(len(self.dataSourceParameters)), title='Alert', form_color='STANDOUT', wrap=True, editw = 0)
+        self.parametersDisplay.values = self.dataSourceParameters
+        self.display()
+        
 
     def configureMenuTypeSource(self):
         if self.sourceTableName:
@@ -233,10 +245,11 @@ class DataSourceCreateForm(ns.ActionForm):
                 values = tableColumns, scroll_exit=True)
                            
             dlg.edit()
-            self.parameters = []
-            self.parameters.append(meta.DataSourceParameter('name_field', tableColumns[nameFieldSelector.get_value()[0]]))
-            self.parameters.append(meta.DataSourceParameter('value_field', tableColumns[valueFieldSelector.get_value()[0]]))
 
+            self.dataSourceParameters = []
+            self.dataSourceParameters.append(meta.DataSourceParameter('name_field', nameFieldSelector.get_selected_objects()[0]))
+            self.dataSourceParameters.append(meta.DataSourceParameter('value_field', valueFieldSelector.get_selected_objects()[0]))
+        
 
     def configureTableTypeSource(self):
         if self.sourceTableName:
@@ -248,31 +261,29 @@ class DataSourceCreateForm(ns.ActionForm):
                 values = availableFields, scroll_exit=True)
             
             dlg.edit()
-            self.parameters = []
+            self.dataSourceParameters = []
             fields = []
-            selectedItems = fieldSelector.get_selected_values()
+            selectedItems = fieldSelector.get_selected_objects()
             for item in selectedItems:
                 fields.append(availableFields[item])
-            self.parameters.append(meta.DataSourceParameter('fields',  ','.join(fields)))
-            self.parameters.append(meta.DataSourceParameter('table', self.sourceTable.name))
-            
+            self.dataSourceParameters.append(meta.DataSourceParameter('fields',  ','.join(fields)))
+            self.dataSourceParameters.append(meta.DataSourceParameter('table', self.sourceTable.name))
+        
+        
             
     def on_ok(self):
         dataSourceType = DATASOURCE_TYPE_OPTIONS[self.typeSelector.get_value()[0]]
-        self.dataSourceConfig = meta.DataSourceConfig(dataSourceType, self.parameters)
-        alias = self.nameField.value
+        self.dataSourceConfig = meta.DataSourceConfig(dataSourceType, self.dataSourceParameters)
+        alias = self.nameField.value.strip()
         self.parentApp.dataSourceManager.addDataSource(self.dataSourceConfig, alias)
         self.parentApp.switchFormPrevious()
 
+
+
 class ModelGroupConfigForm(ns.ActionForm):
     def create(self):
-<<<<<<< HEAD
         numModels = len(self.parentApp.modelManager.listModels())
         self.activeModelSelector = self.add(ns.TitleSelectOne, max_height=12, name="Model:",
-=======
-        
-        self.activeModelSelector = self.add(ns.TitleSelectOne, max_height=-2, name="Target Model",
->>>>>>> 2ff04895edfc6fbd3180cb9eb4b6eab3b57f13be
                 values = [], scroll_exit=True)
 
         self.relationshipSelector = self.add(ns.TitleSelectOne, max_height=4, name='Is A:', values=['Parent', 'Child'], scroll_exit=True)
@@ -287,7 +298,7 @@ class ModelGroupConfigForm(ns.ActionForm):
         self.activeModelSelector.values = self.parentApp.modelManager.listModels()
         self.linkedModelSelector.values = self.parentApp.modelManager.listModels()
 
-<<<<<<< HEAD
+
     def on_cancel(self):
         self.parentApp.switchForm('MAIN')
 
@@ -348,73 +359,31 @@ class ModelGroupConfigForm(ns.ActionForm):
         else:
             self.parentApp.switchForm('MAIN')
         
-=======
-    def createModelRelationship(self):
-
-        activeModelIndex = self.activeModelSelector.get_value()[0]
-        
-        if not len(self.activeModelSelector.values):
-            ns.notify_confirm('Please select a target model first.', title="Message", form_color='STANDOUT', wrap=True, wide=False, editw=0)
-            return
-        activeModel = self.activeModelSelector.values[activeModelIndex]
-        dlg = ns.ActionPopup(name='Link another model to [%s]' % activeModel)
-        typeSelector = dlg.add_widget(ns.TitleSelectOne,
-                                      max_height=4,                                      
-                                      name='Type of relationship:',
-                                      values=['Parent ', 'Child'],
-                                      scroll_exit=True)
-        
-        connectedModels = self.activeModelSelector.values
-        connectedModels.remove(activeModel)
-        connectedModelSelector = dlg.add_widget(ns.TitleMultiSelect, max_height=len(connectedModels)+2, name="Model to connect:",
-                values=connectedModels, scroll_exit=True)
-        
-        dlg.edit() 
-        relationshipType = typeSelector.get_value()[0]
-
-
-        modelsToConnect = connectedModelSelector.get_selected_objects()
-        ns.notify_confirm(str(modelsToConnect), title="Message", form_color='STANDOUT', wrap=True, wide=False, editw=0)
-        '''
-        if relationshipType == 'Parent':
-            for value in connected
-        #ns.notify_confirm(activeModel, title="Message", form_color='STANDOUT', wrap=True, wide=False, editw=0)
-        '''
-
-    def beforeEditing(self):                
-        self.activeModelSelector.max_height = len(self.parentApp.modelManager.listModels())
-        self.activeModelSelector.values = self.parentApp.modelManager.listModels()
-        self.activeModelSelector.update()
-
-    def on_cancel(self):
-        self.parentApp.switchForm('MAIN')
->>>>>>> 2ff04895edfc6fbd3180cb9eb4b6eab3b57f13be
 
 
 class UIControlCreateForm(ns.ActionForm):
     def create(self):
+        self.name =  "::: Create UIControl :::"
         self.controlNameField = self.add(ns.TitleText, name='Control name:')
         self.controlTypeSelector = self.add(ns.TitleSelectOne, name='Control type:', max_height=4, value = [1,],
                 values = UICONTROL_TYPE_OPTIONS, scroll_exit=True)
 
+        self.add(ns.TitleText, name=' ')
+        self.createDataSourceButton = self.add(ns.ButtonPress, name='>> Create a new Datasource')
+        self.createDataSourceButton.whenPressed = self.createDataSource
+        
         self.dataSourceAlias = ''
-        self.dataSourceLabel = self.add(ns.TitleFixedText, name='Datasource name:', value='')
-        self.selectDataSourceButton = self.add(ns.ButtonPress, name='>> Select a Datasource')
-        self.selectDataSourceButton.whenPressed = self.selectDataSource
+        self.dataSourceSelector = self.add(ns.TitleSelectOne, name='Datasource:', max_height=10, scroll_exit=True)
+        
 
 
-    def selectDataSource(self):   
-        dataSources = self.parentApp.dataSourceManager.listDataSources()  
-        if not len(dataSources):
-            self.parentApp.switchForm('DATASOURCE_CREATE')
-        else:
-            dlg = ns.Popup(name='Data Sources')
-            sourceSelector = dlg.add_widget(ns.TitleSelectOne, name='Select a datasource:', max_height=len(dataSources)+2, value = [1,],
-                values = dataSources, scroll_exit=True)
-            dlg.edit()
-            self.dataSourceAlias = dataSources[sourceSelector.value[0]]
-            self.dataSourceLabel.value = self.dataSourceAlias
-        self.display()
+
+    def createDataSource(self):   
+        
+        #if not len(dataSources):
+        #    ns.notify_confirm('No datasources created. Switching to datasource create form.', title='Message', form_color='STANDOUT', wrap=True, editw = 1)
+        self.parentApp.switchForm('DATASOURCE_CREATE')
+        #self.display()
 
 
     def on_ok(self):
@@ -422,18 +391,12 @@ class UIControlCreateForm(ns.ActionForm):
         dataSourceName = self.dataSourceAlias
         controlType = UICONTROL_TYPE_OPTIONS[self.controlTypeSelector.value[0]]
         newControlCfg = meta.ControlConfig(controlType, controlName, self.dataSourceAlias)
-        
+        self.parentApp.uiControlManager.addUIControl(newControlCfg)
         self.parentApp.switchForm('MAIN')
         
 
-    def beforeEditing(self):
-        pass
-        '''
-        if not len(self.parentApp.dataSourceManager.listDataSources()):
-            self.selectDataSourceButton.name = 'Create new DataSource...'
-        else:            
-            self.dataSourceSelector.values = self.parentApp.dataSourceManager.listDataSources()
-        ''' 
+    def beforeEditing(self):        
+        self.dataSourceSelector.values = self.parentApp.dataSourceManager.listDataSources()
             
 
 
@@ -460,37 +423,6 @@ class UIControlConfigForm(ns.ActionForm):
         ns.notify_confirm('Auto-create UIcontrols.', title='Message', form_color='STANDOUT', wrap=True, wide=False, editw=1)
 
 
-'''
-class VirtualEnvMenuForm(ns.ActionForm):
-    def create(self):
-        self.virtualEnvHome = ''
-        self.virtualEnvSelector = self.add(ns.TitleSelectOne,
-                                           max_height=12,
-                                           value = [1,],
-                                           name="Select a virtual environment for your Serpentine app:",
-                                           values = [], scroll_exit=False)
-
-    def beforeEditing(self):
-        self.virtualEnvHome = os.environ.get('WORKON_HOME')
-        self.environments = []
-        fileList = os.listdir(self.virtualEnvHome)
-        for f in fileList:
-            if os.path.isdir(os.path.join(self.virtualEnvHome, f)):
-                self.environments.append(f)
-
-        self.virtualEnvSelector.values = self.environments
-        self.virtualEnvSelector.set_value(0)
-
-    def on_ok(self):
-        selectedEnv = self.environments[self.virtualEnvSelector.value[0]]
-        pyVersions = os.listdir(os.path.sep.join([self.virtualEnvHome, selectedEnv, 'lib']))
-        
-        self.parentApp.pythonVersions = pyVersions
-        self.parentApp.switchForm('MAIN')
-        #siteDirLocation = os.path.sep.join([virtualEnvHome, selectedEnv, 'lib', pythonVersion, 'site-packages'])
-'''     
-
-        
 
 class SiteDirConfigForm(ns.ActionForm):
     
@@ -745,6 +677,12 @@ class ModelManager(object):
             self.modelGenerator.addModel(tblName)
 
 
+    def getModelSpec(self, modelName):
+        if self.modelGenerator:
+            return self.modelGenerator.getModel(modelName)
+        raise Exception('Model generator is not initialized.')
+
+
     def designateChildModel(self, parentName, childModelName, linkFieldName, isTwoWayLink):
         parentModelSpec = self.modelGenerator.getModel(parentName)
         childLink = meta.ChildLinkSpec(linkFieldName, childModelName, isBidirectional=isTwoWayLink, parentModelName=parentName)
@@ -777,37 +715,7 @@ class ModelManager(object):
                 f.write("\n\n")
     '''
 
-    def createFormConfigs(self, modelTableMap, environment):
-          """For each model name in the dictionary, generate form specification (FormConfig) object.
 
-          Arguments:
-          modelTableMap -- a dictionary of table objects in our schema, indexed by model classnames. 
-                           The expression modelTableMap['Widget'] would yield the SQLAlchemy Table object 
-                           corresponding to "widgets" in the database.
-          
-          Returns:
-          an array of FormConfig instances
-          """
-
-          formConfigs = []
-
-          try:        
-              factory = meta.FieldConfigFactory()
-              for modelName in modelTableMap:                  
-                  # formspecs need the URL base to properly generate action URLs in the HTML templates
-                  newFormConfig = meta.FormConfig(modelName, environment.getURLBase()) 
-                  modelConfig = modelTableMap[modelName]
-
-                  table = modelConfig.table
-                  
-                  for column in table.columns:
-                      newFormConfig.addField(factory.create(column))
-
-                  formConfigs.append(newFormConfig)
-                  
-              return formConfigs
-          finally:
-              pass
 
 
 
@@ -845,11 +753,18 @@ class ConfigManager(object):
     def __init__(self):
         self.configPackage = None
         self.environment = None
-        
+               
     def initialize(self, settings):
         self.environment = env.Environment()
         self.environment.importGlobalSettings(settings)          
-        configPackage = sconfig.ConfigurationPackage(self.environment)
+        self.configPackage = sconfig.ConfigurationPackage(self.environment)
+
+
+    def isInitialized(self):
+        if self.configPackage:
+            return True
+        return False
+    
         
     def getAppName(self):
         if self.environment:
@@ -867,11 +782,12 @@ class ConfigManager(object):
         return ''
 
 
+
 class FormSpecManager(object):
     def __init__(self):
         self.formSpecs = []
 
-    def listFormSpecNames(self):
+    def listFormSpecs(self):
         return [str(spec) for spec in self.formSpecs]
 
     def getFormSpecs(self):
@@ -880,16 +796,15 @@ class FormSpecManager(object):
     def clearFormSpecs(self):
         self.formSpecs = []
     
-    def createFormSpecsFromModelTableMap(self, modelTableMap):        
-        
+    def createFormSpecs(self, modelManager, dbInstance):                
         factory = meta.FieldConfigFactory()
-        for modelName in modelTableMap.keys():                  
-            # formspecs need the URL base to properly generate action URLs in the HTML templates
-            newFormConfig = meta.FormConfig(modelName, environment.getURLBase()) 
-            modelConfig = modelTableMap[modelName]
+        models = modelManager.listModels()
+        for modelName in models:                             
+            newFormConfig = meta.FormConfig(modelName) 
+            modelSpec = modelManager.getModelSpec(modelName)
 
-            table = modelConfig.table
-                  
+            tableName = modelSpec.tableName
+            table = dbInstance.getTable(tableName)
             for column in table.columns:
                 newFormConfig.addField(factory.create(column))
 
@@ -916,6 +831,7 @@ class UIControlManager(object):
             raise NoSuchControlConfigException(alias)
         return cfg
 
+
 class DirectoryManager(object):
     def __init__(self):
         self.directoriesToCreate = []
@@ -932,14 +848,36 @@ class DirectoryManager(object):
     def createTargets(self):
         for path in self.directoriesToCreate:
             os.system('mkdir -p %s' % path)
+
     
 
-class ConfigReviewForm(ns.ActionForm):
+class OutputPreviewForm(ns.ActionForm):
     def create(self):
-        pass
+        self.modelPreview = self.add(ns.TitlePager, name='Models to generate:', max_height=6)
+        self.add(ns.Text, name=' ')
+        self.uiControlPreview = self.add(ns.TitlePager, name='UIControls to generate:', max_height=6)
+        self.add(ns.Text, name=' ')
+        self.formPreview = self.add(ns.TitlePager, name='Forms to generate:', max_height=6)
 
-    def on_ok(self):
-        self.editing = False
+
+    def beforeEditing(self):
+        models =  self.parentApp.modelManager.listModels()
+        self.modelPreview.values = models
+        
+        controls = self.parentApp.uiControlManager.listUIControls()
+        self.uiControlPreview.values = controls
+
+        dbInstance = self.parentApp.openDefaultDBConnection()
+        self.parentApp.formManager.createFormSpecs(self.parentApp.modelManager, dbInstance)
+        forms = self.parentApp.formManager.listFormSpecs()
+        self.formPreview.values = forms
+
+
+    def on_cancel(self):
+        self.parentApp.switchForm('MAIN')
+
+
+    def on_ok(self):       
         self.parentApp.switchForm('MAIN')
 
 
@@ -1101,6 +1039,7 @@ class SConfigApp(ns.NPSAppManaged):
     def onStart(self):
         self.modelManager = ModelManager()
         self.configManager = ConfigManager()
+        self.formManager = FormSpecManager()
         self.directoryManager = DirectoryManager()
         self.dataSourceManager = DataSourceManager()
         self.uiControlManager = UIControlManager()
@@ -1120,11 +1059,10 @@ class SConfigApp(ns.NPSAppManaged):
         self.addForm('SITE_DIR_CONFIG', SiteDirConfigForm)
         self.addForm('MODEL_SELECT', ModelSelectForm)
         self.addForm('MODEL_GROUP_CONFIG', ModelGroupConfigForm)
-        self.addForm('CONFIG_REVIEW', ConfigReviewForm)
-        #self.addForm('VIRTUAL_ENV_SELECT', VirtualEnvMenuForm)
         self.addForm('UICONTROL_CREATE', UIControlCreateForm)
         self.addForm('UICONTROL_CONFIG', UIControlConfigForm)        
         self.addForm('DATASOURCE_CREATE', DataSourceCreateForm)
+        self.addForm('PREVIEW', OutputPreviewForm)
 
         # For testing only
         newConfig = meta.DatabaseConfig('localhost', 'blocpower', 'dtaylor', 'notobvious')
