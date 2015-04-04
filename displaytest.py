@@ -854,9 +854,7 @@ class DirectoryManager(object):
 class OutputPreviewForm(ns.ActionForm):
     def create(self):
         self.modelPreview = self.add(ns.TitlePager, name='Models to generate:', max_height=6)
-        self.add(ns.Text, name=' ')
         self.uiControlPreview = self.add(ns.TitlePager, name='UIControls to generate:', max_height=6)
-        self.add(ns.Text, name=' ')
         self.formPreview = self.add(ns.TitlePager, name='Forms to generate:', max_height=6)
 
 
