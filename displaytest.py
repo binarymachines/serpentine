@@ -375,9 +375,6 @@ class UIControlCreateForm(ns.ActionForm):
         self.dataSourceAlias = ''
         self.dataSourceSelector = self.add(ns.TitleSelectOne, name='Datasource:', max_height=10, scroll_exit=True)
         
-
-
-
     def createDataSource(self):   
         
         #if not len(dataSources):
@@ -397,7 +394,61 @@ class UIControlCreateForm(ns.ActionForm):
 
     def beforeEditing(self):        
         self.dataSourceSelector.values = self.parentApp.dataSourceManager.listDataSources()
+
             
+
+class UIControlAutoCreateForm(ns.ActionForm):
+    def create(self):
+        self.name =  "::: Auto-create UIControls :::"
+        #self.shouldIgnorePreExisting = self.add(ns.RoundCheckBox, name='Ignore tables already bound to controls? ')
+        self.sourceTableSelector = self.add(ns.TitleMultiSelect, max_height=10, name='Generate datasources & controls for tables:')
+
+
+    def beforeEditing(self):
+        shouldIgnorePreExisting = ns.notify_yes_no('Ignore tables already bound to controls?', title='Message', form_color='STANDOUT', wrap=True, editw = 0)
+        # find out which tables are already bound to controls
+        configs = self.parentApp.uiControlManager.getUIControlConfigurations()        
+        boundTableNames = []
+        if shouldIgnorePreExisting:
+            for config in configs:
+                boundTableNames.extend([param.value for param in config.params if param.name == 'table'])
+
+        availableTableNames = self.parentApp.liveDBInstance.listTables()
+        lookupTableNames = [tableName for tableName in availableTableNames if tableName.endswith('_lookup') or tableName.startswith('lookup_')]
+        candidateTableNames = []
+        for tableName in lookupTableNames:
+            if not tableName in boundTableNames:
+                candidateTableNames.append(tableName)
+        self.sourceTableSelector.values = candidateTableNames
+        self.sourceTableSelector.value = range(0, len(candidateTableNames))
+
+
+
+    def on_ok(self):
+        # use selections from candidate list to generate data source parameters
+        selectedTableNames = self.sourceTableSelector.get_selected_objects()       
+       
+        for tableName in selectedTableNames:
+            parameterSet = []
+            parameterSet.append(meta.DataSourceParameter('table', tableName))
+            parameterSet.append(meta.DataSourceParameter('name_field', 'name'))
+            parameterSet.append(meta.DataSourceParameter('value_field', 'id'))
+            dataSourceName = '%s_src' % tableName
+
+            newSourceConfig = meta.DataSourceConfig('menu', parameterSet)
+            self.parentApp.dataSourceManager.addDataSource(newSourceConfig, dataSourceName)
+            
+            uiControlName = '%s_select' % tableName
+            newControlConfig = meta.ControlConfig('select', uiControlName, dataSourceName)
+            self.parentApp.uiControlManager.addUIControl(newControlConfig)
+
+            
+        ns.notify_confirm('UIControls auto-created.', title='Message', form_color='STANDOUT', wrap=True, wide=False, editw=1)
+        self.parentApp.switchFormPrevious()
+
+
+    def on_cancel(self):
+        self.parentApp.switchFormPrevious()
 
 
 class UIControlConfigForm(ns.ActionForm):
@@ -420,10 +471,15 @@ class UIControlConfigForm(ns.ActionForm):
 
 
     def autoCreateControls(self):
-        ns.notify_confirm('Auto-create UIcontrols.', title='Message', form_color='STANDOUT', wrap=True, wide=False, editw=1)
+        self.parentApp.switchForm('UICONTROL_AUTOCREATE')
 
+    def on_ok(self):
+        self.parentApp.switchFormPrevious()
 
+    def on_cancel(self):
+        self.parentApp.switchFormPrevious()
 
+        
 class SiteDirConfigForm(ns.ActionForm):
     
     def create(self):
@@ -824,6 +880,9 @@ class UIControlManager(object):
     def clearUIControls(self):
         self.uiControlConfigs = {}
 
+    def getUIControlConfigurations(self):
+        return self.uiControlConfigs.values()
+
 
     def getUIControlConfiguration(self, alias):
         cfg = self.uiControlConfigs.get(alias)
@@ -1000,11 +1059,13 @@ class SConfigApp(ns.NPSAppManaged):
     def selectDatabaseConfig(self, alias):
         self.activeDatabaseConfigAlias = alias
 
+
     @property
     def activeDatabaseConfig(self):
         if not self.activeDatabaseConfigAlias:
             return None
         return self.databaseConfigTable.get(self.activeDatabaseConfigAlias)
+
 
     def connectToDB(self, dbConfigAlias):
         dbConfig = self.databaseConfigTable.get(dbConfigAlias)
@@ -1058,6 +1119,7 @@ class SConfigApp(ns.NPSAppManaged):
         self.addForm('MODEL_SELECT', ModelSelectForm)
         self.addForm('MODEL_GROUP_CONFIG', ModelGroupConfigForm)
         self.addForm('UICONTROL_CREATE', UIControlCreateForm)
+        self.addForm('UICONTROL_AUTOCREATE', UIControlAutoCreateForm)
         self.addForm('UICONTROL_CONFIG', UIControlConfigForm)        
         self.addForm('DATASOURCE_CREATE', DataSourceCreateForm)
         self.addForm('PREVIEW', OutputPreviewForm)
