@@ -213,7 +213,7 @@ class DataSourceCreateForm(ns.ActionForm):
     def selectTable(self):
         availableTables = self.parentApp.liveDBInstance.listTables()
         dlg = ns.Popup(name='Database tables')
-        tableSelector = dlg.add_widget(ns.TitleSelectOne, max_height=6, value = [1,], name="Select a source table for the DataSource:",
+        tableSelector = dlg.add_widget(ns.TitleSelectOne, max_height=6, name="Select a source table for the DataSource:",
                 values = availableTables, scroll_exit=True)
         dlg.edit()
         self.sourceTableName = availableTables[tableSelector.get_value()[0]]
@@ -241,7 +241,7 @@ class DataSourceCreateForm(ns.ActionForm):
             dlg = ns.Popup(name='Configure Menu-type DataSource')
             nameFieldSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [1,], name="Name field:",
                 values = tableColumns, scroll_exit=True)
-            valueFieldSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [1,], name="Value field:",
+            valueFieldSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [0,], name="Value field:",
                 values = tableColumns, scroll_exit=True)
                            
             dlg.edit()
@@ -257,7 +257,7 @@ class DataSourceCreateForm(ns.ActionForm):
             
             availableFields = sourceTable.columns
             dlg = ns.Popup(name='Configure Table-type DataSource')
-            fieldSelector = dlg.add_widget(ns.TitleMultiSelect, max_height =-2, value = [1,], name="Select source fields for this DataSource",
+            fieldSelector = dlg.add_widget(ns.TitleMultiSelect, max_height =-2, name="Select source fields for this DataSource",
                 values = availableFields, scroll_exit=True)
             
             dlg.edit()
@@ -365,7 +365,7 @@ class UIControlCreateForm(ns.ActionForm):
     def create(self):
         self.name =  "::: Create UIControl :::"
         self.controlNameField = self.add(ns.TitleText, name='Control name:')
-        self.controlTypeSelector = self.add(ns.TitleSelectOne, name='Control type:', max_height=4, value = [1,],
+        self.controlTypeSelector = self.add(ns.TitleSelectOne, name='Control type:', max_height=4,
                 values = UICONTROL_TYPE_OPTIONS, scroll_exit=True)
 
         self.add(ns.TitleText, name=' ')
@@ -485,7 +485,7 @@ class SiteDirConfigForm(ns.ActionForm):
     def create(self):
         self.checkboxAnswers = ['Yes', 'No']
         
-        self.usingVirtualEnvWrapperCheckbox = self.add(ns.TitleSelectOne, max_height=4, value = [1,], name="Are you using virtualenvwrapper?",
+        self.usingVirtualEnvWrapperCheckbox = self.add(ns.TitleSelectOne, max_height=4, name="Are you using virtualenvwrapper?",
                 values = self.checkboxAnswers, scroll_exit=True)
         self.add(ns.FixedText, value='( If you are NOT using virtualenvwrapper, please select your Python site directory below. )')
         self.siteDirSelector = self.add(ns.TitleFilenameCombo, name='Python site directory:')
@@ -505,8 +505,7 @@ class SiteDirConfigForm(ns.ActionForm):
                     environments.append(f)
             dlg = ns.Popup(name='Select Python Virtual Environment')
             virtualEnvSelector = dlg.add_widget(ns.TitleSelectOne,
-                                           max_height=-2,
-                                           value = [1,],
+                                           max_height=-2,                                          
                                            name="Select the virtualenv you will use for this app:",
                                            values = environments, scroll_exit=False)
             virtualEnvSelector.set_value(0)
@@ -516,8 +515,7 @@ class SiteDirConfigForm(ns.ActionForm):
             
             versionDlg = ns.Popup(name='Select Python version')
             versionSelector = versionDlg.add_widget(ns.TitleSelectOne,
-                                            max_height=-2,
-                                            value=[1,],
+                                            max_height=-2,                                            
                                             name='Version:',
                                             values=pyVersions)
             versionDlg.edit()
@@ -542,7 +540,7 @@ class ModelSelectForm(ns.ActionForm):
         self.canSelectTables = False
         self.value = None
         self.name = 'Model Configuration'
-        self.tableSelector = self.add(ns.TitleMultiSelect, max_height =-2, value = [1,], name="Select One Or More Tables",
+        self.tableSelector = self.add(ns.TitleMultiSelect, max_height =-2, name="Select One Or More Tables",
                 values = [], scroll_exit=False)
 
 
@@ -944,14 +942,6 @@ class MainForm(ns.ActionFormWithMenus):
     def create(self):
         self.value = None
         self.name =  "::: sconfig: Serpentine Configuration Tool :::"
-        
-        
-        self.appNameField = self.add(ns.TitleFixedText, name = "Application name:")
-        self.versionField = self.add(ns.TitleFixedText, name = "Version number:")
-        self.pythonDirField = self.add(ns.TitleFixedText, name ='Python site dir:', value='')
-        self.appRootField = self.add(ns.TitleFixedText, name= 'Application root directory:')
-        self.dbConnectionField = self.add(ns.TitleFixedText, name='Database status:')
-        self.spacerField = self.add(ns.TitleFixedText, name= ' ')
 
         self.dbConnectButton = self.add(ns.ButtonPress, name='>> Connect to database...')        
         self.dbConnectButton.whenPressed = self.connectToDB
@@ -961,6 +951,14 @@ class MainForm(ns.ActionFormWithMenus):
         
         self.modelManagerButton = self.add(ns.ButtonPress, name='>> Preview output...')
         self.modelManagerButton.whenPressed = self.previewOutput
+        
+        self.spacerField = self.add(ns.TitleFixedText, name= ' ')
+
+        self.appNameField = self.add(ns.TitleFixedText, name = "Application name:")
+        self.versionField = self.add(ns.TitleFixedText, name = "Version number:")
+        self.pythonDirField = self.add(ns.TitleFixedText, name ='Python site dir:', value='')
+        self.appRootField = self.add(ns.TitleFixedText, name= 'Application root directory:')
+        self.dbConnectionField = self.add(ns.TitleFixedText, name='Database status:')
         
         
         self.sectionMenu = self.new_menu('Config Section (<tab> to exit)')
@@ -1043,10 +1041,18 @@ class MainForm(ns.ActionFormWithMenus):
         self.parentApp.setNextForm(None)   
 
     
+    def on_cancel(self):
+        self.parentApp.setNextForm(None)
+
 
 
 
 class SConfigApp(ns.NPSAppManaged):
+
+    def generateOutput(self):
+        self.directoryManager.createTargets()
+
+
     def addDatabaseConfig(self, config, alias):
         self.databaseConfigTable[alias] = config
         self.activeDatabaseConfigAlias = alias
