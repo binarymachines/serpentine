@@ -187,6 +187,7 @@ class RelationshipManager():
         parentLink = meta.ParentLinkSpec(fieldName, fieldType, parentTableName, parentFieldName)
 
 
+
 class DataSourceCreateForm(ns.ActionForm):
     def create(self):
         self.name = '::: Create DataSource for UIControls :::'
@@ -650,7 +651,7 @@ class DatabaseConfigMenuForm(ns.ActionForm):
         self.editing = False;
         self.parentApp.switchForm('MAIN')
 
-
+'''
 class DBConfigSelectDialog(ns.Popup):
     def __init__(self, *args, **keywords):
         ns.Popup.__init__(self, *args, **keywords)
@@ -658,7 +659,9 @@ class DBConfigSelectDialog(ns.Popup):
 
     def create(self):
         self.configSelector = self.add(ns.TitleSelectOne, max_height=-2, value=[1,], name='Select a database config:', values=self.configList, scroll_exit=True)
-        
+'''
+
+     
 
 class PythonEnvironment(object):
     def __init__(self):
@@ -865,6 +868,7 @@ class FormSpecManager(object):
             self.formSpecs.append(newFormConfig)
 
                   
+
 class UIControlManager(object):
     def __init__(self):
         self.uiControlConfigs = {}
@@ -887,6 +891,7 @@ class UIControlManager(object):
         if not cfg:
             raise NoSuchControlConfigException(alias)
         return cfg
+
 
 
 class DirectoryManager(object):
@@ -951,6 +956,9 @@ class MainForm(ns.ActionFormWithMenus):
         
         self.modelManagerButton = self.add(ns.ButtonPress, name='>> Preview output...')
         self.modelManagerButton.whenPressed = self.previewOutput
+
+        self.generateButton = self.add(ns.ButtonPress, name='>> Generate...')
+        self.generateButton.whenPressed = self.generateOutput
         
         self.spacerField = self.add(ns.TitleFixedText, name= ' ')
 
@@ -990,6 +998,29 @@ class MainForm(ns.ActionFormWithMenus):
     def previewOutput(self):
         self.parentApp.switchForm('PREVIEW')
       
+        
+    def generateOutput(self):
+        pass
+        # get the output dir
+        
+        # look up templates
+
+        # generate WSGI file
+
+        # generate config file
+
+        # generate controllers package
+
+        # generate datasources package
+
+        # generate responders pkg
+
+        # generate models pkg
+
+        # generate HTML content
+
+
+
 
     def loadConfigFile(self):
         dlg = ns.Popup(name='Load a Serpentine configuration file')
