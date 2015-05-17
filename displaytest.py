@@ -2,6 +2,8 @@
 
 
 import npyscreen as ns
+import jinja2
+from jinja2 import StrictUndefined
 import curses
 import os
 
@@ -11,7 +13,8 @@ import content
 import metaobjects as meta
 import environment as env
 import sconfig
-
+import serpentine_settings as settings
+import module_locator
 
 
 UICONTROL_MENU_OPTIONS = ['Create a custom data-bound HTML control', 'Browse existing HTML controls', 'Auto-create HTML select controls']
@@ -39,21 +42,22 @@ class GlobalSettingsForm(ns.ActionForm):
         self.value = None
         self.projectName  = self.add(ns.TitleText, name = "Project name:")
         self.versionNumber = self.add(ns.TitleText, name = "Version number:")
-        self.appRootSelector = self.add(ns.TitleFilenameCombo, name="Application root directory:")
+        currentDirectory = module_locator.module_path()
+        self.appRootPath = os.path.join(currentDirectory, settings.DEPLOY_DIRECTORY_NAME)
         
     def on_ok(self):
         self.editing=False
         globalSettings = {}
         globalSettings['app_name'] = self.projectName.value
-        globalSettings['app_root'] = self.appRootSelector.value
+        globalSettings['app_root'] = self.appRootPath
         globalSettings['web_app_name'] = self.projectName.value.lower()
         globalSettings['url_base'] = self.projectName.value.lower()
         globalSettings['app_version'] = self.versionNumber.value
 
         # these are local to their respective sections in the config, so they are relative paths
-        globalSettings['static_file_directory'] =  "templates"
-        globalSettings['template_directory'] = "templates"
-        globalSettings['xsl_stylesheet_directory'] = "stylesheets"
+        globalSettings['static_file_directory'] =  settings.STATIC_FILE_DIRECTORY
+        globalSettings['template_directory'] = settings.TEMPLATE_DIRECTORY
+        globalSettings['xsl_stylesheet_directory'] = settings.STYLESHEET_DIRECTORY
                        
         globalSettings['default_form_package'] = '%s_forms' % globalSettings['web_app_name'].lower()
         globalSettings['default_model_package'] = '%s_models' % globalSettings['web_app_name'].lower()
@@ -70,23 +74,14 @@ class GlobalSettingsForm(ns.ActionForm):
         xmlPath = os.path.join(globalSettings['app_root'], globalSettings['static_file_directory'], 'xml')
         xslStylesheetPath = os.path.join(globalSettings['app_root'], globalSettings['xsl_stylesheet_directory'])
             
+        self.parentApp.directoryManager.addTargetPath(globalSettings['app_root'], 'app_root')
+        self.parentApp.directoryManager.addTargetPath(staticFilePath, 'static_file_directory')
+        self.parentApp.directoryManager.addTargetPath(scriptPath, 'javascript_directory')
+        self.parentApp.directoryManager.addTargetPath(stylesPath, 'css_directory')
+        self.parentApp.directoryManager.addTargetPath(xmlPath, 'xml_directory')
+        self.parentApp.directoryManager.addTargetPath(xslStylesheetPath, 'xsl_stylesheet_directory')
+
         try:
-            if not os.path.exists(staticFilePath):
-                self.parentApp.directoryManager.addTargetPath(staticFilePath)
-                #os.system('mkdir -p %s' % staticFilePath) 
-
-            if not os.path.exists(scriptPath):
-                self.parentApp.directoryManager.addTargetPath(scriptPath)
-
-            if not os.path.exists(stylesPath):
-                self.parentApp.directoryManager.addTargetPath(stylesPath)
-
-            if not os.path.exists(xmlPath):
-                self.parentApp.directoryManager.addTargetPath(xmlPath)
-                    
-            if not os.path.exists(xslStylesheetPath):
-                self.parentApp.directoryManager.addTargetPath(xslStylesheetPath)
-
             self.parentApp.configManager.initialize(globalSettings)
         except Exception, err:
             ns.notify_confirm(err.message,
@@ -763,17 +758,6 @@ class ModelManager(object):
 
         return modelTableMap
 
-    '''
-    def generateModelClasses(self, configPackage):
-            modelPkg = os.path.join("build", "%s.py" % configPackage.default_model_package) 
-        with open(modelPkg, "a") as f:        
-            for modelName in configPackage.models:
-                f.write("\nclass %s(object): pass" % modelName)
-                f.write("\n\n")
-    '''
-
-
-
 
 
 class DataSourceManager(object):
@@ -839,6 +823,26 @@ class ConfigManager(object):
         return ''
 
 
+    def updateControllers(self, modelManager):
+        for modelName in modelManager.listModels():
+            controllerClassName = '%sController' % modelName
+            controllerAlias = modelName            
+            self.configPackage.addControllerConfig(ControllerConfig(controllerClassName, controllerAlias, controllerAlias))
+
+
+    def updateDatasources(self, datasourceManager):
+        for name in datasourceManager.listDataSources():
+            source = datasourceManager.getDataSource(name)            
+            self.configPackage.addDatasourceConfig(source, name)
+
+
+    def updateModels(self, modelManager):
+        map = modelManager.createModelTableMap()
+        for modelName in map.keys():
+            self.configPackage.addModelConfig(map[modelName], modelName)
+        
+
+
 
 class FormSpecManager(object):
     def __init__(self):
@@ -896,19 +900,30 @@ class UIControlManager(object):
 
 class DirectoryManager(object):
     def __init__(self):
-        self.directoriesToCreate = []
+        self.paths = {}
 
-    def addTargetPath(self, directoryPath):
-        self.directoriesToCreate.append(directoryPath)
+    def addTargetPath(self, directoryPath, pathAlias):
+        self.paths[pathAlias] = directoryPath
+
+    
+    def getTargetPath(self, pathAlias):
+        path = self.paths.get(pathAlias)
+        if not path:
+            raise Exception('No path registered with Directory Manager under alias %s.' % pathAlias)
+        return path
+
 
     def reset(self):
-        self.directoriesToCreate = []
+        self.paths = {}
 
     def listTargetPaths(self):
-        return self.directoriesToCreate
+        return self.paths.values()
+
+    def listTargetPathAliases(self):    
+        return self.paths.keys()
 
     def createTargets(self):
-        for path in self.directoriesToCreate:
+        for path in self.listTargetPaths():
             os.system('mkdir -p %s' % path)
 
     
@@ -998,25 +1013,84 @@ class MainForm(ns.ActionFormWithMenus):
     def previewOutput(self):
         self.parentApp.switchForm('PREVIEW')
       
+
+    def generateControllerClasses(self, configPackage, templateManager):        
+        """Generate Python package specifying the app's controller classes"""
+
+        controllerPkgFile = None
+
+        try:
+            for fConfig in configPackage.formConfigs:
+                controllerClassName = "%sController" % fConfig.model
+                controllerAlias = fConfig.model
+                modelClassName = fConfig.model
+                configPackage.controllers[controllerAlias] = ControllerConfig(controllerClassName, controllerAlias, modelClassName)
+
+            controllerPkgTemplate = templateManager.getTemplate("controllers_package.tpl")
+            controllerPkgString = controllerPkgTemplate.render(config = configPackage)
+
+            controllerPkgName = os.path.join("bootstrap", "%s_controllers.py" % configPackage.web_app_name)
+
+            controllerPkgFile = open(controllerPkgName, "w")
+            controllerPkgFile.write(controllerPkgString)
+            controllerPkgFile.close()
+        finally:
+            if controllerPkgFile:
+                controllerPkgFile.close()
+
         
     def generateOutput(self):
-        pass
-        # get the output dir
         
-        # look up templates
+        configPackage = self.parentApp.configManager.configPackage
+
+        currentLocation = module_locator.module_path()
+
+        # this is our output dir
+        #appRootDirectory = self.parentApp.directoryManager.getTargetPath('app_root')
+        outputDirectory = os.path.join(currentLocation, settings.DEPLOY_DIRECTORY_NAME)
+        
+        # get the base location for seed files (templates, etc.)
+        # TODO: change naming convention?
+        
+        
+        seedPath = os.path.join(currentLocation, settings.SEED_DIRECTORY_NAME)
+
+        j2Environment = jinja2.Environment(loader = jinja2.FileSystemLoader(seedPath), 
+                                                    undefined = StrictUndefined, cache_size=0)
+        templateMgr = content.JinjaTemplateManager(j2Environment)
 
         # generate WSGI file
+        #
+        wsgiTemplatePath = os.path.join(seedPath, settings.WSGI_TEMPLATE_FILENAME)
+        wsgiFilename = 'test.wsgi'
+        with open(os.path.join(outputDirectory, wsgiFilename), 'w') as wsgiOutputFile:
+            wsgiFileTemplate = templateMgr.getTemplate(wsgiTemplatePath)
+            wsgiData = wsgiFileTemplate.render(config = configPackage)
+            wsgiOutputFile.write(wsgiData)
 
+        
         # generate config file
+        #
+        configTemplatePath = os.path.join(seedPath, settings.CONFIG_TEMPLATE_FILENAME)        
+        templateFilename = 'test.conf'
+        with open(os.path.join(outputDirectory, templateFilename)) as templateFile:
+            configFileTemplate = templateMgr.getTemplate(configTemplatePath)
+            configData = configFileTemplate.render(config = configPackage)
+            templateFile.write(configData)
+        
+        # controllers
+        configManager.updateControllers(self.parentApp.modelManager)
 
-        # generate controllers package
+        # datasources
+        configManager.updateDatasources(self.parentApp.dataSourceManager)
 
-        # generate datasources package
+        # models
+        configManager.updateModels(self.parentApp.modelManager)
 
-        # generate responders pkg
 
-        # generate models pkg
-
+        # generate python packages for: 
+        # models, datasources, controllers, responders
+    
         # generate HTML content
 
 
