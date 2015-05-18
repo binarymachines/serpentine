@@ -1240,8 +1240,12 @@ class SConfigApp(ns.NPSAppManaged):
         self.addDatabaseConfig(newConfig, 'db01')
         
 
-if __name__ == "__main__":
-    #App = TestApp()
+def main():
     App = SConfigApp()
-    
     App.run()
+    
+
+
+if __name__ == "__main__":
+    main()
+    
