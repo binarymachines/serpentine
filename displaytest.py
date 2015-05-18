@@ -1040,8 +1040,11 @@ class MainForm(ns.ActionFormWithMenus):
 
         
     def generateOutput(self):
+
+        configManager = self.parentApp.configManager
+        configManager.updatePathInfo(self.parentApp.pythonEnvironment)
         
-        configPackage = self.parentApp.configManager.configPackage
+        #configPackage = self.parentApp.configManager.configPackage
 
         currentLocation = module_locator.module_path()
 
@@ -1051,8 +1054,7 @@ class MainForm(ns.ActionFormWithMenus):
         
         # get the base location for seed files (templates, etc.)
         # TODO: change naming convention?
-        
-        
+    
         seedPath = os.path.join(currentLocation, settings.SEED_DIRECTORY_NAME)
 
         j2Environment = jinja2.Environment(loader = jinja2.FileSystemLoader(seedPath), 
@@ -1064,7 +1066,7 @@ class MainForm(ns.ActionFormWithMenus):
         wsgiTemplatePath = os.path.join(seedPath, settings.WSGI_TEMPLATE_FILENAME)
         wsgiFilename = 'test.wsgi'
         with open(os.path.join(outputDirectory, wsgiFilename), 'w') as wsgiOutputFile:
-            wsgiFileTemplate = templateMgr.getTemplate(wsgiTemplatePath)
+            wsgiFileTemplate = templateMgr.getTemplate(settings.WSGI_TEMPLATE_FILENAME)
             wsgiData = wsgiFileTemplate.render(config = configPackage)
             wsgiOutputFile.write(wsgiData)
 
