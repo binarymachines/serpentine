@@ -95,10 +95,6 @@ class ConfigurationPackage(object):
         pass
       
 
-    #def getStylesheetPath(self):
-    #raise Exception('accessing stylesheet_path value. Environment reads: %s' % self.environment.getStylesheetPath())
-
-
     app_name = property(lambda self: self.environment.getAppName())
     app_root = property(lambda self: self.environment.getAppRoot())
     app_version = property(lambda self: self.environment.getAppVersion())

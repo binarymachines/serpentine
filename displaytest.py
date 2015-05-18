@@ -2,6 +2,8 @@
 
 
 import npyscreen as ns
+import jinja2
+from jinja2 import StrictUndefined
 import curses
 import os
 
@@ -11,7 +13,8 @@ import content
 import metaobjects as meta
 import environment as env
 import sconfig
-
+import serpentine_settings as settings
+import module_locator
 
 
 UICONTROL_MENU_OPTIONS = ['Create a custom data-bound HTML control', 'Browse existing HTML controls', 'Auto-create HTML select controls']
@@ -39,21 +42,22 @@ class GlobalSettingsForm(ns.ActionForm):
         self.value = None
         self.projectName  = self.add(ns.TitleText, name = "Project name:")
         self.versionNumber = self.add(ns.TitleText, name = "Version number:")
-        self.appRootSelector = self.add(ns.TitleFilenameCombo, name="Application root directory:")
+        currentDirectory = module_locator.module_path()
+        self.appRootPath = os.path.join(currentDirectory, settings.DEPLOY_DIRECTORY_NAME)
         
     def on_ok(self):
         self.editing=False
         globalSettings = {}
         globalSettings['app_name'] = self.projectName.value
-        globalSettings['app_root'] = self.appRootSelector.value
+        globalSettings['app_root'] = self.appRootPath
         globalSettings['web_app_name'] = self.projectName.value.lower()
         globalSettings['url_base'] = self.projectName.value.lower()
         globalSettings['app_version'] = self.versionNumber.value
 
         # these are local to their respective sections in the config, so they are relative paths
-        globalSettings['static_file_directory'] =  "templates"
-        globalSettings['template_directory'] = "templates"
-        globalSettings['xsl_stylesheet_directory'] = "stylesheets"
+        globalSettings['static_file_directory'] =  settings.STATIC_FILE_DIRECTORY
+        globalSettings['template_directory'] = settings.TEMPLATE_DIRECTORY
+        globalSettings['xsl_stylesheet_directory'] = settings.STYLESHEET_DIRECTORY
                        
         globalSettings['default_form_package'] = '%s_forms' % globalSettings['web_app_name'].lower()
         globalSettings['default_model_package'] = '%s_models' % globalSettings['web_app_name'].lower()
@@ -70,23 +74,14 @@ class GlobalSettingsForm(ns.ActionForm):
         xmlPath = os.path.join(globalSettings['app_root'], globalSettings['static_file_directory'], 'xml')
         xslStylesheetPath = os.path.join(globalSettings['app_root'], globalSettings['xsl_stylesheet_directory'])
             
+        self.parentApp.directoryManager.addTargetPath(globalSettings['app_root'], 'app_root')
+        self.parentApp.directoryManager.addTargetPath(staticFilePath, 'static_file_directory')
+        self.parentApp.directoryManager.addTargetPath(scriptPath, 'javascript_directory')
+        self.parentApp.directoryManager.addTargetPath(stylesPath, 'css_directory')
+        self.parentApp.directoryManager.addTargetPath(xmlPath, 'xml_directory')
+        self.parentApp.directoryManager.addTargetPath(xslStylesheetPath, 'xsl_stylesheet_directory')
+
         try:
-            if not os.path.exists(staticFilePath):
-                self.parentApp.directoryManager.addTargetPath(staticFilePath)
-                #os.system('mkdir -p %s' % staticFilePath) 
-
-            if not os.path.exists(scriptPath):
-                self.parentApp.directoryManager.addTargetPath(scriptPath)
-
-            if not os.path.exists(stylesPath):
-                self.parentApp.directoryManager.addTargetPath(stylesPath)
-
-            if not os.path.exists(xmlPath):
-                self.parentApp.directoryManager.addTargetPath(xmlPath)
-                    
-            if not os.path.exists(xslStylesheetPath):
-                self.parentApp.directoryManager.addTargetPath(xslStylesheetPath)
-
             self.parentApp.configManager.initialize(globalSettings)
         except Exception, err:
             ns.notify_confirm(err.message,
@@ -187,6 +182,7 @@ class RelationshipManager():
         parentLink = meta.ParentLinkSpec(fieldName, fieldType, parentTableName, parentFieldName)
 
 
+
 class DataSourceCreateForm(ns.ActionForm):
     def create(self):
         self.name = '::: Create DataSource for UIControls :::'
@@ -213,7 +209,7 @@ class DataSourceCreateForm(ns.ActionForm):
     def selectTable(self):
         availableTables = self.parentApp.liveDBInstance.listTables()
         dlg = ns.Popup(name='Database tables')
-        tableSelector = dlg.add_widget(ns.TitleSelectOne, max_height=6, value = [1,], name="Select a source table for the DataSource:",
+        tableSelector = dlg.add_widget(ns.TitleSelectOne, max_height=6, name="Select a source table for the DataSource:",
                 values = availableTables, scroll_exit=True)
         dlg.edit()
         self.sourceTableName = availableTables[tableSelector.get_value()[0]]
@@ -241,7 +237,7 @@ class DataSourceCreateForm(ns.ActionForm):
             dlg = ns.Popup(name='Configure Menu-type DataSource')
             nameFieldSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [1,], name="Name field:",
                 values = tableColumns, scroll_exit=True)
-            valueFieldSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [1,], name="Value field:",
+            valueFieldSelector = dlg.add_widget(ns.TitleSelectOne, max_height=-2, value = [0,], name="Value field:",
                 values = tableColumns, scroll_exit=True)
                            
             dlg.edit()
@@ -257,7 +253,7 @@ class DataSourceCreateForm(ns.ActionForm):
             
             availableFields = sourceTable.columns
             dlg = ns.Popup(name='Configure Table-type DataSource')
-            fieldSelector = dlg.add_widget(ns.TitleMultiSelect, max_height =-2, value = [1,], name="Select source fields for this DataSource",
+            fieldSelector = dlg.add_widget(ns.TitleMultiSelect, max_height =-2, name="Select source fields for this DataSource",
                 values = availableFields, scroll_exit=True)
             
             dlg.edit()
@@ -365,7 +361,7 @@ class UIControlCreateForm(ns.ActionForm):
     def create(self):
         self.name =  "::: Create UIControl :::"
         self.controlNameField = self.add(ns.TitleText, name='Control name:')
-        self.controlTypeSelector = self.add(ns.TitleSelectOne, name='Control type:', max_height=4, value = [1,],
+        self.controlTypeSelector = self.add(ns.TitleSelectOne, name='Control type:', max_height=4,
                 values = UICONTROL_TYPE_OPTIONS, scroll_exit=True)
 
         self.add(ns.TitleText, name=' ')
@@ -485,7 +481,7 @@ class SiteDirConfigForm(ns.ActionForm):
     def create(self):
         self.checkboxAnswers = ['Yes', 'No']
         
-        self.usingVirtualEnvWrapperCheckbox = self.add(ns.TitleSelectOne, max_height=4, value = [1,], name="Are you using virtualenvwrapper?",
+        self.usingVirtualEnvWrapperCheckbox = self.add(ns.TitleSelectOne, max_height=4, name="Are you using virtualenvwrapper?",
                 values = self.checkboxAnswers, scroll_exit=True)
         self.add(ns.FixedText, value='( If you are NOT using virtualenvwrapper, please select your Python site directory below. )')
         self.siteDirSelector = self.add(ns.TitleFilenameCombo, name='Python site directory:')
@@ -505,8 +501,7 @@ class SiteDirConfigForm(ns.ActionForm):
                     environments.append(f)
             dlg = ns.Popup(name='Select Python Virtual Environment')
             virtualEnvSelector = dlg.add_widget(ns.TitleSelectOne,
-                                           max_height=-2,
-                                           value = [1,],
+                                           max_height=-2,                                          
                                            name="Select the virtualenv you will use for this app:",
                                            values = environments, scroll_exit=False)
             virtualEnvSelector.set_value(0)
@@ -516,8 +511,7 @@ class SiteDirConfigForm(ns.ActionForm):
             
             versionDlg = ns.Popup(name='Select Python version')
             versionSelector = versionDlg.add_widget(ns.TitleSelectOne,
-                                            max_height=-2,
-                                            value=[1,],
+                                            max_height=-2,                                            
                                             name='Version:',
                                             values=pyVersions)
             versionDlg.edit()
@@ -542,7 +536,7 @@ class ModelSelectForm(ns.ActionForm):
         self.canSelectTables = False
         self.value = None
         self.name = 'Model Configuration'
-        self.tableSelector = self.add(ns.TitleMultiSelect, max_height =-2, value = [1,], name="Select One Or More Tables",
+        self.tableSelector = self.add(ns.TitleMultiSelect, max_height =-2, name="Select One Or More Tables",
                 values = [], scroll_exit=False)
 
 
@@ -652,7 +646,7 @@ class DatabaseConfigMenuForm(ns.ActionForm):
         self.editing = False;
         self.parentApp.switchForm('MAIN')
 
-
+'''
 class DBConfigSelectDialog(ns.Popup):
     def __init__(self, *args, **keywords):
         ns.Popup.__init__(self, *args, **keywords)
@@ -660,7 +654,9 @@ class DBConfigSelectDialog(ns.Popup):
 
     def create(self):
         self.configSelector = self.add(ns.TitleSelectOne, max_height=-2, value=[1,], name='Select a database config:', values=self.configList, scroll_exit=True)
-        
+'''
+
+     
 
 class PythonEnvironment(object):
     def __init__(self):
@@ -762,17 +758,6 @@ class ModelManager(object):
 
         return modelTableMap
 
-    '''
-    def generateModelClasses(self, configPackage):
-            modelPkg = os.path.join("build", "%s.py" % configPackage.default_model_package) 
-        with open(modelPkg, "a") as f:        
-            for modelName in configPackage.models:
-                f.write("\nclass %s(object): pass" % modelName)
-                f.write("\n\n")
-    '''
-
-
-
 
 
 class DataSourceManager(object):
@@ -838,6 +823,26 @@ class ConfigManager(object):
         return ''
 
 
+    def updateControllers(self, modelManager):
+        for modelName in modelManager.listModels():
+            controllerClassName = '%sController' % modelName
+            controllerAlias = modelName            
+            self.configPackage.addControllerConfig(ControllerConfig(controllerClassName, controllerAlias, controllerAlias))
+
+
+    def updateDatasources(self, datasourceManager):
+        for name in datasourceManager.listDataSources():
+            source = datasourceManager.getDataSource(name)            
+            self.configPackage.addDatasourceConfig(source, name)
+
+
+    def updateModels(self, modelManager):
+        map = modelManager.createModelTableMap()
+        for modelName in map.keys():
+            self.configPackage.addModelConfig(map[modelName], modelName)
+        
+
+
 
 class FormSpecManager(object):
     def __init__(self):
@@ -867,6 +872,7 @@ class FormSpecManager(object):
             self.formSpecs.append(newFormConfig)
 
                   
+
 class UIControlManager(object):
     def __init__(self):
         self.uiControlConfigs = {}
@@ -891,21 +897,33 @@ class UIControlManager(object):
         return cfg
 
 
+
 class DirectoryManager(object):
     def __init__(self):
-        self.directoriesToCreate = []
+        self.paths = {}
 
-    def addTargetPath(self, directoryPath):
-        self.directoriesToCreate.append(directoryPath)
+    def addTargetPath(self, directoryPath, pathAlias):
+        self.paths[pathAlias] = directoryPath
+
+    
+    def getTargetPath(self, pathAlias):
+        path = self.paths.get(pathAlias)
+        if not path:
+            raise Exception('No path registered with Directory Manager under alias %s.' % pathAlias)
+        return path
+
 
     def reset(self):
-        self.directoriesToCreate = []
+        self.paths = {}
 
     def listTargetPaths(self):
-        return self.directoriesToCreate
+        return self.paths.values()
+
+    def listTargetPathAliases(self):    
+        return self.paths.keys()
 
     def createTargets(self):
-        for path in self.directoriesToCreate:
+        for path in self.listTargetPaths():
             os.system('mkdir -p %s' % path)
 
     
@@ -944,14 +962,6 @@ class MainForm(ns.ActionFormWithMenus):
     def create(self):
         self.value = None
         self.name =  "::: sconfig: Serpentine Configuration Tool :::"
-        
-        
-        self.appNameField = self.add(ns.TitleFixedText, name = "Application name:")
-        self.versionField = self.add(ns.TitleFixedText, name = "Version number:")
-        self.pythonDirField = self.add(ns.TitleFixedText, name ='Python site dir:', value='')
-        self.appRootField = self.add(ns.TitleFixedText, name= 'Application root directory:')
-        self.dbConnectionField = self.add(ns.TitleFixedText, name='Database status:')
-        self.spacerField = self.add(ns.TitleFixedText, name= ' ')
 
         self.dbConnectButton = self.add(ns.ButtonPress, name='>> Connect to database...')        
         self.dbConnectButton.whenPressed = self.connectToDB
@@ -961,6 +971,17 @@ class MainForm(ns.ActionFormWithMenus):
         
         self.modelManagerButton = self.add(ns.ButtonPress, name='>> Preview output...')
         self.modelManagerButton.whenPressed = self.previewOutput
+
+        self.generateButton = self.add(ns.ButtonPress, name='>> Generate...')
+        self.generateButton.whenPressed = self.generateOutput
+        
+        self.spacerField = self.add(ns.TitleFixedText, name= ' ')
+
+        self.appNameField = self.add(ns.TitleFixedText, name = "Application name:")
+        self.versionField = self.add(ns.TitleFixedText, name = "Version number:")
+        self.pythonDirField = self.add(ns.TitleFixedText, name ='Python site dir:', value='')
+        self.appRootField = self.add(ns.TitleFixedText, name= 'Application root directory:')
+        self.dbConnectionField = self.add(ns.TitleFixedText, name='Database status:')
         
         
         self.sectionMenu = self.new_menu('Config Section (<tab> to exit)')
@@ -992,6 +1013,88 @@ class MainForm(ns.ActionFormWithMenus):
     def previewOutput(self):
         self.parentApp.switchForm('PREVIEW')
       
+
+    def generateControllerClasses(self, configPackage, templateManager):        
+        """Generate Python package specifying the app's controller classes"""
+
+        controllerPkgFile = None
+
+        try:
+            for fConfig in configPackage.formConfigs:
+                controllerClassName = "%sController" % fConfig.model
+                controllerAlias = fConfig.model
+                modelClassName = fConfig.model
+                configPackage.controllers[controllerAlias] = ControllerConfig(controllerClassName, controllerAlias, modelClassName)
+
+            controllerPkgTemplate = templateManager.getTemplate("controllers_package.tpl")
+            controllerPkgString = controllerPkgTemplate.render(config = configPackage)
+
+            controllerPkgName = os.path.join("bootstrap", "%s_controllers.py" % configPackage.web_app_name)
+
+            controllerPkgFile = open(controllerPkgName, "w")
+            controllerPkgFile.write(controllerPkgString)
+            controllerPkgFile.close()
+        finally:
+            if controllerPkgFile:
+                controllerPkgFile.close()
+
+        
+    def generateOutput(self):
+        
+        configPackage = self.parentApp.configManager.configPackage
+
+        currentLocation = module_locator.module_path()
+
+        # this is our output dir
+        #appRootDirectory = self.parentApp.directoryManager.getTargetPath('app_root')
+        outputDirectory = os.path.join(currentLocation, settings.DEPLOY_DIRECTORY_NAME)
+        
+        # get the base location for seed files (templates, etc.)
+        # TODO: change naming convention?
+        
+        
+        seedPath = os.path.join(currentLocation, settings.SEED_DIRECTORY_NAME)
+
+        j2Environment = jinja2.Environment(loader = jinja2.FileSystemLoader(seedPath), 
+                                                    undefined = StrictUndefined, cache_size=0)
+        templateMgr = content.JinjaTemplateManager(j2Environment)
+
+        # generate WSGI file
+        #
+        wsgiTemplatePath = os.path.join(seedPath, settings.WSGI_TEMPLATE_FILENAME)
+        wsgiFilename = 'test.wsgi'
+        with open(os.path.join(outputDirectory, wsgiFilename), 'w') as wsgiOutputFile:
+            wsgiFileTemplate = templateMgr.getTemplate(wsgiTemplatePath)
+            wsgiData = wsgiFileTemplate.render(config = configPackage)
+            wsgiOutputFile.write(wsgiData)
+
+        
+        # generate config file
+        #
+        configTemplatePath = os.path.join(seedPath, settings.CONFIG_TEMPLATE_FILENAME)        
+        templateFilename = 'test.conf'
+        with open(os.path.join(outputDirectory, templateFilename)) as templateFile:
+            configFileTemplate = templateMgr.getTemplate(configTemplatePath)
+            configData = configFileTemplate.render(config = configPackage)
+            templateFile.write(configData)
+        
+        # controllers
+        configManager.updateControllers(self.parentApp.modelManager)
+
+        # datasources
+        configManager.updateDatasources(self.parentApp.dataSourceManager)
+
+        # models
+        configManager.updateModels(self.parentApp.modelManager)
+
+
+        # generate python packages for: 
+        # models, datasources, controllers, responders
+    
+        # generate HTML content
+
+
+
 
     def loadConfigFile(self):
         dlg = ns.Popup(name='Load a Serpentine configuration file')
@@ -1043,10 +1146,18 @@ class MainForm(ns.ActionFormWithMenus):
         self.parentApp.setNextForm(None)   
 
     
+    def on_cancel(self):
+        self.parentApp.setNextForm(None)
+
 
 
 
 class SConfigApp(ns.NPSAppManaged):
+
+    def generateOutput(self):
+        self.directoryManager.createTargets()
+
+
     def addDatabaseConfig(self, config, alias):
         self.databaseConfigTable[alias] = config
         self.activeDatabaseConfigAlias = alias
@@ -1129,8 +1240,12 @@ class SConfigApp(ns.NPSAppManaged):
         self.addDatabaseConfig(newConfig, 'db01')
         
 
-if __name__ == "__main__":
-    #App = TestApp()
+def main():
     App = SConfigApp()
-    
     App.run()
+    
+
+
+if __name__ == "__main__":
+    main()
+    
