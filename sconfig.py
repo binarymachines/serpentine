@@ -30,6 +30,8 @@ class ConfigurationPackage(object):
     
             #self.startup_db = None
             self.environment = environment
+            self.site_packages_directory = None 
+            #property(lambda self: self.environment.sitePackagesDirectory)
             self.frames = {}
             self.datasources = {}
             self.models = {}
@@ -98,7 +100,7 @@ class ConfigurationPackage(object):
     app_name = property(lambda self: self.environment.getAppName())
     app_root = property(lambda self: self.environment.getAppRoot())
     app_version = property(lambda self: self.environment.getAppVersion())
-    site_packages_directory = property(lambda self: self.environment.sitePackagesDirectory)
+    
     
     web_app_name = property(lambda self: self.environment.getURLBase())
     hostname = property(lambda self: self.environment.hostname)

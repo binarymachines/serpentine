@@ -823,6 +823,10 @@ class ConfigManager(object):
         return ''
 
 
+    def updatePythonPathInfo(self, pythonEnvironment):
+        self.configPackage.site_packages_directory = pythonEnvironment.siteDirectory
+
+
     def updateControllers(self, modelManager):
         for modelName in modelManager.listModels():
             controllerClassName = '%sController' % modelName
@@ -1042,9 +1046,9 @@ class MainForm(ns.ActionFormWithMenus):
     def generateOutput(self):
 
         configManager = self.parentApp.configManager
-        configManager.updatePathInfo(self.parentApp.pythonEnvironment)
+        configManager.updatePythonPathInfo(self.parentApp.pythonEnvironment)
         
-        #configPackage = self.parentApp.configManager.configPackage
+        configPackage = configManager.configPackage
 
         currentLocation = module_locator.module_path()
 
