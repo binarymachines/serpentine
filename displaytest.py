@@ -1066,8 +1066,7 @@ class MainForm(ns.ActionFormWithMenus):
         templateMgr = content.JinjaTemplateManager(j2Environment)
 
         # generate WSGI file
-        #
-        wsgiTemplatePath = os.path.join(seedPath, settings.WSGI_TEMPLATE_FILENAME)
+        #        
         wsgiFilename = 'test.wsgi'
         with open(os.path.join(outputDirectory, wsgiFilename), 'w') as wsgiOutputFile:
             wsgiFileTemplate = templateMgr.getTemplate(settings.WSGI_TEMPLATE_FILENAME)
@@ -1077,10 +1076,10 @@ class MainForm(ns.ActionFormWithMenus):
         
         # generate config file
         #
-        configTemplatePath = os.path.join(seedPath, settings.CONFIG_TEMPLATE_FILENAME)        
+               
         templateFilename = 'test.conf'
-        with open(os.path.join(outputDirectory, templateFilename)) as templateFile:
-            configFileTemplate = templateMgr.getTemplate(configTemplatePath)
+        with open(os.path.join(outputDirectory, templateFilename), 'w') as templateFile:
+            configFileTemplate = templateMgr.getTemplate(settings.CONFIG_TEMPLATE_FILENAME)
             configData = configFileTemplate.render(config = configPackage)
             templateFile.write(configData)
         
