@@ -718,6 +718,29 @@ class ModelManager(object):
         raise Exception('Model generator is not initialized.')
 
 
+    def convertTableNameToModelName(self, tableName):
+          """Convert an underscore-style db table name to a camel-cased class name."""
+
+          # plural to singular
+          tempName = tableName
+          if tableName[-3:] == 'ies':
+              tempName = tableName[0:-3] + 'y'
+          elif tableName[-2:] == 'es':
+              tempName = tableName[0:-2] 
+          elif tableName[-1:] == 's':
+              tempName = tableName[0:-1]
+
+          # remove the underscore separator and camel-case any compound names
+          underscoreIndex = tempName.find('_')
+          if underscoreIndex != -1:
+              pieces = [tempName[0: underscoreIndex].capitalize(), tempName[underscoreIndex+1:].capitalize()]
+              className = ''.join(pieces)
+          else:       
+              className = tempName.capitalize()
+
+          return className
+
+
     def addTable(self, table):
         self.tableSet.add(table)
         
@@ -831,7 +854,7 @@ class ConfigManager(object):
         for modelName in modelManager.listModels():
             controllerClassName = '%sController' % modelName
             controllerAlias = modelName            
-            self.configPackage.addControllerConfig(ControllerConfig(controllerClassName, controllerAlias, controllerAlias))
+            self.configPackage.addControllerConfig(meta.ControllerConfig(controllerClassName, controllerAlias, controllerAlias))
 
 
     def updateDatasources(self, datasourceManager):
@@ -843,7 +866,7 @@ class ConfigManager(object):
     def updateModels(self, modelManager):
         map = modelManager.createModelTableMap()
         for modelName in map.keys():
-            self.configPackage.addModelConfig(map[modelName], modelName)
+            self.configPackage.addModelConfig(map[modelName])
         
 
 
@@ -1075,8 +1098,7 @@ class MainForm(ns.ActionFormWithMenus):
 
         
         # generate config file
-        #
-               
+        #               
         templateFilename = 'test.conf'
         with open(os.path.join(outputDirectory, templateFilename), 'w') as templateFile:
             configFileTemplate = templateMgr.getTemplate(settings.CONFIG_TEMPLATE_FILENAME)

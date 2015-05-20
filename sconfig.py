@@ -31,7 +31,7 @@ class ConfigurationPackage(object):
             #self.startup_db = None
             self.environment = environment
             self.site_packages_directory = None 
-            #property(lambda self: self.environment.sitePackagesDirectory)
+            self.default_plugin_package = 'plugins'
             self.frames = {}
             self.datasources = {}
             self.models = {}
